@@ -26,7 +26,7 @@ const UI = {
     });
     $('#sheetClose').addEventListener('click', () => this.closeSheet());
     window.addEventListener('resize', () => this.placeCamCtl());
-    $('#bulkTool').addEventListener('click', () => { const t = this.state.tool; if (t && ['floor', 'wall', 'ceil'].includes(t.kind)) { Game.paintAll(t.kind, t.id); this.syncToolbar(); } });
+    $('#bulkTool').addEventListener('click', () => this.selectAll());
     matchMedia('(max-width: 860px)').addEventListener?.('change', () => this.closeSheet());
     $('#speed').addEventListener('click', e => {
       const b = e.target.closest('[data-speed]'); if (!b) return;
@@ -104,8 +104,9 @@ const UI = {
   },
   setTool(tool) {
     const prev = this.state.tool;
-    if (prev && prev !== tool && prev.cells && prev.cells.size) this.toast(`확정하지 않은 ${prev.kind === 'erase' ? '철거' : '배관'} ${prev.cells.size}칸은 취소됐어요`);
-    if (tool && (tool.kind === 'pipe' || tool.kind === 'erase')) tool.cells ??= new Set();
+    if (prev && prev !== tool && this.pending(prev) && prev.kind !== 'object' && prev.kind !== 'move') this.toast(`확정하지 않은 ${prev.kind === 'remove' ? `철거 ${prev.picks.size}개` : `${prev.kind === 'erase' ? '배관 철거' : prev.kind === 'pipe' ? '배관' : '칠하기'} ${prev.cells.size}칸`}는 취소됐어요`);
+    if (tool && ['pipe', 'erase', 'floor', 'wall', 'ceil'].includes(tool.kind)) tool.cells ??= new Set();
+    if (tool && tool.kind === 'remove') tool.picks ??= new Set();
     this.state.tool = tool;
     if (tool && tool !== prev) this.closeSheet();   // 배치할 때는 맵 화면으로
     document.querySelectorAll('.card[data-key]').forEach(c => c.classList.toggle('sel', !!tool && c.dataset.key === this.toolKey(tool)));
@@ -115,9 +116,19 @@ const UI = {
   pending(t = this.state.tool) {
     if (!t) return false;
     if (t.kind === 'object' || t.kind === 'move') return t.px != null;
-    if (t.kind === 'pipe' || t.kind === 'erase') return t.cells.size > 0;
+    if (t.cells) return t.cells.size > 0;
+    if (t.picks) return t.picks.size > 0;
     return false;
   },
+  isPaint(t = this.state.tool) { return !!t && ['floor', 'wall', 'ceil'].includes(t.kind); },
+  // 칠하기: 칠할 수 있는 칸 전체를 고른다 (✓ 로 확정)
+  selectAll() {
+    const t = this.state.tool; if (!this.isPaint(t)) return;
+    const s = Game.s;
+    for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) if (Game.paintable(t.kind, x, y, t.id)) t.cells.add(Game.idx(x, y));
+    this.syncToolbar(); this.refreshLive();
+  },
+  removePicks(t) { return [...t.picks].map(uid => Game.s.objects.find(o => o.uid === uid)).filter(Boolean); },
   pendingOk(t = this.state.tool) {
     if (!this.pending(t)) return false;
     if (t.kind === 'object' || t.kind === 'move') return Game.canPlace(t.id, t.px, t.py, t.uid || 0, t.rot || 0).ok;
@@ -127,7 +138,8 @@ const UI = {
     const t = this.state.tool, pend = this.pending(t);
     const hint = !t ? '오브젝트를 클릭해서 사용 · 도구를 골라 건설'
       : t.kind === 'object' || t.kind === 'move' ? `${this.toolName(t)} — ${pend ? '끌어서 위치 조정 · ✓ 로 확정' : '놓을 곳을 누르세요'}`
-      : t.kind === 'pipe' || t.kind === 'erase' ? `${this.toolName(t)} — 드래그로 칸 선택 · 선택한 칸을 다시 누르면 빠짐 · ✓ 로 확정`
+      : t.cells ? `${this.toolName(t)} — 드래그로 칸 선택 · 선택한 칸을 다시 누르면 빠짐 · ✓ 로 확정`
+      : t.kind === 'remove' ? '오브젝트 철거 — 치울 것을 눌러 고르고(다시 누르면 빠짐) ✓ 로 확정'
       : `${this.toolName(t)} — 맵을 클릭/드래그 · ESC/우클릭 취소`;
     $('#toolHint').textContent = hint;
     $('#cancelTool').hidden = !t;
@@ -137,12 +149,12 @@ const UI = {
     requestAnimationFrame(() => this.placeCamCtl());
     const bk = $('#bulkTool');
     if (bk) {
-      const paint = t && ['floor', 'wall', 'ceil'].includes(t.kind);
+      const paint = this.isPaint(t);
       bk.hidden = !paint;
       if (paint) {
         const inf = Game.paintAllInfo(t.kind, t.id);
-        bk.textContent = inf.n ? `🖌 전체 ${inf.n}칸 (${fmt(inf.cost)})` : '🖌 전부 이 재질';
-        bk.disabled = !inf.n || Game.s.money < inf.cost;
+        bk.textContent = inf.n ? `🖌 전체 선택 (${inf.n}칸)` : '🖌 전부 이 재질';
+        bk.disabled = !inf.n || t.cells.size >= inf.n;
       }
     }
     const ok = $('#okTool'); if (!ok) return;
@@ -153,6 +165,8 @@ const UI = {
     ok.textContent = t.kind === 'object' ? `✓ 설치 (${fmt(DATA.objects[t.id].cost)})`
       : t.kind === 'move' ? '✓ 여기에 두기'
       : t.kind === 'pipe' ? `✓ ${t.cells.size}칸 깔기 (${fmt(t.cells.size * DATA.pipes[t.type].cost)})`
+      : this.isPaint(t) ? `✓ ${t.cells.size}칸 칠하기 (${fmt(t.cells.size * { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[t.kind][t.id].cost)})`
+      : t.kind === 'remove' ? `✓ ${t.picks.size}개 철거 (+${fmt(this.removePicks(t).reduce((a, o) => a + Math.floor(DATA.objects[o.id].cost / 2), 0))})`
       : `✓ ${t.cells.size}칸 철거`;
     ok.title = good ? 'Enter' : Game.canPlace(t.id, t.px, t.py, t.uid || 0, t.rot || 0).why;
   },
@@ -166,6 +180,11 @@ const UI = {
       const o = Game.s.objects.find(q => q.uid === t.uid);
       if (!o) return this.setTool(null);
       if (Game.moveObject(o, t.px, t.py, t.rot || 0)) return this.setTool(t.fromEdit ? { kind: 'edit' } : null);
+    } else if (this.isPaint(t)) {
+      if (Game.paintCells(t.kind, t.id, [...t.cells])) t.cells.clear();
+    } else if (t.kind === 'remove') {
+      for (const o of this.removePicks(t)) if (Game.s.objects.includes(o)) Game.removeObject(o);
+      t.picks.clear(); Game.save();
     } else if (t.kind === 'pipe') {
       if (Game.placePipes(t.type, [...t.cells])) { t.cells.clear(); Game.save(); }
     } else if (t.kind === 'erase') {
@@ -177,7 +196,7 @@ const UI = {
   // ✕: 미확정 자리가 있으면 그것만 지우고, 없으면 도구 해제
   cancelTool() {
     const t = this.state.tool;
-    if (t && this.pending(t) && t.kind !== 'move') { if (t.cells) t.cells.clear(); else t.px = t.py = null; return this.syncToolbar(); }
+    if (t && this.pending(t) && t.kind !== 'move') { if (t.cells) t.cells.clear(); else if (t.picks) t.picks.clear(); else t.px = t.py = null; this.refreshLive(); return this.syncToolbar(); }
     this.setTool(t && t.kind === 'move' && t.fromEdit ? { kind: 'edit' } : null);
   },
   rotateTool() {
@@ -404,9 +423,9 @@ const UI = {
         if (tl && tl.kind === sub) {
           const tbl = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[sub], inf = Game.paintAllInfo(sub, tl.id);
           const where = sub === 'wall' ? '바깥 벽 전체' : sub === 'ceil' ? '천장 전체' : '바닥 전체';
-          lbk.replaceChildren(h('button', { class: 'btn big', disabled: !inf.n || s.money < inf.cost, onclick: () => Game.paintAll(sub, tl.id) },
-            inf.n ? `🖌 ${tbl[tl.id].name} → ${where} 일괄 적용 (${inf.n}칸 · 🪙${fmt(inf.cost)})` : '이미 전부 이 재질'));
-        } else lbk.replaceChildren(h('div', { class: 'dim' }, '재질 카드를 고르면 전체 일괄 적용 버튼이 나옵니다.'));
+          lbk.replaceChildren(h('button', { class: 'btn big', disabled: !inf.n, onclick: () => this.selectAll() },
+            inf.n ? `🖌 ${tbl[tl.id].name} → ${where} 선택 (${inf.n}칸 · 🪙${fmt(inf.cost)}) — 아래 ✓ 로 확정` : '이미 전부 이 재질'));
+        } else lbk.replaceChildren(h('div', { class: 'dim' }, '재질 카드를 고르면 전체 선택 버튼이 나옵니다.'));
       }
     }
     const lo = $('#live-ops');
@@ -572,14 +591,18 @@ const UI = {
         gesture = { kind: 'place', ox: inside ? t.x - tool.px : 0, oy: inside ? t.y - tool.py : 0 };
         if (!inside && Game.inGrid(t.x, t.y)) { tool.px = t.x; tool.py = t.y; }
         this.syncToolbar();
-      } else if (tool && (tool.kind === 'pipe' || tool.kind === 'erase')) {
+      } else if (tool && tool.cells) {
         // 이미 고른 칸에서 시작하면 드래그로 빼고, 아니면 더한다
         const i = Game.inGrid(t.x, t.y) ? Game.idx(t.x, t.y) : -1;
         gesture = { kind: 'select', add: !tool.cells.has(i) };
         this.selectCell(t.x, t.y, gesture.add);
+      } else if (tool && tool.kind === 'remove') {
+        // 철거: 누른 오브젝트를 고르거나 뺀다
+        gesture = { kind: 'paint' };
+        const ceil = this.state.sub === 'ceil' && this.state.mode === 'interior';
+        const o = Game.inGrid(t.x, t.y) && ((ceil ? Game.objAt(t.x, t.y, 'ceil') : Game.objAt(t.x, t.y, 'top') || Game.objAt(t.x, t.y, 'wall') || Game.objAt(t.x, t.y, 'floor')) || Game.objAt(t.x, t.y, 'ceil'));
+        if (o) { tool.picks.has(o.uid) ? tool.picks.delete(o.uid) : tool.picks.add(o.uid); this.syncToolbar(); }
       } else if (tool) {
-        const k = tool.kind;
-        this.painting = ['floor', 'wall', 'ceil'].includes(k);
         gesture = { kind: 'paint' };
         this.applyTool(t.x, t.y, false);
       } else gesture = { kind: 'maybe', x: e.clientX, y: e.clientY, moved: 0, ev: e, t };
@@ -633,24 +656,24 @@ const UI = {
     const t = this.state.tool; if (!t) return;
     if (!Game.inGrid(x, y)) return;
     const k = t.kind;
-    if (k === 'floor' || k === 'wall' || k === 'ceil') Game.paint(k, x, y, t.id);
-    else if (k === 'edit' && !dragging) {
+    if (k === 'edit' && !dragging) {
       // 편집 도구: 클릭한 오브젝트를 들어 올린다 (천장 보기면 천장 오브젝트)
       const ceil = this.state.mode === 'interior' && this.state.sub === 'ceil';
       let o = (ceil ? Game.objAt(x, y, 'ceil') : Game.objAt(x, y, 'top') || Game.objAt(x, y, 'wall') || Game.objAt(x, y, 'floor')) || (!ceil && Game.inGrid(x, y + 1) && (() => { const b = Game.objAt(x, y + 1); return b && Sprites.object(b.id).tall >= 8 ? b : null; })());
       if (o) this.setTool({ kind: 'move', id: o.id, uid: o.uid, rot: o.rot || 0, px: o.x, py: o.y, fromEdit: true });
-    }
-    else if (k === 'remove' && !dragging) {
-      const o = (this.state.sub === 'ceil' && this.state.mode === 'interior' ? Game.objAt(x, y, 'ceil') : Game.objAt(x, y, 'top') || Game.objAt(x, y, 'wall') || Game.objAt(x, y, 'floor')) || Game.objAt(x, y, 'ceil');
-      if (o) { Game.removeObject(o); Game.save(); }
     }
   },
 
   // 배관 도구: 칸을 미확정 목록에 넣거나 뺀다
   selectCell(x, y, add) {
     const t = this.state.tool;
-    if (!t || !t.cells || !Game.isInterior(x, y)) return;
+    if (!t || !t.cells || !Game.inGrid(x, y)) return;
     const i = Game.idx(x, y);
+    if (this.isPaint(t)) {
+      if (add) { if (!Game.paintable(t.kind, x, y, t.id)) return; t.cells.add(i); } else t.cells.delete(i);
+      return this.syncToolbar();
+    }
+    if (!Game.isInterior(x, y)) return;
     if (add) {
       const has = t.kind === 'pipe' ? Game.s.pipe[t.type][i] : ['cold', 'hot', 'heat'].some(k => Game.s.pipe[k][i]);
       if (t.kind === 'pipe' ? has : !has) return;

@@ -460,6 +460,23 @@ const Game = {
     }
     return { n, cost: n * table[id].cost };
   },
+  // 칠할 수 있는 칸인가 (이미 같은 재질이면 제외)
+  paintable(layer, x, y, id) {
+    const ok = layer === 'wall' ? (this.isWall(x, y) && !this.isDoor(x, y)) : this.isInterior(x, y);
+    return ok && this.s[layer][this.idx(x, y)] !== id;
+  },
+  // 고른 칸을 한 번에 칠하고 결제 (✓ 확정). 돈이 모자라면 하나도 칠하지 않는다
+  paintCells(layer, id, cells) {
+    const s = this.s, table = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer];
+    const ok = cells.filter(i => this.paintable(layer, i % s.W, (i / s.W) | 0, id));
+    if (!ok.length) return true;
+    const cost = ok.length * table[id].cost;
+    if (!this.spend(cost)) return false;
+    for (const i of ok) s[layer][i] = id;
+    this.rt.dirty = true; this.recompute(); this.save(); this.sfx('brush');
+    this.toast(`🖌 ${table[id].name} ${ok.length}칸${cost ? ` (−${cost.toLocaleString()})` : ''}`, 'good');
+    return true;
+  },
   paintAll(layer, id) {
     const inf = this.paintAllInfo(layer, id);
     if (!inf.n) { this.toast('이미 전부 이 재질입니다'); return false; }

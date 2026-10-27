@@ -756,7 +756,26 @@ const Render = {
       }
       return;
     }
-    if (t.cells && t.cells.size) {
+    if (t.cells && t.cells.size && ['floor', 'wall', 'ceil'].includes(t.kind)) {   // 칠하기 미리보기: 새 재질을 반투명하게
+      const W = Game.s.W, H = Game.s.H, blink = Math.floor(this.t * 3) % 2;
+      for (const i of t.cells) {
+        const x = i % W, y = (i / W) | 0, v = Sprites.variant(x, y);
+        const tile = t.kind === 'floor' ? Sprites.floor(t.id, v) : t.kind === 'ceil' ? Sprites.ceil(t.id, v)
+          : (x === 0 || x === W - 1) && y > 0 && y < H - 1 ? Sprites.wallSide(t.id, v, x === W - 1) : Sprites.wall(t.id, v);
+        g.globalAlpha = 0.8; g.drawImage(tile, x * TILE, y * TILE); g.globalAlpha = 1;
+        const c = blink ? '#fff2a0' : '#c8952f';
+        P.r(x * TILE, y * TILE, 16, 1, c); P.r(x * TILE, y * TILE + 15, 16, 1, c); P.r(x * TILE, y * TILE, 1, 16, c); P.r(x * TILE + 15, y * TILE, 1, 16, c);
+      }
+    } else if (t.picks && t.picks.size) {   // 철거할 것: 빨간 테두리
+      const c = Math.floor(this.t * 3) % 2 ? '#ff5a4a' : '#ffb0a0';
+      for (const uid of t.picks) {
+        const o = Game.s.objects.find(q => q.uid === uid); if (!o) continue;
+        for (const [x, y] of Game.footprint(o)) {
+          g.fillStyle = 'rgba(255,60,40,0.28)'; g.fillRect(x * TILE, y * TILE, TILE, TILE);
+          P.r(x * TILE, y * TILE, 16, 1, c); P.r(x * TILE, y * TILE + 15, 16, 1, c); P.r(x * TILE, y * TILE, 1, 16, c); P.r(x * TILE + 15, y * TILE, 1, 16, c);
+        }
+      }
+    } else if (t.cells && t.cells.size) {
       const W = Game.s.W, blink = 0.55 + 0.25 * Math.sin(this.t * 6);
       for (const i of t.cells) {
         const x = (i % W) * TILE, y = ((i / W) | 0) * TILE;
