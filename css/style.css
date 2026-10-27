@@ -247,3 +247,12 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
   #toolbar .tbtns { flex: 1 1 auto; }
   #toolbar .tbtns:empty, #toolbar .tbtns:not(:has(button:not([hidden]))) { display: none; }
 }
+/* 튜토리얼 접기 */
+#tutorial .tut-title { cursor: pointer; flex: 1; min-width: 0; }
+#tutorial .tut-hbtns { display: flex; gap: 2px; flex: none; }
+#tutorial .x { min-width: 28px; min-height: 28px; font-size: 14px; }
+#tutorial.min { width: auto; max-width: calc(100% - 20px); padding: 4px 6px 4px 10px; }
+#tutorial.min .tut-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tutorial.flash { animation: tutflash 1.2s ease-out 2; }
+@keyframes tutflash { 0%, 100% { box-shadow: 0 6px 0 #0a0605; } 30% { box-shadow: 0 0 0 4px #ffe08a, 0 6px 0 #0a0605; } }
+@media (max-width: 860px) { #tutorial { left: 6px; top: 6px; font-size: 11px; } }

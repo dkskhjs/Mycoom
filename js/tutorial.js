@@ -74,7 +74,7 @@ const Tutorial = {
     let moved = false;
     while (!t.off && this.steps[t.i] && this.steps[t.i].done(Game)) { t.i++; moved = true; }
     if (!t.off && t.i >= this.steps.length) { t.off = true; Game.toast('🎓 튜토리얼 완료! 메뉴(☰)에서 다시 볼 수 있어요', 'good'); Game.save(); }
-    if (moved && !t.off) this.focus();
+    if (moved && !t.off) { this.focus(); this._flash = true; }
     this.renderBox();
     this.markCard();
   },
@@ -100,13 +100,23 @@ const Tutorial = {
     const el = document.getElementById('tutorial'); if (!el) return;
     const t = this.state(), st = this.current();
     if (!st) { el.hidden = true; this._sig = ''; return; }
-    const sig = t.i + '|' + UI.state.mode;
+    // 모바일은 기본으로 접어 둔다 (제목 한 줄만). 누르면 펼침
+    if (t.min === undefined) t.min = UI.isSheet();
+    const sig = t.i + '|' + UI.state.mode + '|' + t.min;
     el.hidden = false;
     if (sig === this._sig) return;
     this._sig = sig;
+    el.classList.toggle('min', !!t.min);
+    if (this._flash) { this._flash = false; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+    const toggle = () => { t.min = !t.min; this.renderBox(); };
+    const head = h('div', { class: 'tut-head' },
+      h('b', { class: 'tut-title', onclick: toggle }, `🎓 ${t.i + 1}/${this.steps.length} · ${st.title}`),
+      h('span', { class: 'tut-hbtns' },
+        h('button', { class: 'x', title: t.min ? '펼치기' : '접기', onclick: toggle }, t.min ? '▾' : '▴'),
+        h('button', { class: 'x', title: '튜토리얼 끄기', onclick: () => { t.off = true; Game.save(); this.tick(); } }, '✕')));
+    if (t.min) return el.replaceChildren(head);
     el.replaceChildren(
-      h('div', { class: 'tut-head' }, h('b', {}, `🎓 ${t.i + 1}/${this.steps.length} · ${st.title}`),
-        h('button', { class: 'x', title: '튜토리얼 끄기', onclick: () => { t.off = true; Game.save(); this.tick(); } }, '✕')),
+      head,
       h('p', {}, ...st.text.split('\n').flatMap((line, k) => k ? [h('br'), line] : [line])),
       h('div', { class: 'tut-btns' },
         h('button', { class: 'btn ghost', onclick: () => { this.focus(); if (UI.isSheet()) UI.openSheet(); } }, '여기로 이동'),
