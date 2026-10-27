@@ -351,14 +351,27 @@ const Render = {
     return out;
   },
 
-  drawObject(P, o) {
-    const spr = Sprites.object(o.id), d = DATA.objects[o.id];
-    if (o.rot && d.w !== d.h) {   // 세로로 돌린 직사각형: 돌린 그림을 바닥 정렬
-      const c = Sprites.objectRot(o.id), dm = Game.dims(o.id, o.rot), g = this.wg;
-      const rx = o.x * TILE + Math.round((dm.w * TILE - c.width) / 2), ry = (o.y + dm.h) * TILE - c.height;
-      if (o.flip) { g.save(); g.translate(rx * 2 + c.width, 0); g.scale(-1, 1); g.drawImage(c, rx, ry); g.restore(); } else g.drawImage(c, rx, ry);
-      return;
+  // 그릴 방향: 의자는 직접 돌리지 않았다면 옆 테이블 쪽을 본다 (손님도 그쪽을 보고 앉는다)
+  objDir(o) {
+    const d = DATA.objects[o.id];
+    if (d.seat && !o.rotSet && Sprites.dirs(o.id).length === 4) {
+      const isT = (x, y) => { const q = Game.objAt(x, y); return q && DATA.objects[q.id].table; };
+      if (isT(o.x, o.y + 1)) return 0;
+      if (isT(o.x + 1, o.y)) return 1;
+      if (isT(o.x, o.y - 1)) return 2;
+      if (isT(o.x - 1, o.y)) return 3;
     }
+    return o.rot || 0;
+  },
+  // 방향 그림을 칸 가운데·바닥에 맞춰 그린다 (3 = 옆모습 좌우 반전)
+  blitDir(id, dir, x, y, rot, flip) {
+    const { canvas: c, mirror } = Sprites.objectDir(id, dir), dm = Game.dims(id, rot), g = this.wg;
+    const rx = x * TILE + Math.round((dm.w * TILE - c.width) / 2), ry = (y + dm.h) * TILE - c.height;
+    if (mirror !== !!flip) { g.save(); g.translate(rx * 2 + c.width, 0); g.scale(-1, 1); g.drawImage(c, rx, ry); g.restore(); } else g.drawImage(c, rx, ry);
+  },
+  drawObject(P, o) {
+    const spr = Sprites.object(o.id), d = DATA.objects[o.id], dir = this.objDir(o);
+    if (dir) { this.blitDir(o.id, dir, o.x, o.y, o.rot, o.flip); return; }
     const dx = o.x * TILE + spr.xoff, dy = (o.y + d.h) * TILE - spr.canvas.height;
     if (o.flip) { const g = this.wg; g.save(); g.translate(o.x * TILE * 2 + d.w * TILE, 0); g.scale(-1, 1); g.drawImage(spr.canvas, dx, dy); g.restore(); }
     else this.wg.drawImage(spr.canvas, dx, dy);
@@ -703,7 +716,7 @@ const Render = {
       }
       const rot = t.rot || 0, dm = Game.dims(t.id, rot);
       g.globalAlpha = pend ? 0.85 : 0.6;
-      if (rot && d.w !== d.h) { const c = Sprites.objectRot(t.id); g.drawImage(c, pos.x * TILE + Math.round((dm.w * TILE - c.width) / 2), (pos.y + dm.h) * TILE - c.height); }
+      if (rot) this.blitDir(t.id, rot, pos.x, pos.y, rot, false);
       else g.drawImage(spr.canvas, pos.x * TILE + spr.xoff, (pos.y + d.h) * TILE - spr.canvas.height);
       g.globalAlpha = 0.3;
       g.fillStyle = ok ? '#6aff8a' : '#ff5a4a';

@@ -183,7 +183,7 @@ const UI = {
   rotateTool() {
     const t = this.state.tool;
     if (!t || (t.kind !== 'object' && t.kind !== 'move') || !Game.canRotate(t.id)) return;
-    t.rot = (t.rot || 0) ^ 1;
+    t.rot = Game.nextRot(t.id, t.rot || 0);
     this.syncToolbar();
   },
   toolKey(t) { return t.kind + ':' + (t.id || t.type || ''); },

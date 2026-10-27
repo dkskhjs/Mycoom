@@ -94,7 +94,9 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= []; st.stock.sweetpotato ??= 5;
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
+      // 예전 회전(세로 + 뒤집기)을 4방향 값으로: 세로·뒤집기 = 왼쪽(3)
+      for (const o of st.objects) { const d = DATA.objects[o.id]; if (d && d.w !== d.h && o.rot === 1 && o.flip) { o.rot = 3; o.flip = false; } if (o.rot) o.rotSet = true; } st.stock.sweetpotato ??= 5;
       // 이자 인하 전 대출은 남은 원리금을 새 이자율(난이도 반영)로 다시 계산
       if (!st.loanV) {
         const old = { small: 0.08, mid: 0.12, big: 0.18 }, mul = (DATA.difficulty[st.difficulty] || DATA.difficulty.easy).loanRate;
@@ -371,7 +373,7 @@ const Game = {
     const c = this.canPlace(id, x, y, 0, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
     if (!this.spend(DATA.objects[id].cost)) return false;
-    this.s.objects.push({ uid: this.s.nextUid++, id, x, y, rot: rot & 1, cook: null });
+    this.s.objects.push({ uid: this.s.nextUid++, id, x, y, rot: rot & 3, rotSet: !!rot, cook: null });
     this.recompute(); this.emit('built', id); this.sfx(id === 'boiler' ? 'heavy' : 'place');
     return true;
   },
@@ -383,25 +385,26 @@ const Game = {
 
   // ───────── 편집: 이동·뒤집기·일괄 칠하기 ─────────
   moveObject(o, x, y, rot = o.rot || 0) {
-    if (o.x === x && o.y === y && (o.rot || 0) === (rot & 1)) return true;
+    if (o.x === x && o.y === y && (o.rot || 0) === (rot & 3)) return true;
     const c = this.canPlace(o.id, x, y, o.uid, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
-    o.x = x; o.y = y; o.rot = rot & 1; this.sfx('place');
+    o.x = x; o.y = y; if ((o.rot || 0) !== (rot & 3)) { o.rot = rot & 3; o.rotSet = true; o.flip = false; } this.sfx('place');
     this.recompute(); this.save();
     this.toast(`${this.objDef(o).name} 이동`);
     return true;
   },
   flipObject(o) { o.flip = !o.flip; this.save(); },
-  // 제자리 회전: 정사각형은 좌우 뒤집기, 직사각형은 90° (자리가 안 되면 알려 줌)
+  // 제자리 회전: 방향 그림이 있으면 앞→오른쪽→(뒤)→왼쪽, 없으면 좌우 뒤집기 (자리가 안 되면 알려 줌)
   rotateObject(o) {
-    const d = this.objDef(o);
-    if (d.w === d.h) { this.flipObject(o); return true; }
-    const r = (o.rot || 0) ^ 1, c = this.canPlace(o.id, o.x, o.y, o.uid, r);
+    if (!this.canRotate(o.id)) { this.flipObject(o); return true; }
+    const cur = typeof Render !== 'undefined' ? Render.objDir(o) : (o.rot || 0);
+    const r = this.nextRot(o.id, cur), c = this.canPlace(o.id, o.x, o.y, o.uid, r);
     if (!c.ok) { this.toast(`회전할 자리가 없어요 (${c.why}) — 옮기기로 들어서 R 로 돌려 보세요`, 'bad'); return false; }
-    o.rot = r; this.recompute(); this.save();
+    o.rot = r; o.rotSet = true; o.flip = false; this.recompute(); this.save();
     return true;
   },
-  canRotate(id) { const d = DATA.objects[id]; return d.w !== d.h; },
+  canRotate(id) { return Sprites.dirs(id).length > 1; },
+  nextRot(id, r = 0) { const dirs = Sprites.dirs(id), i = dirs.indexOf(r & 3); return dirs[(i + 1) % dirs.length] ?? 0; },
   // 실내 바닥/천장 전체, 또는 바깥 벽 전체를 한 번에 칠한다 (같은 재질인 칸은 건너뜀)
   paintAllInfo(layer, id) {
     const s = this.s, table = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer];

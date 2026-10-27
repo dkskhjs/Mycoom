@@ -473,6 +473,12 @@ const OBJ_ART = {
     for (let i = 0; i < 4; i++) { P.r(2 + i * 8, 12, 6, 10, PAL.w1); P.r(2 + i * 8, 12, 6, 1, PAL.w3); }
     // 금전등록기
     P.box(23, 0, 8, 8, PAL.b2); P.r(24, 1, 6, 2, PAL.b4); P.r(24, 4, 6, 2, PAL.b0); P.p(26, 5, PAL.cr2); P.p(28, 5, PAL.cr2);
+  }, drawSide(P) {   // 세로로 놓인 카운터: 긴 상판 + 끝쪽 앞판, 위쪽 끝에 금전등록기
+    P.r(0, 38, 16, 2, PAL.shadow);
+    P.box(1, 7, 14, 33, PAL.w2);
+    P.r(2, 8, 12, 22, PAL.w4); P.r(2, 8, 12, 1, PAL.b2); P.r(13, 8, 1, 22, PAL.b2);
+    P.r(2, 31, 12, 8, PAL.w1); P.r(3, 32, 4, 6, PAL.w0); P.r(9, 32, 4, 6, PAL.w0);
+    P.box(4, 0, 8, 9, PAL.b2); P.r(5, 1, 6, 2, PAL.b4); P.r(5, 4, 6, 2, PAL.b0); P.p(7, 5, PAL.cr2); P.p(9, 5, PAL.cr2);
   }},
   table_wood: { tall: 3, draw(P) {
     P.ellipse(8, 15, 6, 2, PAL.shadow);
@@ -491,13 +497,19 @@ const OBJ_ART = {
     P.box(0, 2, 32, 11, PAL.w2); P.r(1, 3, 30, 2, PAL.w3);
     P.r(1, 6, 30, 3, PAL.cr2); P.r(1, 9, 30, 1, PAL.cr0);
     P.r(14, 4, 4, 2, PAL.b2); P.p(15, 3, PAL.glow2); P.p(16, 3, PAL.glow3);
+  }, drawSide(P) {
+    P.r(2, 33, 12, 2, PAL.shadow);
+    P.r(3, 26, 2, 8, PAL.w0); P.r(11, 26, 2, 8, PAL.w0);
+    P.box(1, 2, 14, 27, PAL.w2); P.r(2, 3, 2, 25, PAL.w3);
+    P.r(6, 3, 4, 25, PAL.cr2); P.r(6, 3, 1, 25, PAL.cr0);
+    P.r(7, 14, 2, 3, PAL.b2); P.p(7, 13, PAL.glow2); P.p(8, 12, PAL.glow3);
   }},
   chair_wood: { tall: 6, draw(P) {
     P.r(3, 19, 10, 2, PAL.shadow);
     P.r(4, 14, 1, 6, PAL.w0); P.r(11, 14, 1, 6, PAL.w0);
     P.box(3, 10, 10, 5, PAL.w2); P.r(4, 11, 8, 1, PAL.w4);
     P.box(3, 0, 10, 11, PAL.w1); P.r(5, 2, 2, 8, PAL.w3); P.r(9, 2, 2, 8, PAL.w3); P.r(4, 1, 8, 1, PAL.w3);
-  }},
+  }, drawSide: P => chairSide(P, CH_WOOD), drawBack: P => chairBack(P, CH_WOOD) },
   chair_leather: { tall: 6, draw(P) {
     P.r(2, 19, 12, 2, PAL.shadow);
     P.box(1, 0, 14, 20, PAL.red1);
@@ -505,7 +517,7 @@ const OBJ_ART = {
     P.r(1, 9, 3, 10, PAL.red0); P.r(12, 9, 3, 10, PAL.red0);
     P.r(4, 11, 8, 6, PAL.red2); P.r(4, 11, 8, 1, PAL.red3);
     P.rivets(2, 18, 14, 2);
-  }},
+  }, drawSide: P => armSide(P, AR_LEATHER), drawBack: P => armBack(P, AR_LEATHER) },
   sofa: { tall: 6, draw(P) {
     P.r(1, 19, 30, 2, PAL.shadow);
     P.box(0, 0, 32, 20, PAL.g1);
@@ -514,6 +526,99 @@ const OBJ_ART = {
     P.r(0, 8, 4, 12, PAL.k); P.r(1, 9, 2, 10, PAL.g0); P.r(28, 8, 4, 12, PAL.k); P.r(29, 9, 2, 10, PAL.g0);
     P.r(4, 11, 12, 6, PAL.g2); P.r(16, 11, 12, 6, PAL.g2); P.r(15, 11, 2, 6, PAL.g0);
     P.r(4, 11, 24, 1, PAL.g3);
+  }, drawSide(P) {   // 오른쪽을 보는 소파: 왼쪽 등받이, 위·아래 팔걸이
+    P.r(1, 35, 14, 2, PAL.shadow);
+    P.box(0, 6, 7, 30, PAL.g1); P.r(1, 7, 5, 28, PAL.g2);
+    for (let y = 10; y < 34; y += 4) { P.p(3, y, PAL.g0); P.p(4, y + 2, PAL.g0); }
+    P.r(6, 11, 9, 21, PAL.g2); P.r(6, 21, 9, 1, PAL.g0); P.r(6, 11, 9, 1, PAL.g3); P.r(14, 11, 1, 21, PAL.g0);
+    P.box(0, 4, 16, 7, PAL.g1); P.r(1, 5, 14, 2, PAL.g2);
+    P.box(0, 31, 16, 7, PAL.g1); P.r(1, 32, 14, 2, PAL.g2);
+  }},
+  table_iron: { tall: 3, draw(P) {
+    P.ellipse(8, 15, 5, 2, PAL.shadow);
+    P.r(7, 9, 2, 6, PAL.i1); P.r(5, 14, 6, 1, PAL.i2); P.p(4, 15, PAL.i1); P.p(11, 15, PAL.i1);
+    P.ellipse(8, 7, 6, 4, PAL.k); P.ellipse(8, 7, 5, 3, PAL.s3); P.ellipse(7, 6, 3, 1, PAL.cr1); P.r(4, 9, 8, 1, PAL.i2);
+  }},
+  table_marble: { tall: 4, draw(P) {
+    P.r(2, 18, 12, 2, PAL.shadow);
+    P.r(3, 11, 2, 8, PAL.w0); P.r(11, 11, 2, 8, PAL.w0);
+    P.box(1, 3, 14, 9, PAL.cr1); P.r(2, 4, 12, 2, PAL.cr2); P.p(5, 7, PAL.s2); P.p(6, 8, PAL.s2); P.p(10, 6, PAL.s2); P.r(2, 10, 12, 1, PAL.b1);
+  }},
+  table_map: { tall: 3, draw(P) {
+    P.r(2, 16, 28, 2, PAL.shadow);
+    P.r(3, 12, 2, 6, PAL.w0); P.r(27, 12, 2, 6, PAL.w0); P.r(14, 12, 4, 5, PAL.w0);
+    P.box(0, 2, 32, 11, PAL.w1); P.r(2, 3, 28, 8, PAL.cr1);
+    P.r(4, 5, 8, 1, PAL.bl2); P.r(14, 7, 6, 1, PAL.bl2); P.p(9, 8, PAL.red2); P.r(18, 4, 1, 4, PAL.s1);
+    P.disc(25, 6, 2, PAL.b2); P.p(25, 5, PAL.red2);
+  }, drawSide(P) {
+    P.r(2, 33, 12, 2, PAL.shadow);
+    P.r(3, 27, 2, 7, PAL.w0); P.r(11, 27, 2, 7, PAL.w0);
+    P.box(1, 2, 14, 27, PAL.w1); P.r(2, 3, 12, 24, PAL.cr1);
+    P.r(4, 6, 1, 8, PAL.bl2); P.r(8, 14, 1, 6, PAL.bl2); P.p(5, 18, PAL.red2); P.r(4, 20, 6, 1, PAL.s1);
+    P.disc(9, 7, 2, PAL.b2); P.p(9, 6, PAL.red2);
+  }},
+  stool: { tall: 4, draw(P) {
+    P.ellipse(8, 19, 4, 1, PAL.shadow);
+    P.r(5, 9, 1, 10, PAL.b1); P.r(10, 9, 1, 10, PAL.b1); P.r(5, 15, 6, 1, PAL.b2);
+    P.ellipse(8, 8, 5, 3, PAL.k); P.ellipse(8, 8, 4, 2, PAL.red2); P.r(6, 7, 3, 1, PAL.red3);
+  }},
+  chair_iron: { tall: 6, draw(P) {
+    P.r(3, 19, 10, 2, PAL.shadow);
+    P.r(4, 14, 1, 6, PAL.i1); P.r(11, 14, 1, 6, PAL.i1);
+    P.box(3, 10, 10, 5, PAL.i2); P.r(4, 11, 8, 1, PAL.i3);
+    P.r(3, 1, 1, 10, PAL.k); P.r(12, 1, 1, 10, PAL.k); P.r(4, 0, 8, 1, PAL.k);
+    P.r(4, 1, 1, 9, PAL.i2); P.r(11, 1, 1, 9, PAL.i2); P.r(5, 1, 6, 1, PAL.i2);
+    P.p(7, 4, PAL.b2); P.p(8, 5, PAL.b2); P.p(7, 6, PAL.b2); P.p(8, 7, PAL.b2);
+  }, drawSide: P => chairSide(P, CH_IRON), drawBack: P => chairBack(P, CH_IRON) },
+  wingback: { tall: 6, draw(P) {
+    P.r(2, 19, 12, 2, PAL.shadow);
+    P.box(1, 0, 14, 20, PAL.v1); P.r(2, 1, 12, 9, PAL.v2);
+    P.p(5, 4, PAL.v0); P.p(10, 4, PAL.v0); P.p(7, 6, PAL.v0);
+    P.box(0, 2, 3, 9, PAL.v0); P.box(13, 2, 3, 9, PAL.v0);
+    P.r(1, 9, 3, 10, PAL.v0); P.r(12, 9, 3, 10, PAL.v0);
+    P.r(4, 11, 8, 6, PAL.v2); P.r(4, 11, 8, 1, PAL.v3);
+    P.r(2, 19, 2, 2, PAL.w0); P.r(12, 19, 2, 2, PAL.w0);
+  }, drawSide: P => armSide(P, AR_WING), drawBack: P => armBack(P, AR_WING) },
+  bench: { tall: 6, draw(P) {
+    P.r(1, 19, 30, 2, PAL.shadow);
+    P.r(2, 14, 2, 6, PAL.w0); P.r(28, 14, 2, 6, PAL.w0);
+    P.box(0, 10, 32, 5, PAL.w2); P.r(1, 11, 30, 1, PAL.w4);
+    P.box(0, 0, 32, 11, PAL.w1); P.r(1, 1, 30, 1, PAL.w3); P.r(1, 8, 30, 1, PAL.w0);
+    P.r(15, 2, 2, 6, PAL.b2); P.r(13, 4, 6, 2, PAL.b2);
+  }, drawSide(P) {
+    P.r(2, 35, 12, 2, PAL.shadow);
+    P.r(5, 30, 2, 7, PAL.w0); P.r(12, 30, 2, 7, PAL.w0);
+    P.box(4, 8, 10, 28, PAL.w2); P.r(5, 9, 1, 26, PAL.w4);
+    P.box(1, 2, 5, 34, PAL.w1); P.r(2, 3, 1, 31, PAL.w3);
+    P.r(1, 2, 13, 2, PAL.w0); P.r(1, 34, 13, 2, PAL.w0);
+  }},
+  booth: { tall: 8, draw(P) {
+    P.r(1, 22, 30, 2, PAL.shadow);
+    P.box(0, 0, 32, 22, PAL.c1); P.r(1, 1, 30, 11, PAL.c2);
+    for (let x = 4; x < 30; x += 5) { P.p(x, 3, PAL.c0); P.p(x + 2, 7, PAL.c0); }
+    P.r(2, 13, 28, 5, PAL.c2); P.r(2, 13, 28, 1, PAL.c3); P.r(15, 13, 1, 5, PAL.c0);
+    P.r(0, 18, 32, 4, PAL.w1); P.r(1, 18, 30, 1, PAL.w3); P.rivets(2, 20, 30, 4);
+  }, drawSide(P) {
+    P.r(1, 38, 14, 2, PAL.shadow);
+    P.box(0, 0, 7, 38, PAL.c1); P.r(1, 1, 5, 36, PAL.c2);
+    for (let y = 4; y < 36; y += 5) { P.p(3, y, PAL.c0); P.p(4, y + 2, PAL.c0); }
+    P.r(6, 10, 9, 26, PAL.c2); P.r(6, 10, 9, 1, PAL.c3); P.r(6, 23, 9, 1, PAL.c0); P.r(14, 10, 1, 26, PAL.c0);
+    P.r(0, 36, 16, 3, PAL.w1); P.r(0, 8, 16, 2, PAL.w1);
+  }},
+  coatrack: { tall: 14, draw(P) {
+    P.ellipse(8, 29, 4, 1, PAL.shadow);
+    P.r(5, 27, 6, 2, PAL.i1); P.r(7, 3, 2, 25, PAL.w1); P.r(7, 3, 1, 25, PAL.w3);
+    P.r(4, 6, 3, 1, PAL.b2); P.r(9, 6, 3, 1, PAL.b2); P.r(5, 10, 2, 1, PAL.b2); P.r(9, 10, 2, 1, PAL.b2);
+    P.r(2, 4, 6, 1, PAL.k); P.r(3, 0, 4, 4, PAL.k); P.r(4, 1, 2, 2, PAL.i1); P.r(3, 3, 4, 1, PAL.red2);
+    P.box(9, 7, 6, 13, PAL.c1); P.r(10, 8, 1, 11, PAL.c2); P.p(12, 10, PAL.b3); P.p(12, 13, PAL.b3);
+  }},
+  teacabinet: { tall: 14, draw(P) {
+    P.r(1, 28, 14, 2, PAL.shadow);
+    P.box(1, 1, 14, 29, PAL.w1); P.r(0, 0, 16, 2, PAL.w0); P.r(1, 0, 14, 1, PAL.w3);
+    P.r(3, 3, 10, 15, '#3e4a48'); P.r(3, 3, 1, 15, '#6f8580');
+    P.r(3, 9, 10, 1, PAL.w2); P.r(3, 15, 10, 1, PAL.w2);
+    P.r(4, 6, 2, 2, PAL.wh); P.r(8, 6, 2, 2, PAL.cr2); P.p(10, 7, PAL.bl2); P.r(5, 12, 2, 2, PAL.wh); P.r(9, 12, 2, 2, PAL.bl3);
+    P.r(3, 20, 10, 3, PAL.w2); P.r(3, 24, 10, 3, PAL.w2); P.p(8, 21, PAL.b3); P.p(8, 25, PAL.b3);
   }},
   plant: { tall: 12, draw(P) {
     P.ellipse(8, 27, 5, 1, PAL.shadow);
@@ -703,6 +808,37 @@ function drawIcon(P, id) {
 
 // 임시 손님 도트 (14 x 24, 2등신) — assets/chars/ 시트가 없을 때만 쓴다.
 // t.f: 긴 머리 + 치마, t.small: 아이 체형(머리·몸통이 4px 아래로)
+// ── 의자 옆·뒷모습 (16×22, 발밑 y21). 옆모습은 오른쪽을 본다 (왼쪽은 좌우 반전) ──
+function chairSide(P, c) {
+  P.r(3, 19, 10, 2, PAL.shadow);
+  P.r(4, 14, 1, 6, c.leg); P.r(11, 14, 1, 6, c.leg);
+  P.box(3, 10, 10, 5, c.seat); P.r(4, 11, 8, 1, c.seatHi);
+  P.box(2, 0, 4, 15, c.back); P.r(3, 1, 1, 12, c.backHi);
+}
+function chairBack(P, c) {
+  P.r(3, 19, 10, 2, PAL.shadow);
+  P.r(4, 14, 1, 6, c.leg); P.r(11, 14, 1, 6, c.leg);
+  P.box(3, 0, 10, 15, c.back); P.r(4, 1, 8, 1, c.backHi); P.r(5, 3, 1, 10, c.backHi); P.r(10, 3, 1, 10, c.backHi);
+}
+// 등받이 큰 안락의자 옆·뒷모습
+function armSide(P, c) {
+  P.r(2, 19, 12, 2, PAL.shadow);
+  P.box(1, 9, 14, 11, c.seat); P.r(2, 10, 12, 1, c.seatHi); P.r(13, 10, 1, 9, c.dark);
+  P.box(1, 0, 5, 20, c.back); P.r(2, 1, 2, 17, c.backHi);
+  if (c.wing) { P.box(4, 1, 5, 8, c.back); P.r(5, 2, 3, 2, c.backHi); }
+  P.rivets(6, 18, 14, 2);
+}
+function armBack(P, c) {
+  P.r(2, 19, 12, 2, PAL.shadow);
+  P.box(1, 0, 14, 20, c.back); P.r(2, 1, 12, 17, c.dark); P.r(2, 1, 12, 1, c.backHi);
+  if (c.wing) { P.r(0, 2, 2, 9, c.back); P.r(14, 2, 2, 9, c.back); }
+  P.rivets(2, 18, 14, 2);
+}
+const CH_WOOD = { back: PAL.w1, backHi: PAL.w3, seat: PAL.w2, seatHi: PAL.w4, leg: PAL.w0 };
+const CH_IRON = { back: PAL.i1, backHi: PAL.i3, seat: PAL.i2, seatHi: PAL.i3, leg: PAL.i1 };
+const AR_LEATHER = { back: PAL.red1, backHi: PAL.red2, seat: PAL.red2, seatHi: PAL.red3, dark: PAL.red0 };
+const AR_WING = { back: PAL.v1, backHi: PAL.v2, seat: PAL.v2, seatHi: PAL.v3, dark: PAL.v0, wing: true };
+
 // 증기 로봇 직원 (16×24, 발밑 = y23). model: tray 서빙 · brush 청소 · kettle 바리스타
 function drawRobotArt(P, model, frame, face) {
   const f = frame % 4, back = face === 'up', side = face === 'side', bob = f % 2;
@@ -1024,15 +1160,34 @@ const Sprites = {
     return e;
   },
 
-  // 90° 돌린 오브젝트 그림 (세로로 놓인 소파·카운터 등)
-  objectRot(id) {
-    const k = 'objrot_' + id;
+  // 돌릴 수 있는 방향: 0 앞(아래를 봄) · 1 오른쪽 · 2 뒤(위를 봄) · 3 왼쪽(1의 좌우 반전)
+  dirs(id) {
+    const d = DATA.objects[id], art = OBJ_ART[id];
+    if (art && art.drawSide && art.drawBack) return [0, 1, 2, 3];
+    if (d.w !== d.h || (art && art.drawSide)) return [0, 1, 3];
+    return [0];
+  },
+  // 방향별 그림. 옆모습 전용 그림이 없는 직사각형은 왼쪽·오른쪽 절반을 위아래로 쌓는다 (그냥 90° 돌리면 빛 방향이 틀어져 어색함)
+  objectDir(id, dir) {
+    if (!dir) return { canvas: this.object(id).canvas, mirror: false };
+    const k = `objdir_${id}_${dir === 3 ? 1 : dir}`;
     if (!this.cache.has(k)) {
-      const src = this.object(id).canvas, [c, g] = makeCanvas(src.height, src.width);
-      g.translate(src.height, 0); g.rotate(Math.PI / 2); g.drawImage(src, 0, 0);
+      const d = DATA.objects[id], art = OBJ_ART[id], src = this.object(id).canvas;
+      let c = src;
+      if (dir === 2) {
+        if (art && art.drawBack) { const [cc, g] = makeCanvas(src.width, src.height); art.drawBack(pen(g)); c = cc; }
+      } else if (art && art.drawSide) {
+        const [cc, g] = makeCanvas(d.h * 16, d.w * 16 + art.tall); art.drawSide(pen(g)); c = cc;
+      } else if (d.w !== d.h && /bush|flower/.test(id)) {   // 덤불·화단: 두 덩이를 앞뒤로
+        const hw = Math.ceil(src.width / 2), H = src.height, [cc, g] = makeCanvas(hw, H + 16);
+        g.drawImage(src, 0, 0, hw, H, 0, 0, hw, H); g.drawImage(src, src.width - hw, 0, hw, H, 0, 16, hw, H); c = cc;
+      } else if (d.w !== d.h) {   // 그 밖의 장식: 비스듬히 본 것처럼 폭을 줄여 앞 칸에 세운다
+        const H = src.height, [cc, g] = makeCanvas(16, H + 16);
+        g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0, src.width, H, 0, 16, 16, H); c = cc;
+      }
       this.cache.set(k, c);
     }
-    return this.cache.get(k);
+    return { canvas: this.cache.get(k), mirror: dir === 3 };
   },
 
   // 반환: { canvas, ax, ay, sheet } — (ax, ay) 는 발 밑 중앙 기준점
