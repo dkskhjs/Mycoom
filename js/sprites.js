@@ -714,6 +714,8 @@ function drawCatArt(P, k, pose, frame) {
 }
 
 // NAPLE 저장소 이미지 시트
+// 원경 그림 (사용자 제작 배경) — 마을 뒤쪽 하늘·산·공장 자리에 깐다
+const VISTA_SHEETS = { vista_clear: 'assets/bg/town_clear.webp', vista_snow: 'assets/bg/town_snow.webp' };
 const NAPLE_SHEETS = {
   props: 'assets/naple/props_atlas.png',
   player: 'assets/naple/player_sheet.png',
@@ -787,7 +789,7 @@ const Sprites = {
   },
 
   loadSheets() {
-    return Promise.all(Object.entries(NAPLE_SHEETS).map(([k, src]) => new Promise(res => {
+    return Promise.all(Object.entries({ ...NAPLE_SHEETS, ...VISTA_SHEETS }).map(([k, src]) => new Promise(res => {
       const img = new Image();
       img.onload = () => { this.sheets[k] = img; res(); };
       img.onerror = () => { console.warn('NAPLE 시트 로드 실패:', src); res(); };

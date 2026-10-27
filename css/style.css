@@ -175,7 +175,7 @@ details .chips { margin-top: 6px; }
   background: var(--backdrop, none) center / cover no-repeat;
   image-rendering: pixelated;
 }
-#canvasWrap::before { filter: brightness(.42) saturate(.9); }
+#canvasWrap::before { filter: blur(3px) brightness(.3) saturate(.8); }
 #modal::before { filter: brightness(.6); z-index: -1; }
 #world, #fx { z-index: 1; }
 #modal { isolation: isolate; }

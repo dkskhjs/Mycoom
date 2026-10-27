@@ -1,6 +1,8 @@
 // 가게 주변 스팀펑크 마을 풍경 — 필지 바깥 여백에 그리는 정적 배경 + 약간의 애니메이션
 // 좌표는 게임 격자(가게 좌상단 = 0,0) 기준. 여백 때문에 음수 좌표도 쓴다.
-const TOWN = { mx: 12, mt: 10, mb: 9 };
+const TOWN = { mx: 12, mt: 18, mb: 9 };
+// 원경 그림이 끝나고 코드로 그린 거리가 시작하는 줄 (가게 위쪽으로 몇 칸)
+const VISTA_GROUND = 4;
 
 const Town = {
   bg: null, key: '', chimneys: [], windows: [], ship: null, boat: null,
@@ -34,7 +36,11 @@ const Town = {
     this.covered = new Set();
     const cover = (x0_, y0_, w_, h_) => { for (let y = y0_; y < y0_ + h_; y++) for (let x = x0_; x < x0_ + w_; x++) this.covered.add(x + ',' + y); };
     this.cover = cover;
-    const x0 = -TOWN.mx, x1 = W + TOWN.mx, yTop = -TOWN.mt, yStreet = H, yBot = H + STREET_ROWS + TOWN.mb;
+    const x0 = -TOWN.mx, x1 = W + TOWN.mx, yStreet = H, yBot = H + STREET_ROWS + TOWN.mb;
+    const vista = this.vistaImage(snowy);
+    // 원경 그림이 있으면 그 아래부터만 땅을 깐다 (위는 비워서 원경이 보이게)
+    const yTop = vista ? -VISTA_GROUND : -TOWN.mt;
+    this.groundTop = yTop;
 
     // 바탕: 뒷골목 자갈 + 거리 연장
     for (let y = yTop; y < yBot; y++) for (let x = x0; x < x1; x++) {
@@ -59,8 +65,9 @@ const Town = {
     };
     row(x0, -1); row(W + 1, x1);
 
-    // 2) 뒤쪽 랜드마크 줄: 공장, 시계탑, 가스탱크, 집들
-    const landY = yTop + 3, landH = 5;
+    // 2) 뒤쪽 랜드마크 줄 — 원경 그림이 없을 때만 코드로 그린다
+    if (!vista) {
+    const landY = yTop + 3 + 8, landH = 5;
     const cx = Math.floor(W / 2);
     this.clockTower(P, g, cx - 2, landY - 1, snowy);
     this.factory(P, g, R, x0 + 1, landY + 1, Math.max(8, cx - 2 - (x0 + 1) - 2), landY + landH, snowy);
@@ -69,6 +76,7 @@ const Town = {
     while (bx < x1 - 3) { const w = 3 + Math.floor(R() * 3); this.building(P, g, R, bx, landY + Math.floor(R() * 2), w, landY + landH, snowy, true); bx += w + 1; }
     // 뒷골목 (랜드마크와 가게 사이)
     for (let x = x0; x < x1; x++) P.r(x * TILE, (landY + landH) * TILE, TILE, 1, PAL.s1);
+    }
 
     // 3) 앞쪽 (거리 아래) — 필지에 따라 다른 풍경
     const fy = H + STREET_ROWS;
@@ -76,7 +84,70 @@ const Town = {
     else if (s.plotId === 'airship') this.dock(P, g, R, x0, x1, fy, yBot, snowy);
     else this.backRow(P, g, R, x0, x1, fy, yBot, snowy);
 
+    // 원경과 경계: 그림 아래쪽 색으로 안개 띠, 가까운 마을에도 원경 색감을 살짝
+    if (vista) {
+      const hz = vista.haze, top = yTop * TILE;
+      // 그림 아랫부분(땅 위 28px)부터 안개가 짙어지고, 땅 위 40px 에 걸쳐 걷힌다
+      const grad = g.createLinearGradient(0, top - 28, 0, top + 40);
+      grad.addColorStop(0, `rgba(${hz},0)`); grad.addColorStop(0.36, `rgba(${hz},0.9)`); grad.addColorStop(0.5, `rgba(${hz},0.75)`); grad.addColorStop(1, `rgba(${hz},0)`);
+      g.fillStyle = grad; g.fillRect(x0 * TILE, top - 28, (x1 - x0) * TILE, 68);
+      // 안개 속 굴뚝 연기처럼 옅은 덩어리 몇 개로 경계선을 흐트러뜨린다
+      for (let i = 0; i < 14; i++) {
+        const cx = x0 * TILE + R() * (x1 - x0) * TILE, cy = top - 6 + R() * 18, rx = 14 + R() * 22;
+        const rg = g.createRadialGradient(cx, cy, 0, cx, cy, rx);
+        rg.addColorStop(0, `rgba(${hz},0.35)`); rg.addColorStop(1, `rgba(${hz},0)`);
+        g.fillStyle = rg; g.fillRect(cx - rx, cy - rx, rx * 2, rx * 2);
+      }
+      for (const [gc, al] of [[g, 0.14], [fgc, 0.14]]) {
+        gc.save(); gc.globalCompositeOperation = 'source-atop';
+        gc.fillStyle = `rgba(${vista.tone},${al})`; gc.fillRect(x0 * TILE, yTop * TILE, (x1 - x0) * TILE, (yBot - yTop) * TILE);
+        gc.restore();
+      }
+    }
     this.bg = c;
+  },
+
+  // 원경 그림을 장면 해상도(도트 1칸 = 1px)로 줄여 캐시. 시차 스크롤 여유로 장면보다 조금 넓게.
+  vistaImage(snowy) {
+    const src = Sprites.sheets[snowy ? 'vista_snow' : 'vista_clear'] || Sprites.sheets.vista_clear;
+    if (!src) return null;
+    const key = (snowy ? 's' : 'c') + this.sceneW();
+    if (this._vista && this._vistaKey === key) return this._vista;
+    const VW = Math.round(this.sceneW() * 1.18), fullH = Math.round(VW * src.height / src.width);
+    // 큰 그림을 반씩 여러 번 줄여야 부드럽게 줄어든다
+    let cur = src, cw = src.width, ch = src.height;
+    while (cw / 2 > VW) {
+      const [c2, g2] = makeCanvas(Math.round(cw / 2), Math.round(ch / 2));
+      g2.imageSmoothingEnabled = true; g2.imageSmoothingQuality = 'high'; g2.drawImage(cur, 0, 0, c2.width, c2.height);
+      cur = c2; cw = c2.width; ch = c2.height;
+    }
+    // 아래쪽 근경(절벽·폭포)은 우리 거리와 겹치니 위 70%만 쓴다
+    const cropH = Math.round(fullH * 0.7);
+    const [c, g] = makeCanvas(VW, cropH);
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, cw, ch * 0.7, 0, 0, VW, cropH);
+    // 경계 안개 색(그림 맨 아래 줄 평균)과 전체 색감(평균)
+    const avg = (d, step) => { let r = 0, gg = 0, b = 0, n = 0; for (let i = 0; i < d.length; i += 4 * step) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; n++; } return [r / n, gg / n, b / n].map(v => Math.round(v)).join(','); };
+    // file:// 로 열면 브라우저가 픽셀 읽기를 막는다 → 날씨별 기본 색
+    let haze = snowy ? '214,222,232' : '92,96,78', tone = snowy ? '176,186,200' : '120,104,84';
+    try { haze = avg(g.getImageData(0, cropH - 6, VW, 6).data, 1); tone = avg(g.getImageData(0, 0, VW, cropH).data, 37); } catch (e) { /* 기본 색 사용 */ }
+    this._vista = { canvas: c, haze, tone, w: VW, h: cropH };
+    this._vistaKey = key;
+    return this._vista;
+  },
+
+  // 원경: 카메라가 움직이면 천천히 따라온다(시차). 바닥 줄은 땅이 시작하는 곳에 맞춘다.
+  drawVista(g, cam) {
+    const v = this._vista; if (!v || this.groundTop !== -VISTA_GROUND) return;
+    const SW = this.sceneW(), SH = this.sceneH();
+    const room = (v.w - SW) / 2;
+    const px = cam ? Math.max(-room, Math.min(room, (cam.x - SW / 2) * 0.22)) : 0, py = cam ? (cam.y - SH / 2) * 0.08 : 0;
+    // 지난 프레임이 비치지 않게 원경 영역을 먼저 지운다
+    g.clearRect(-this.ox(), -this.oy(), SW, this.oy() - VISTA_GROUND * TILE + 8);
+    const x = -this.ox() - (v.w - SW) / 2 + px, y = -VISTA_GROUND * TILE + 6 - v.h + py;
+    g.drawImage(v.canvas, Math.round(x), Math.round(y));
+    // 그림 위로 남는 하늘: 그림 맨 윗줄 색으로 채움
+    if (y > -this.oy()) { g.drawImage(v.canvas, 0, 0, v.w, 1, Math.round(x), -this.oy(), v.w, Math.ceil(y + this.oy()) + 1); }
   },
 
   roofTile(kind, snowy) {
@@ -256,6 +327,7 @@ const Town = {
   // 매 프레임: 배경 + 움직이는 것들 (장면 좌표계, 가게 원점으로 translate 된 상태에서 호출)
   draw(g, P, t, dt) {
     this.ensure();
+    this.drawVista(g, Render.cam);
     g.drawImage(this.bg, -this.ox(), -this.oy());
     // 공장 톱니 회전
     if (this.gear) { const [gx, gy] = this.gear, a = t * 0.8; for (let i = 0; i < 4; i++) { const ang = a + i * Math.PI / 2; P.p(Math.round(gx + Math.cos(ang) * 7), Math.round(gy + Math.sin(ang) * 7), PAL.b4); } }
@@ -285,6 +357,7 @@ const Town = {
   // 바깥 땅(건물·물·가게 실내가 아닌 칸)에 눈을 깐다. 깊이는 6단계로 끊어 캐시.
   isGround(x, y) {
     const s = Game.s;
+    if (y < this.groundTop) return false;
     if (this.covered.has(x + ',' + y)) return false;
     if (x >= 0 && x < s.W && y >= 0 && y < s.H) return false;
     return true;
