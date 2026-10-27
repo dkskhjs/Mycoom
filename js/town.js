@@ -1,8 +1,20 @@
 // 가게 주변 스팀펑크 마을 풍경 — 필지 바깥 여백에 그리는 정적 배경 + 약간의 애니메이션
 // 좌표는 게임 격자(가게 좌상단 = 0,0) 기준. 여백 때문에 음수 좌표도 쓴다.
-const TOWN = { mx: 22, mt: 18, mb: 9 };
+const TOWN = {
+  mx: 22, mb: 9,
+  // 위쪽 여백: 원경 그림(장면 폭 ×1.18, 세로 비율 최대 0.56, 위 70% 사용)이 하늘까지 다 들어가게
+  get mt() { const W = Game.s ? Game.s.W : 14; return VISTA_GROUND + Math.ceil(0.7 * 1.18 * 0.56 * (W + 2 * this.mx)); },
+};
 // 원경 그림이 끝나고 코드로 그린 거리가 시작하는 줄 (가게 위쪽으로 몇 칸)
 const VISTA_GROUND = 4;
+
+// 원경 그림의 굴뚝 꼭대기 위치 (그림 가로·세로 비율 0~1). 맑음·눈 그림은 구도가 달라 따로 잡는다.
+const VISTA_CHIMNEYS = {
+  clear: [[.016, .163], [.031, .163], [.071, .232], [.084, .232], [.358, .081], [.418, .085], [.253, .18],
+    [.633, .169], [.957, .198], [.945, .423], [.562, .462], [.695, .456], [.715, .456]],
+  snow: [[.016, .184], [.031, .184], [.071, .256], [.084, .256], [.357, .094], [.418, .094], [.253, .2],
+    [.435, .2], [.56, .517], [.628, .507], [.70, .507], [.943, .47]],
+};
 
 const Town = {
   bg: null, key: '', chimneys: [], windows: [], ship: null, boat: null,
@@ -153,7 +165,8 @@ const Town = {
     // file:// 로 열면 브라우저가 픽셀 읽기를 막는다 → 날씨별 기본 색
     let haze = snowy ? '214,222,232' : '92,96,78', tone = snowy ? '176,186,200' : '120,104,84';
     try { haze = avg(g.getImageData(0, cropH - 6, VW, 6).data, 1); tone = avg(g.getImageData(0, 0, VW, cropH).data, 37); } catch (e) { /* 기본 색 사용 */ }
-    this._vista = { canvas: c, haze, tone, w: VW, h: cropH };
+    this._vista = { canvas: c, haze, tone, w: VW, h: cropH, fullH, snowy: !!snowy && !!Sprites.sheets.vista_snow };
+    this.vfx = null;
     this._vistaKey = key;
     return this._vista;
   },
@@ -170,6 +183,64 @@ const Town = {
     g.drawImage(v.canvas, Math.round(x), Math.round(y));
     // 그림 위로 남는 하늘: 그림 맨 윗줄 색으로 채움
     if (y > -this.oy()) { g.drawImage(v.canvas, 0, 0, v.w, 1, Math.round(x), -this.oy(), v.w, Math.ceil(y + this.oy()) + 1); }
+    this.drawVistaFx(g, Math.round(x), Math.round(y));
+  },
+
+  // ───────── 원경 움직임: 굴뚝 연기, 먼 비행선·열기구, 먼 눈 ─────────
+  // 모두 원경 그림 좌표로 갖고 있다가 그림과 같은 위치(시차 포함)에 그린다
+  initVistaFx() {
+    const v = this._vista, R = this.rng(77);
+    this.vfx = {
+      smoke: [],
+      ships: [0, 1, 2].map(i => ({ kind: 'ship', x: R() * v.w, y: v.fullH * (0.04 + i * 0.045), sc: 0.32 + i * 0.1, sp: (5 + R() * 6) * (i % 2 ? -1 : 1) })),
+      balloons: [0, 1].map(i => ({ kind: 'balloon', x: R() * v.w, y: v.fullH * (0.08 + R() * 0.08), sp: 1.5 + R() * 2, ph: R() * 6, c: i ? [PAL.red2, PAL.cr1] : [PAL.c2, PAL.b3] })),
+      flakes: Array.from({ length: 160 }, () => ({ x: R() * v.w, y: R() * v.h, s: R() })),
+      last: performance.now(),
+    };
+  },
+  drawVistaFx(g, ox, oy) {
+    const v = this._vista; if (!v) return;
+    if (!this.vfx) this.initVistaFx();
+    const f = this.vfx, now = performance.now(), dt = Math.min(0.1, (now - f.last) / 1000); f.last = now;
+    const P = pen(g), t = now / 1000, snow = v.snowy;
+    const wind = Game.hasEvent('blizzard') ? 22 : snow ? 8 : 4;
+    // 비행선·열기구 (그림 하늘 위쪽)
+    g.save(); g.globalAlpha = 0.9;
+    for (const sh of f.ships) {
+      sh.x += sh.sp * dt; const L = 64 * sh.sc;
+      if (sh.sp > 0 && sh.x > v.w + 10) sh.x = -L - 10; if (sh.sp < 0 && sh.x < -L - 10) sh.x = v.w + 10;
+      const bx = Math.round(ox + sh.x), by = Math.round(oy + sh.y + Math.sin(t * 0.4 + sh.sc * 9) * 2);
+      if (sh.sp < 0) { g.save(); g.translate(bx * 2 + L, 0); g.scale(-1, 1); this.airship(P, bx, by, sh.sc); g.restore(); }
+      else this.airship(P, bx, by, sh.sc);
+    }
+    for (const b of f.balloons) {
+      b.x += b.sp * dt; if (b.x > v.w + 10) b.x = -10;
+      const bx = Math.round(ox + b.x), by = Math.round(oy + b.y + Math.sin(t * 0.6 + b.ph) * 3);
+      P.ellipse(bx, by, 4, 5, PAL.k); P.ellipse(bx, by, 3, 4, b.c[0]); P.r(bx - 1, by - 4, 2, 8, b.c[1]); P.p(bx - 2, by - 2, PAL.wh);
+      P.p(bx - 2, by + 5, PAL.k); P.p(bx + 2, by + 5, PAL.k); P.r(bx - 1, by + 7, 3, 2, PAL.w1);
+    }
+    g.restore();
+    // 굴뚝 연기: 솟아오르며 커지고 옅어지다 바람에 눕는다
+    const chims = VISTA_CHIMNEYS[snow ? 'snow' : 'clear'];
+    for (const [nx, ny] of chims) if (Math.random() < dt * 1.6) f.smoke.push({ x: nx * v.w + (Math.random() - .5) * 2, y: ny * v.fullH, vx: (Math.random() - .5) * 2, vy: -6 - Math.random() * 4, life: 0, max: 5 + Math.random() * 3, r: 1.5 });
+    const col = snow ? '232,234,240' : '205,192,175';
+    for (const p of f.smoke) {
+      p.life += dt; p.vx += wind * 0.12 * dt; p.vy *= 1 - 0.25 * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.r += 1.3 * dt;
+      const a = Math.max(0, 0.55 * (1 - p.life / p.max)) * Math.min(1, p.life * 3);
+      g.fillStyle = `rgba(${col},${a.toFixed(3)})`;
+      g.beginPath(); g.arc(ox + p.x, oy + p.y, p.r, 0, Math.PI * 2); g.fill();
+    }
+    f.smoke = f.smoke.filter(p => p.life < p.max && p.y > -20);
+    // 먼 눈: 가까운 눈보다 잘고 느리게
+    if (snow || Game.s.weather === 'snow' || Game.hasEvent('blizzard')) {
+      g.fillStyle = 'rgba(255,255,255,0.75)';
+      for (const fl of f.flakes) {
+        fl.y += (6 + fl.s * 6) * dt; fl.x += (wind * 0.6 + Math.sin(t + fl.s * 7) * 2) * dt;
+        if (fl.y > v.h) { fl.y = -2; fl.x = Math.random() * v.w; } if (fl.x > v.w) fl.x -= v.w;
+        g.fillRect(Math.round(ox + fl.x), Math.round(oy + fl.y), 1, 1);
+      }
+    }
   },
 
   roofTile(kind, snowy) {
