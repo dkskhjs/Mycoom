@@ -699,11 +699,32 @@ const OBJ_ART = {
     P.box(4, 2, 8, 8, PAL.b1); P.r(5, 3, 6, 6, PAL.glow2); P.r(6, 4, 2, 3, PAL.glow3);
     P.r(3, 1, 10, 2, PAL.k); P.r(4, 1, 8, 1, PAL.b2); P.p(8, 0, PAL.b3);
   }},
-  tablelamp: { tall: 4, draw(P) {
-    P.ellipse(8, 19, 5, 1, PAL.shadow);
-    P.box(3, 13, 10, 7, PAL.w2); P.r(4, 14, 8, 1, PAL.w4);
-    P.r(7, 6, 2, 7, PAL.b1);
-    P.ellipse(8, 5, 5, 3, PAL.k); P.ellipse(8, 5, 4, 2, PAL.glow2); P.r(6, 4, 3, 1, PAL.glow3);
+  // 테이블 위 소품: 캔버스 바닥이 상판 위에 오도록 렌더러가 올려 그린다
+  tablelamp: { tall: 0, draw(P) {
+    P.r(6, 14, 4, 2, PAL.k); P.r(7, 14, 2, 1, PAL.b2);
+    P.r(7, 9, 2, 5, PAL.b1);
+    P.ellipse(8, 7, 4, 2, PAL.k); P.ellipse(8, 7, 3, 1, PAL.glow2); P.r(6, 6, 3, 1, PAL.glow3);
+  }},
+  candle: { tall: 0, draw(P) {
+    P.r(6, 14, 4, 2, PAL.k); P.r(7, 14, 2, 1, PAL.b3); P.r(7, 12, 2, 2, PAL.b1);
+    P.r(7, 8, 2, 4, PAL.cr2); P.p(7, 8, PAL.wh);
+    P.p(8, 6, PAL.glow1); P.p(8, 7, PAL.glow2); P.p(7, 7, PAL.glow3);
+  }},
+  // 벽걸이 (벽 칸 위에 그림)
+  sconce: { tall: 0, draw(P) {
+    P.r(6, 5, 4, 7, PAL.k); P.r(7, 6, 2, 5, PAL.b1);
+    P.r(5, 10, 6, 2, PAL.b2); P.r(6, 2, 4, 8, PAL.k); P.r(7, 3, 2, 6, PAL.glow2); P.p(7, 4, PAL.glow3);
+    P.r(6, 1, 4, 1, PAL.b1);
+  }},
+  walllantern: { tall: 0, draw(P) {
+    P.r(2, 5, 6, 1, PAL.k); P.r(2, 4, 1, 3, PAL.b1);
+    P.r(8, 2, 1, 3, PAL.i2);
+    P.box(5, 5, 7, 9, PAL.b1); P.r(6, 6, 5, 6, PAL.glow2); P.r(7, 7, 2, 3, PAL.glow3); P.r(8, 6, 1, 6, PAL.b1);
+    P.r(4, 4, 9, 1, PAL.k); P.r(6, 14, 5, 1, PAL.k);
+  }},
+  bulbpipe: { tall: 0, draw(P) {
+    P.r(0, 4, 16, 3, PAL.c1); P.r(0, 4, 16, 1, PAL.c3); P.r(5, 3, 2, 5, PAL.b1); P.r(11, 3, 2, 5, PAL.b1);
+    for (const x of [3, 9, 14]) { P.r(x, 7, 1, 2, PAL.i1); P.disc(x, 11, 2, PAL.k); P.disc(x, 11, 1, PAL.glow2); P.p(x, 10, PAL.glow3); }
   }},
   tubeman: { tall: 4, draw(P) {
     // 받침 송풍기 (몸통은 렌더러가 매 프레임 흔들며 그린다)
@@ -1160,6 +1181,31 @@ const Sprites = {
     return e;
   },
 
+  // 천장 오브젝트를 정면에서 본 '매달린' 모습 (평소 화면용). 위쪽이 천장 고정점
+  hanging(id, frame = 0) {
+    return this._build(`hang_${id}_${frame}`, 16, 20, P => {
+      if (id === 'gaslamp') {
+        P.r(7, 0, 1, 8, PAL.i2); P.r(5, 8, 6, 1, PAL.k);
+        P.box(5, 9, 6, 7, PAL.b1); P.r(6, 10, 4, 5, PAL.glow2); P.p(7, 11, PAL.glow3); P.r(6, 16, 4, 1, PAL.b1);
+      } else if (id === 'chandelier') {
+        P.r(7, 0, 1, 8, PAL.i2);
+        P.r(2, 11, 12, 2, PAL.k); P.r(3, 11, 10, 1, PAL.b2); P.line(7, 8, 3, 11, PAL.b1); P.line(8, 8, 12, 11, PAL.b1);
+        for (const x of [3, 6, 9, 12]) { P.r(x, 8, 1, 3, PAL.cr2); P.p(x, 7, PAL.glow2); P.p(x, 6, PAL.glow3); }
+        P.disc(8, 14, 1, PAL.b3); P.p(8, 16, PAL.glow2);
+      } else if (id === 'arclamp') {
+        P.line(0, 1, 8, 4, PAL.i1); P.line(8, 4, 15, 1, PAL.i1);
+        for (const [x, y] of [[3, 2], [8, 4], [13, 2]]) { P.r(x, y + 1, 1, 2, PAL.i1); P.disc(x, y + 5, 2, PAL.glow1); P.p(x, y + 5, PAL.glow3); }
+      } else if (id === 'fan') {
+        P.r(7, 0, 2, 7, PAL.i1); P.r(5, 7, 6, 2, PAL.b2); P.p(8, 9, PAL.b3);
+        const a = frame % 2 ? [1, 13] : [3, 11];   // 날개가 도는 것처럼 길이를 바꿈
+        P.r(a[0], 8, 8 - a[0] - 2, 1, PAL.w1); P.r(10, 8, a[1] - 10 + 2, 1, PAL.w1);
+      } else if (id === 'pipedeco') {
+        P.r(0, 1, 16, 3, PAL.c1); P.r(0, 1, 16, 1, PAL.c3); P.r(10, 0, 3, 5, PAL.c0); P.ring(11, 8, 2, PAL.red2); P.r(11, 4, 1, 3, PAL.c1);
+      } else {
+        P.r(7, 0, 1, 6, PAL.i2); P.disc(8, 9, 3, PAL.b1);
+      }
+    }).canvas;
+  },
   // 돌릴 수 있는 방향: 0 앞(아래를 봄) · 1 오른쪽 · 2 뒤(위를 봄) · 3 왼쪽(1의 좌우 반전)
   dirs(id) {
     const d = DATA.objects[id], art = OBJ_ART[id];

@@ -254,7 +254,7 @@ const UI = {
     const cat = sub === 'ceil' ? 'ceilitem' : sub;
     for (const [id, d] of Object.entries(DATA.objects)) {
       if (sub === 'light' ? !d.light : d.cat !== cat) continue;
-      grid.append(this.card({ key: 'object:' + id, thumb: Sprites.thumb('obj', id, 40), name: d.name, cost: d.cost, lv: d.lv, lines: [`분위기 +${d.appeal}`, d.light ? `💡 조명 ${d.light}칸` : '', this.needsText(d)].filter(Boolean), onClick: () => this.setTool({ kind: 'object', id }) }));
+      grid.append(this.card({ key: 'object:' + id, thumb: Sprites.thumb('obj', id, 40), name: d.name, cost: d.cost, lv: d.lv, lines: [`분위기 +${d.appeal}`, d.light ? `💡 조명 ${d.light}칸` : '', d.layer === 'top' ? '🍽 테이블·카운터 위' : d.layer === 'wall' ? '🧱 벽걸이' : '', this.needsText(d)].filter(Boolean), onClick: () => this.setTool({ kind: 'object', id }) }));
     }
     if (!matTable || sub === 'ceil' || sub === 'light') grid.append(this.card({ key: 'edit:', thumb: this.textThumb('✥', '#9fd6ff'), name: '편집 (이동·회전)', cost: 0, lines: ['클릭해 들기 · R 회전'], onClick: () => this.setTool({ kind: 'edit' }) }));
     if (!matTable || sub === 'ceil' || sub === 'light') grid.append(this.card({ key: 'remove:', thumb: this.textThumb('⚒', '#ffb070'), name: '철거', cost: 0, lines: ['50% 환급'], onClick: () => this.setTool({ kind: 'remove' }) }));
@@ -267,7 +267,7 @@ const UI = {
       kitchen: '조리 설비는 증기 배관이 연결돼야 작동합니다. 카운터에 완성품이 진열됩니다.',
       furniture: '의자는 테이블과 상하좌우로 붙어 있어야 좌석이 됩니다.',
       decor: '장식은 분위기 점수를 올려 손님과 팁을 늘려줍니다.',
-      light: '해가 지면 조명이 닿지 않는 자리의 손님은 만족도가 떨어져요. 놓을 때 노란 원이 비추는 범위입니다. 천장 조명은 천장 보기에서, 스탠드·테이블 램프는 바닥에 놓습니다.',
+      light: '해가 지면 조명이 닿지 않는 자리의 손님은 만족도가 떨어져요. 놓을 때 노란 원이 비추는 범위입니다. 천장 조명은 천장 보기에서, 스탠드 가스등은 바닥에, 테이블 램프·촛대는 테이블이나 카운터 위에, 벽 가스등·벽 랜턴·증기관 전구는 위쪽·양옆 벽에 겁니다.',
     };
     B.append(h('p', { class: 'tip' }, tips[sub]));
     B.append(h('div', { id: 'live-appeal', class: 'live' }));
@@ -637,11 +637,11 @@ const UI = {
     else if (k === 'edit' && !dragging) {
       // 편집 도구: 클릭한 오브젝트를 들어 올린다 (천장 보기면 천장 오브젝트)
       const ceil = this.state.mode === 'interior' && this.state.sub === 'ceil';
-      let o = Game.objAt(x, y, ceil ? 'ceil' : 'floor') || (!ceil && Game.inGrid(x, y + 1) && (() => { const b = Game.objAt(x, y + 1); return b && Sprites.object(b.id).tall >= 8 ? b : null; })());
+      let o = (ceil ? Game.objAt(x, y, 'ceil') : Game.objAt(x, y, 'top') || Game.objAt(x, y, 'wall') || Game.objAt(x, y, 'floor')) || (!ceil && Game.inGrid(x, y + 1) && (() => { const b = Game.objAt(x, y + 1); return b && Sprites.object(b.id).tall >= 8 ? b : null; })());
       if (o) this.setTool({ kind: 'move', id: o.id, uid: o.uid, rot: o.rot || 0, px: o.x, py: o.y, fromEdit: true });
     }
     else if (k === 'remove' && !dragging) {
-      const o = Game.objAt(x, y, this.state.sub === 'ceil' && this.state.mode === 'interior' ? 'ceil' : 'floor') || Game.objAt(x, y, 'ceil');
+      const o = (this.state.sub === 'ceil' && this.state.mode === 'interior' ? Game.objAt(x, y, 'ceil') : Game.objAt(x, y, 'top') || Game.objAt(x, y, 'wall') || Game.objAt(x, y, 'floor')) || Game.objAt(x, y, 'ceil');
       if (o) { Game.removeObject(o); Game.save(); }
     }
   },
@@ -682,7 +682,7 @@ const UI = {
       return this.popup(e, h('div', {}, h('b', {}, `🐈 ${cat.ref.name}`), h('p', { class: 'dim' }, `${k.name} · ${k.kg}kg · ${where}`),
         h('p', {}, `현열 ${k.sens}W · 잠열 ${k.lat}W`), h('p', { class: 'dim' }, `분위기 +${DATA.catAppeal} · 2칸 안의 손님 만족도 +6`)));
     }
-    let o = Game.objAt(t.x, t.y);
+    let o = Game.objAt(t.x, t.y, 'top') || Game.objAt(t.x, t.y, 'wall') || Game.objAt(t.x, t.y);
     if (!o && Game.inGrid(t.x, t.y + 1)) { const below = Game.objAt(t.x, t.y + 1); if (below && Sprites.object(below.id).tall >= 8) o = below; }
     if (!o) return;
     if (o.cook && o.cook.done) { Game.collect(o); return; }

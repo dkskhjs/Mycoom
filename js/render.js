@@ -96,6 +96,12 @@ const Render = {
     g.drawImage(this.toneOverlay(), 0, 0);   // 넓은 범위 색 얼룩
     this.drawStains(P);
     this.drawDoor(P); this.drawInlet(P);
+    // 벽걸이 조명 (오른쪽 벽은 좌우 반전)
+    for (const o of s.objects) if (DATA.objects[o.id].layer === 'wall') {
+      const c = Sprites.object(o.id).canvas;
+      if (o.x === W - 1) { g.save(); g.translate(o.x * TILE * 2 + TILE, 0); g.scale(-1, 1); g.drawImage(c, o.x * TILE, o.y * TILE); g.restore(); }
+      else g.drawImage(c, o.x * TILE, o.y * TILE);
+    }
     P.r(0, (H + 1) * TILE, W * TILE, 1, PAL.s1); // 보도/차도 경계
 
     // 2. 설비 보기: 바닥 어둡게 + 난방 범위
@@ -113,7 +119,9 @@ const Render = {
     const items = [];
     for (const o of s.objects) {
       const d = DATA.objects[o.id];
-      if (d.layer === 'ceil') continue;
+      if (d.layer === 'ceil' || d.layer === 'wall') continue;
+      // 테이블 위 소품은 테이블 바로 다음에 그린다
+      if (d.layer === 'top') { const host = Game.objAt(o.x, o.y, 'floor'); items.push({ z: (host ? host.y + Game.dims(host.id, host.rot).h : o.y + 1) + 0.005, kind: 'obj', o }); continue; }
       items.push({ z: o.y + Game.dims(o.id, o.rot).h, kind: 'obj', o });
     }
     for (const c of Game.rt.customers) items.push({ z: c.y + 1.02, kind: 'cust', c });
@@ -139,6 +147,19 @@ const Render = {
       }
     }
     g.globalAlpha = 1;
+
+    // 3-2. 천장: 마을 쪽으로 멀어지면 천장 마감이 살짝 덮이고, 천장 조명은 늘 매달린 모습으로 (내부가 보이게 반투명)
+    if (!ceilView) {
+      const far = Math.max(0, Math.min(1, (0.5 - (this.focus ?? 1)) / 0.5));
+      if (far > 0.01) {
+        g.globalAlpha = far * 0.5;
+        for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) g.drawImage(Sprites.ceil(s.ceil[Game.idx(x, y)], Sprites.variant(x, y)), x * TILE, y * TILE);
+      }
+      g.globalAlpha = util ? 0.4 : 0.82;
+      const fr = Math.floor(this.t * 6);
+      for (const o of s.objects) if (DATA.objects[o.id].layer === 'ceil') g.drawImage(Sprites.hanging(o.id, o.id === 'fan' ? fr : 0), o.x * TILE, o.y * TILE - 34);
+      g.globalAlpha = 1;
+    }
 
     // 4. 배관 (설비 보기)
     if (util) this.drawLanePipes(P);
@@ -351,6 +372,8 @@ const Render = {
     return out;
   },
 
+  // 테이블 위 소품을 상판 높이만큼 올려 그린다
+  topLift(x, y) { const host = Game.objAt(x, y, 'floor'); return host ? (DATA.objects[host.id].top ?? 8) : 0; },
   // 그릴 방향: 의자는 직접 돌리지 않았다면 옆 테이블 쪽을 본다 (손님도 그쪽을 보고 앉는다)
   objDir(o) {
     const d = DATA.objects[o.id];
@@ -372,7 +395,7 @@ const Render = {
   drawObject(P, o) {
     const spr = Sprites.object(o.id), d = DATA.objects[o.id], dir = this.objDir(o);
     if (dir) { this.blitDir(o.id, dir, o.x, o.y, o.rot, o.flip); return; }
-    const dx = o.x * TILE + spr.xoff, dy = (o.y + d.h) * TILE - spr.canvas.height;
+    const dx = o.x * TILE + spr.xoff, dy = (o.y + d.h) * TILE - spr.canvas.height - (d.layer === 'top' ? this.topLift(o.x, o.y) : 0);
     if (o.flip) { const g = this.wg; g.save(); g.translate(o.x * TILE * 2 + d.w * TILE, 0); g.scale(-1, 1); g.drawImage(spr.canvas, dx, dy); g.restore(); }
     else this.wg.drawImage(spr.canvas, dx, dy);
     // 애니메이션
@@ -627,7 +650,7 @@ const Render = {
     const lights = [];
     for (const o of s.objects) {
       const d = DATA.objects[o.id];
-      if (d.light) lights.push([o.x * TILE + 8, o.y * TILE + 8, d.light * TILE]);
+      if (d.light) { const [cx, cy] = Game.lightCenter(o); lights.push([cx * TILE, cy * TILE - (d.layer === 'top' ? this.topLift(o.x, o.y) * 0.5 : 0), d.light * TILE]); }
       if (o.id === 'boiler' && Game.boilerRunning()) lights.push([o.x * TILE + 20, o.y * TILE + 14, 1.6 * TILE]);
       if (o.id === 'oven') lights.push([o.x * TILE + 8, o.y * TILE + 6, 1.0 * TILE]);
     }
@@ -711,13 +734,14 @@ const Render = {
       const d = DATA.objects[t.id], spr = Sprites.object(t.id);
       const ok = Game.canPlace(t.id, pos.x, pos.y, t.uid || 0, t.rot || 0).ok;
       if (d.light) {   // 조명이 닿는 범위 미리보기
-        g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(pos.x * TILE + 8, pos.y * TILE + 8, d.light * TILE, 0, Math.PI * 2); g.fill();
+        const [lx, ly] = Game.lightCenter({ id: t.id, x: pos.x, y: pos.y });
+        g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(lx * TILE, ly * TILE, d.light * TILE, 0, Math.PI * 2); g.fill();
         g.strokeStyle = 'rgba(255,214,120,0.6)'; g.lineWidth = 1; g.stroke();
       }
       const rot = t.rot || 0, dm = Game.dims(t.id, rot);
       g.globalAlpha = pend ? 0.85 : 0.6;
       if (rot) this.blitDir(t.id, rot, pos.x, pos.y, rot, false);
-      else g.drawImage(spr.canvas, pos.x * TILE + spr.xoff, (pos.y + d.h) * TILE - spr.canvas.height);
+      else g.drawImage(spr.canvas, pos.x * TILE + spr.xoff, (pos.y + d.h) * TILE - spr.canvas.height - (d.layer === 'top' ? this.topLift(pos.x, pos.y) : 0));
       g.globalAlpha = 0.3;
       g.fillStyle = ok ? '#6aff8a' : '#ff5a4a';
       g.fillRect(pos.x * TILE, pos.y * TILE, dm.w * TILE, dm.h * TILE);

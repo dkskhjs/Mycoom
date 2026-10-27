@@ -92,18 +92,18 @@ const DATA = {
                   desc: '고압 증기로 굽는다.' },
     sink:       { name: '도자기 싱크대',      cat: 'kitchen', w: 1, h: 1, cost: 500,  appeal: 1, lv: 1, needs: ['cold', 'hot'],
                   desc: '위생 필수! 급수+급탕 연결된 싱크대가 있어야 영업 가능.' },
-    counter:    { name: '서빙 카운터',        cat: 'kitchen', w: 2, h: 1, cost: 400,  appeal: 2, lv: 1, needs: [],
+    counter:    { name: '서빙 카운터',        cat: 'kitchen', w: 2, h: 1, cost: 400,  appeal: 2, lv: 1, top: 15, needs: [],
                   desc: '완성된 메뉴가 놓이는 곳. 영업에 필요.' },
 
-    table_wood: { name: '원목 원탁',     cat: 'furniture', w: 1, h: 1, cost: 150, appeal: 2, lv: 1, table: true },
-    table_brass:{ name: '황동 원탁',     cat: 'furniture', w: 1, h: 1, cost: 320, appeal: 4, lv: 2, table: true },
-    table_long: { name: '긴 연회 테이블', cat: 'furniture', w: 2, h: 1, cost: 400, appeal: 5, lv: 3, table: true },
+    table_wood: { name: '원목 원탁',     cat: 'furniture', w: 1, h: 1, cost: 150, appeal: 2, lv: 1, table: true, top: 10 },
+    table_brass:{ name: '황동 원탁',     cat: 'furniture', w: 1, h: 1, cost: 320, appeal: 4, lv: 2, table: true, top: 10 },
+    table_long: { name: '긴 연회 테이블', cat: 'furniture', w: 2, h: 1, cost: 400, appeal: 5, lv: 3, table: true, top: 10 },
     chair_wood: { name: '나무 의자',     cat: 'furniture', w: 1, h: 1, cost: 80,  appeal: 1, lv: 1, seat: true },
     chair_leather:{name:'가죽 안락의자', cat: 'furniture', w: 1, h: 1, cost: 260, appeal: 3, lv: 2, seat: true },
     sofa:       { name: '체스터필드 소파', cat: 'furniture', w: 2, h: 1, cost: 600, appeal: 6, lv: 3, seat: true },
-    table_iron: { name: '주철 카페 테이블', cat: 'furniture', w: 1, h: 1, cost: 120, appeal: 2, lv: 1, table: true },
-    table_marble:{ name: '대리석 사각 테이블', cat: 'furniture', w: 1, h: 1, cost: 280, appeal: 3, lv: 2, table: true },
-    table_map:  { name: '항해 지도 테이블', cat: 'furniture', w: 2, h: 1, cost: 750, appeal: 7, lv: 4, table: true },
+    table_iron: { name: '주철 카페 테이블', cat: 'furniture', w: 1, h: 1, cost: 120, appeal: 2, lv: 1, table: true, top: 10 },
+    table_marble:{ name: '대리석 사각 테이블', cat: 'furniture', w: 1, h: 1, cost: 280, appeal: 3, lv: 2, table: true, top: 12 },
+    table_map:  { name: '항해 지도 테이블', cat: 'furniture', w: 2, h: 1, cost: 750, appeal: 7, lv: 4, table: true, top: 10 },
     stool:      { name: '황동 바 스툴',   cat: 'furniture', w: 1, h: 1, cost: 60,  appeal: 1, lv: 1, seat: true },
     chair_iron: { name: '벤트우드 철제 의자', cat: 'furniture', w: 1, h: 1, cost: 150, appeal: 2, lv: 2, seat: true },
     wingback:   { name: '윙백 체어',      cat: 'furniture', w: 1, h: 1, cost: 450, appeal: 5, lv: 4, seat: true },
@@ -136,7 +136,13 @@ const DATA = {
 
     // 바닥에 두는 조명 (light: 비추는 반경, 칸)
     floorlamp:  { name: '스탠드 가스등',   cat: 'decor', w: 1, h: 1, cost: 220,  appeal: 3, lv: 1, light: 2.6 },
-    tablelamp:  { name: '황동 테이블 램프', cat: 'decor', w: 1, h: 1, cost: 140,  appeal: 2, lv: 1, light: 1.8 },
+    // 테이블·카운터 위에 올리는 조명 (layer top)
+    tablelamp:  { name: '황동 테이블 램프', cat: 'decor', layer: 'top', w: 1, h: 1, cost: 140,  appeal: 2, lv: 1, light: 1.8 },
+    candle:     { name: '테이블 촛대',     cat: 'decor', layer: 'top', w: 1, h: 1, cost: 50,   appeal: 1, lv: 1, light: 1.3 },
+    // 벽에 거는 조명 (layer wall: 위쪽·양옆 안쪽 벽)
+    sconce:     { name: '벽 가스등',       cat: 'decor', layer: 'wall', w: 1, h: 1, cost: 100,  appeal: 2, lv: 1, light: 2.1 },
+    walllantern:{ name: '황동 벽 랜턴',    cat: 'decor', layer: 'wall', w: 1, h: 1, cost: 180,  appeal: 3, lv: 2, light: 2.5 },
+    bulbpipe:   { name: '증기관 전구',     cat: 'decor', layer: 'wall', w: 1, h: 1, cost: 260,  appeal: 3, lv: 3, light: 2.7 },
     // 새 오브제
     tubeman:    { name: '증기 춤추는 풍선인형', cat: 'decor', w: 1, h: 1, cost: 900, appeal: 8, lv: 2, needs: ['hot'],
                   desc: '증기를 불어넣으면 흐느적흐느적 춤을 춘다. 급탕(증기)관 연결 필요.' },

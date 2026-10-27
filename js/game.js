@@ -96,7 +96,12 @@ const Game = {
       const st = this.s;
       st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
       // 예전 회전(세로 + 뒤집기)을 4방향 값으로: 세로·뒤집기 = 왼쪽(3)
-      for (const o of st.objects) { const d = DATA.objects[o.id]; if (d && d.w !== d.h && o.rot === 1 && o.flip) { o.rot = 3; o.flip = false; } if (o.rot) o.rotSet = true; } st.stock.sweetpotato ??= 5;
+      for (const o of st.objects) { const d = DATA.objects[o.id]; if (d && d.w !== d.h && o.rot === 1 && o.flip) { o.rot = 3; o.flip = false; } if (o.rot) o.rotSet = true; }
+      // 테이블 램프가 테이블 위 소품이 되기 전 세이브: 테이블 위가 아니면 전액 환급하고 치운다
+      { const surf = new Set();
+        for (const o of st.objects) { const d = DATA.objects[o.id]; if (!d || d.top == null) continue; const sw = (o.rot & 1) && d.w !== d.h; for (let j = 0; j < (sw ? d.w : d.h); j++) for (let i = 0; i < (sw ? d.h : d.w); i++) surf.add((o.x + i) + ',' + (o.y + j)); }
+        const bad = st.objects.filter(o => DATA.objects[o.id] && DATA.objects[o.id].layer === 'top' && !surf.has(o.x + ',' + o.y));
+        if (bad.length) { st.objects = st.objects.filter(o => !bad.includes(o)); for (const o of bad) st.money += DATA.objects[o.id].cost; this._loadNote = `💡 테이블 램프는 이제 테이블·카운터 위에 올려요 — 바닥에 있던 ${bad.length}개는 환급했어요`; } } st.stock.sweetpotato ??= 5;
       // 이자 인하 전 대출은 남은 원리금을 새 이자율(난이도 반영)로 다시 계산
       if (!st.loanV) {
         const old = { small: 0.08, mid: 0.12, big: 0.18 }, mul = (DATA.difficulty[st.difficulty] || DATA.difficulty.easy).loanRate;
@@ -104,6 +109,7 @@ const Game = {
         st.loanV = 2;
       }
       this.initRuntime();
+      if (this._loadNote) { const m = this._loadNote; this._loadNote = null; setTimeout(() => this.toast(m, 'good'), 800); }
       return true;
     } catch (e) { return false; }
   },
@@ -153,16 +159,16 @@ const Game = {
   },
   objAt(x, y, layer = 'floor') {
     const n = this.rt.nets; if (!n || !this.inGrid(x, y)) return null;
-    const uid = (layer === 'ceil' ? n.ceilOcc : n.floorOcc)[this.idx(x, y)];
+    const uid = ({ ceil: n.ceilOcc, top: n.topOcc, wall: n.wallOcc }[layer] || n.floorOcc)[this.idx(x, y)];
     return uid ? this.s.objects.find(o => o.uid === uid) : null;
   },
   isLeak(type, i) { return this.s.leaks.some(l => l.type === type && l.i === i); },
 
   recompute() {
     const s = this.s, { W, H } = s, N = W * H;
-    const floorOcc = new Array(N).fill(0), ceilOcc = new Array(N).fill(0);
+    const floorOcc = new Array(N).fill(0), ceilOcc = new Array(N).fill(0), topOcc = new Array(N).fill(0), wallOcc = new Array(N).fill(0);
     for (const o of s.objects) {
-      const occ = (this.objDef(o).layer === 'ceil') ? ceilOcc : floorOcc;
+      const occ = { ceil: ceilOcc, top: topOcc, wall: wallOcc }[this.objDef(o).layer] || floorOcc;
       for (const [x, y] of this.footprint(o)) occ[this.idx(x, y)] = o.uid;
     }
     const flood = (type, starts) => {
@@ -235,11 +241,11 @@ const Game = {
     const lit = new Set();
     for (const o of s.objects) {
       const r = this.objDef(o).light; if (!r) continue;
-      const cx = o.x + 0.5, cy = o.y + 0.5;
+      const [cx, cy] = this.lightCenter(o);
       for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
         if (this.isInterior(x, y) && (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r) lit.add(this.idx(x, y));
     }
-    this.rt.nets = { lit, floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
+    this.rt.nets = { lit, floorOcc, ceilOcc, topOcc, wallOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
     this.rt.nets.env = this.envelope();
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
@@ -364,12 +370,38 @@ const Game = {
     this.s.leaks = this.s.leaks.filter(l => !(l.i === i && (!type || l.type === type)));
     if (any) { this.rt.dirty = true; this.sfx('remove'); } return any;
   },
+  // 벽걸이를 걸 수 있는 벽: 위쪽·양옆 벽 (모서리·문·수도 인입구·앞쪽 잘린 벽 제외)
+  wallMountable(x, y) {
+    const { W, H } = this.s;
+    if (!this.isWall(x, y) || this.isDoor(x, y) || y === H - 1) return false;
+    if ((x === 0 || x === W - 1) && y === 0) return false;
+    const l = this.inlet; if (x === l.x && y === l.y) return false;
+    return true;
+  },
+  // 테이블·카운터처럼 위에 물건을 올릴 수 있는 것
+  isSurface(o) { const d = o && this.objDef(o); return !!d && d.top != null; },
+  // 조명의 빛 중심 (벽걸이는 벽에서 방 안쪽으로 조금)
+  lightCenter(o) {
+    if (this.objDef(o).layer !== 'wall') return [o.x + 0.5, o.y + 0.5];
+    const { W } = this.s;
+    return o.x === 0 ? [1.1, o.y + 0.5] : o.x === W - 1 ? [W - 1.1, o.y + 0.5] : [o.x + 0.5, 1.2];
+  },
   canPlace(id, x, y, ignoreUid = 0, rot = 0) {
     const d = DATA.objects[id], s = this.s, dm = this.dims(id, rot);
     if (d.lv > s.level) return { ok: false, why: `Lv.${d.lv} 필요` };
     if (d.unique && s.objects.some(o => o.id === id && o.uid !== ignoreUid)) return { ok: false, why: '하나만 설치 가능' };
     for (let j = 0; j < dm.h; j++) for (let i = 0; i < dm.w; i++) {
       const tx = x + i, ty = y + j;
+      if (d.layer === 'wall') {
+        if (!this.wallMountable(tx, ty)) return { ok: false, why: '위쪽·양옆 벽에만 걸 수 있음' };
+        const there = this.objAt(tx, ty, 'wall'); if (there && there.uid !== ignoreUid) return { ok: false, why: '이미 무언가 걸려 있음' };
+        continue;
+      }
+      if (d.layer === 'top') {
+        if (!this.isSurface(this.objAt(tx, ty, 'floor'))) return { ok: false, why: '테이블·카운터 위에만 놓을 수 있음' };
+        const there = this.objAt(tx, ty, 'top'); if (there && there.uid !== ignoreUid) return { ok: false, why: '이미 무언가 올려져 있음' };
+        continue;
+      }
       if (!this.isInterior(tx, ty)) return { ok: false, why: '실내에만 설치' };
       if (d.layer !== 'ceil' && this.isEntrance(tx, ty)) return { ok: false, why: '입구를 막을 수 없음' };
       const there = this.objAt(tx, ty, d.layer === 'ceil' ? 'ceil' : 'floor');
@@ -398,7 +430,9 @@ const Game = {
     if (o.x === x && o.y === y && (o.rot || 0) === (rot & 3)) return true;
     const c = this.canPlace(o.id, x, y, o.uid, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
+    const tops = this.isSurface(o) ? this.topsOn(o) : [], ox = o.x, oy = o.y, orot = o.rot;
     o.x = x; o.y = y; if ((o.rot || 0) !== (rot & 3)) { o.rot = rot & 3; o.rotSet = true; o.flip = false; } this.sfx('place');
+    this.carryTops(tops, ox, oy, orot, o);
     this.recompute(); this.save();
     this.toast(`${this.objDef(o).name} 이동`);
     return true;
@@ -410,7 +444,8 @@ const Game = {
     const cur = typeof Render !== 'undefined' ? Render.objDir(o) : (o.rot || 0);
     const r = this.nextRot(o.id, cur), c = this.canPlace(o.id, o.x, o.y, o.uid, r);
     if (!c.ok) { this.toast(`회전할 자리가 없어요 (${c.why}) — 옮기기로 들어서 R 로 돌려 보세요`, 'bad'); return false; }
-    o.rot = r; o.rotSet = true; o.flip = false; this.recompute(); this.save();
+    const tops = this.isSurface(o) ? this.topsOn(o) : [], orot = o.rot;
+    o.rot = r; o.rotSet = true; o.flip = false; this.carryTops(tops, o.x, o.y, orot, o); this.recompute(); this.save();
     return true;
   },
   canRotate(id) { return Sprites.dirs(id).length > 1; },
@@ -439,7 +474,20 @@ const Game = {
     return true;
   },
 
+  // 테이블 위에 올린 것들
+  topsOn(host) { const fp = this.footprint(host); return this.s.objects.filter(t => this.objDef(t).layer === 'top' && fp.some(([x, y]) => x === t.x && y === t.y)); },
+  // 테이블이 옮겨지거나 돌면 위의 물건도 같이 (자리가 없어지면 환급하고 치움)
+  carryTops(tops, ox, oy, orot, host) {
+    const swap = ((orot || 0) & 1) !== ((host.rot || 0) & 1);
+    for (const t of tops) {
+      let dx = t.x - ox, dy = t.y - oy; if (swap) [dx, dy] = [dy, dx];
+      const nx = host.x + dx, ny = host.y + dy;
+      if (this.footprint(host).some(([x, y]) => x === nx && y === ny)) { t.x = nx; t.y = ny; }
+      else { this.s.objects = this.s.objects.filter(q => q !== t); this.s.money += Math.floor(this.objDef(t).cost / 2); }
+    }
+  },
   removeObject(o) {
+    for (const t of this.isSurface(o) ? this.topsOn(o) : []) { this.s.objects = this.s.objects.filter(q => q !== t); this.s.money += Math.floor(this.objDef(t).cost / 2); }
     this.s.objects = this.s.objects.filter(q => q !== o);
     const refund = Math.floor(this.objDef(o).cost / 2);
     this.s.money += refund;
@@ -493,7 +541,10 @@ const Game = {
     }
     s.leaks = s.leaks.map(l => ({ type: l.type, i: ni(l.i % oW, ((l.i / oW) | 0) + dy) }));
     for (const st of s.stains) st.y += dy;
-    for (const o of s.objects) o.y += dy;
+    for (const o of s.objects) {
+      o.y += dy;
+      if (this.objDef(o).layer === 'wall') { if (dir === 'east' && o.x === oW - 1) o.x = W - 1; if (dir === 'north' && o.y === dy) o.y = 0; }
+    }
     s.W = W; s.H = H; s.floor = nf; s.wall = nw; s.ceil = nc; s.pipe = np;
     s.inletY = (s.inletY ?? 2) + dy;
     s.expansions++;
