@@ -339,27 +339,72 @@ const UI = {
   },
 
   // ───────── 캔버스 입력 ─────────
+  // 입력: 도구가 있으면 칠하기/설치, 없으면 드래그=카메라 이동 · 클릭=선택
+  // 휠/핀치=확대축소, 우클릭·가운데 드래그=항상 이동
   bindCanvas() {
-    const cv = $('#fx');
-    cv.addEventListener('contextmenu', e => { e.preventDefault(); this.setTool(null); });
-    cv.addEventListener('pointermove', e => {
-      const t = Render.tileAt(e.clientX, e.clientY);
-      this.state.hover = t;
-      if (this.painting) this.applyTool(t.x, t.y, true);
-    });
-    cv.addEventListener('pointerleave', () => { this.state.hover = null; this.painting = false; });
+    const cv = $('#fx'), ptrs = new Map();
+    let gesture = null; // { kind: 'pan'|'maybe'|'paint'|'pinch', ... }
+    cv.addEventListener('contextmenu', e => e.preventDefault());
+    cv.addEventListener('wheel', e => {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      Render.zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
     cv.addEventListener('pointerdown', e => {
-      if (e.button === 2) return;
       cv.setPointerCapture(e.pointerId);
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const t = Render.tileAt(e.clientX, e.clientY);
       this.state.hover = t;
+      if (ptrs.size === 2) {
+        // 핀치 시작: 칠하던 건 멈춘다
+        const [a, b] = [...ptrs.values()];
+        gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+        this.painting = false;
+        return;
+      }
+      if (e.button === 1 || e.button === 2) { gesture = { kind: 'pan', x: e.clientX, y: e.clientY, moved: 0, right: e.button === 2 }; return; }
       if (this.state.tool) {
         const k = this.state.tool.kind;
         this.painting = ['floor', 'wall', 'ceil', 'pipe', 'erase'].includes(k);
+        gesture = { kind: 'paint' };
         this.applyTool(t.x, t.y, false);
-      } else this.clickSelect(t, e);
+      } else gesture = { kind: 'maybe', x: e.clientX, y: e.clientY, moved: 0, ev: e, t };
     });
-    window.addEventListener('pointerup', () => { if (this.painting) { this.painting = false; Game.save(); } });
+    cv.addEventListener('pointermove', e => {
+      const t = Render.tileAt(e.clientX, e.clientY);
+      this.state.hover = t;
+      if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (!gesture) return;
+      if (gesture.kind === 'pinch' && ptrs.size >= 2) {
+        const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const r = cv.getBoundingClientRect();
+        Render.pan(mx - gesture.mx, my - gesture.my);
+        if (gesture.dist > 0) Render.zoomAt(d / gesture.dist, mx - r.left, my - r.top);
+        gesture.dist = d; gesture.mx = mx; gesture.my = my;
+      } else if (gesture.kind === 'pan' || gesture.kind === 'maybe') {
+        const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+        gesture.moved += Math.abs(dx) + Math.abs(dy);
+        if (gesture.kind === 'maybe' && gesture.moved > 6) gesture.kind = 'pan';
+        if (gesture.kind === 'pan') Render.pan(dx, dy);
+        gesture.x = e.clientX; gesture.y = e.clientY;
+      } else if (gesture.kind === 'paint' && this.painting) this.applyTool(t.x, t.y, true);
+    });
+    const end = e => {
+      ptrs.delete(e.pointerId);
+      if (!gesture) return;
+      if (gesture.kind === 'maybe') this.clickSelect(gesture.t, gesture.ev);
+      if (gesture.kind === 'pan' && gesture.right && gesture.moved < 6) this.setTool(null);
+      if (gesture.kind === 'paint' && this.painting) { this.painting = false; Game.save(); }
+      if (gesture.kind !== 'pinch' || ptrs.size === 0) gesture = null;
+    };
+    cv.addEventListener('pointerup', end);
+    cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); gesture = null; this.painting = false; });
+    cv.addEventListener('pointerleave', () => { this.state.hover = null; });
+    // 카메라 버튼
+    $('#camShop').addEventListener('click', () => Render.fitShop());
+    $('#camTown').addEventListener('click', () => Render.fitTown());
+    $('#zoomIn').addEventListener('click', () => Render.zoomAt(1.25));
+    $('#zoomOut').addEventListener('click', () => Render.zoomAt(0.8));
   },
 
   applyTool(x, y, dragging) {

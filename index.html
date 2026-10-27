@@ -34,6 +34,12 @@
         <canvas id="world"></canvas>
         <canvas id="fx"></canvas>
       </div>
+      <div id="camctl">
+        <button id="camShop" class="btn ghost" title="가게 보기">🏠 가게</button>
+        <button id="camTown" class="btn ghost" title="마을 전체 보기">🏙 마을</button>
+        <button id="zoomOut" class="btn ghost" title="축소">−</button>
+        <button id="zoomIn" class="btn ghost" title="확대">＋</button>
+      </div>
       <div id="toolbar"><span id="toolHint"></span><button id="cancelTool" class="btn ghost" hidden>선택 해제</button></div>
       <div id="popup" hidden></div>
     </section>
@@ -55,6 +61,7 @@
 <script src="js/naple_atlas.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/game.js"></script>
+<script src="js/town.js"></script>
 <script src="js/render.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/ui.js"></script>

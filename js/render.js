@@ -3,40 +3,80 @@ const Render = {
   world: null, wg: null, fx: null, fg: null, light: null, lg: null,
   scale: 3, t: 0, flakes: [],
 
-  init(worldCanvas, fxCanvas) {
-    this.world = worldCanvas; this.wg = worldCanvas.getContext('2d');
+  // world = 화면 밖 장면 캔버스(마을 전체, 1px = 도트 1칸), view = 화면에 보이는 캔버스
+  view: null, vg: null, cam: null, cw: 0, ch: 0, dpr: 1,
+
+  init(viewCanvas, fxCanvas) {
+    this.view = viewCanvas; this.vg = viewCanvas.getContext('2d');
     this.fx = fxCanvas; this.fg = fxCanvas.getContext('2d');
+    [this.world, this.wg] = makeCanvas(1, 1);
     [this.light, this.lg] = makeCanvas(1, 1);
   },
 
   resize(container) {
     const s = Game.s; if (!s) return;
-    const ww = s.W * TILE, wh = (s.H + STREET_ROWS) * TILE;
-    this.world.width = ww; this.world.height = wh;
-    this.light.width = ww; this.light.height = wh;
-    const availW = container.clientWidth, availH = container.clientHeight;
-    let sc = Math.min(availW / ww, availH / wh);
-    sc = sc >= 2 ? Math.floor(sc) : Math.max(1, Math.floor(sc * 2) / 2);
-    this.scale = sc;
-    const cw = Math.round(ww * sc), ch = Math.round(wh * sc);
-    for (const c of [this.world, this.fx]) { c.style.width = cw + 'px'; c.style.height = ch + 'px'; }
+    this.container = container;
+    const SW = Town.sceneW(), SH = Town.sceneH();
+    const grew = this.world.width !== SW || this.world.height !== SH;
+    if (grew) { this.world.width = SW; this.world.height = SH; this.light.width = SW; this.light.height = SH; this.flakes = []; }
     const dpr = window.devicePixelRatio || 1;
-    this.fx.width = Math.round(cw * dpr); this.fx.height = Math.round(ch * dpr);
-    this.dpr = dpr;
+    this.dpr = dpr; this.cw = container.clientWidth; this.ch = container.clientHeight;
+    for (const c of [this.view, this.fx]) {
+      c.style.width = this.cw + 'px'; c.style.height = this.ch + 'px';
+      c.width = Math.round(this.cw * dpr); c.height = Math.round(this.ch * dpr);
+    }
+    if (!this.cam || grew) this.fitShop(); else this.clampCam();
   },
+
+  // ───────── 카메라 ─────────
+  snapZoom(z) { return z >= 2 ? Math.floor(z) : Math.max(0.25, Math.floor(z * 4) / 4); },
+  fitRect(x, y, w, h, snap = true) {
+    const z = Math.min(this.cw / w, this.ch / h);
+    this.cam = { x: x + w / 2, y: y + h / 2, z: snap ? this.snapZoom(z) : z };
+    this.clampCam();
+  },
+  // 가게 + 앞 거리
+  fitShop() { const s = Game.s; this.fitRect(Town.ox() - 8, Town.oy() - 20, s.W * TILE + 16, (s.H + STREET_ROWS) * TILE + 24); this.camMode = 'shop'; },
+  // 마을 전체
+  fitTown() { this.fitRect(0, 0, Town.sceneW(), Town.sceneH(), false); this.cam.z = Math.max(0.25, Math.floor(this.cam.z * 8) / 8); this.camMode = 'town'; },
+  minZoom() { return Math.max(0.25, Math.min(this.cw / Town.sceneW(), this.ch / Town.sceneH()) * 0.9); },
+  zoomAt(factor, sx = this.cw / 2, sy = this.ch / 2) {
+    const c = this.cam, before = this.screenToScene(sx, sy);
+    c.z = Math.max(this.minZoom(), Math.min(8, c.z * factor));
+    if (c.z > 1.5) c.z = Math.round(c.z * 2) / 2;
+    const after = this.screenToScene(sx, sy);
+    c.x += before.x - after.x; c.y += before.y - after.y;
+    this.camMode = null; this.clampCam();
+  },
+  pan(dx, dy) { this.cam.x -= dx / this.cam.z; this.cam.y -= dy / this.cam.z; this.camMode = null; this.clampCam(); },
+  clampCam() {
+    const c = this.cam, SW = Town.sceneW(), SH = Town.sceneH(), hw = this.cw / 2 / c.z, hh = this.ch / 2 / c.z;
+    c.x = SW <= hw * 2 ? SW / 2 : Math.max(hw, Math.min(SW - hw, c.x));
+    c.y = SH <= hh * 2 ? SH / 2 : Math.max(hh, Math.min(SH - hh, c.y));
+  },
+  viewLeft() { return this.cam.x - this.cw / 2 / this.cam.z; },
+  viewTop() { return this.cam.y - this.ch / 2 / this.cam.z; },
+  screenToScene(sx, sy) { return { x: this.viewLeft() + sx / this.cam.z, y: this.viewTop() + sy / this.cam.z }; },
+  // 게임 좌표(px, 가게 원점) → 화면 CSS px
+  toScreen(px, py) { return { x: (px + Town.ox() - this.viewLeft()) * this.cam.z, y: (py + Town.oy() - this.viewTop()) * this.cam.z }; },
 
   // 화면 좌표 → 타일
   tileAt(clientX, clientY) {
     const r = this.fx.getBoundingClientRect();
-    const px = (clientX - r.left) / r.width * this.world.width, py = (clientY - r.top) / r.height * this.world.height;
+    const sc = this.screenToScene(clientX - r.left, clientY - r.top);
+    const px = sc.x - Town.ox(), py = sc.y - Town.oy();
     return { x: Math.floor(px / TILE), y: Math.floor(py / TILE), px, py };
   },
 
   draw(ui, dt) {
-    const s = Game.s, g = this.wg; if (!s) return;
+    const s = Game.s, g = this.wg; if (!s || !this.cam) return;
     this.t += dt;
     g.imageSmoothingEnabled = false;
-    const P = pen(g);
+    const P = pen(g), OX = Town.ox(), OY = Town.oy();
+    g.setTransform(1, 0, 0, 1, OX, OY);
+    Town.draw(g, P, this.t, dt);
+    // 쌓인 눈은 바닥 위, 가게·사람보다 아래 (가게 실내는 덮지 않음)
+    this.snowPending = true;
     const { W, H } = s;
     const util = ui.mode === 'utility';
     const ceilView = ui.mode === 'interior' && ui.sub === 'ceil';
@@ -51,6 +91,7 @@ const Render = {
     }
     // 연석
     P.r(0, H * TILE, W * TILE, 1, PAL.s3);
+    Town.drawSnow(g); Town.drawFront(g);
     this.drawDoor(P); this.drawInlet(P);
     P.r(0, (H + 1) * TILE, W * TILE, 1, PAL.s1); // 보도/차도 경계
 
@@ -115,15 +156,60 @@ const Render = {
     }
     g.globalAlpha = 1;
 
-    // 8. 조명/날씨
-    if (!ceilView) this.drawLighting(g);
+    // 8. 하늘의 비행선, 조명/날씨
+    if (!ceilView) { Town.drawSky(P, g, this.t); this.drawLighting(g); Town.drawWindows(P, this.dusk || 0); }
+    if (!util && !ceilView) this.drawWarmth(g, P);
     this.drawWeather(g, dt);
 
     // 9. 커서 미리보기
     this.drawGhost(P, ui);
 
+    // 10. 카메라로 화면에 옮기기
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const v = this.vg, z = this.cam.z * this.dpr;
+    v.setTransform(1, 0, 0, 1, 0, 0);
+    v.imageSmoothingEnabled = false;
+    v.fillStyle = '#0e0a08'; v.fillRect(0, 0, this.view.width, this.view.height);
+    v.drawImage(this.world, Math.round(-this.viewLeft() * z), Math.round(-this.viewTop() * z), Math.round(this.world.width * z), Math.round(this.world.height * z));
+
     // 10. fx: 텍스트
     this.drawFx();
+  },
+
+  // 온기: 작동 중인 보일러·조리기구·라디에이터 주변 글로우 + 아지랑이, 난방 바닥 은은한 색
+  drawWarmth(g, P) {
+    const s = Game.s, run = Game.boilerRunning(), t = this.t;
+    if (!run) return;
+    const W = s.W;
+    // 밤일수록 온기가 더 잘 보인다
+    const boost = 1 + (this.dusk || 0) * 0.8;
+    g.fillStyle = `rgba(255,150,60,${0.06 * boost})`;
+    for (const i of Game.rt.nets.heatCover) g.fillRect((i % W) * TILE, ((i / W) | 0) * TILE, TILE, TILE);
+    const src = [];
+    for (const o of s.objects) {
+      const d = DATA.objects[o.id];
+      if (o.id === 'boiler') src.push({ x: o.x * TILE + 16, y: o.y * TILE + 14, r: 40, a: 0.34, haze: 4, top: o.y * TILE - 14 });
+      else if (d.cook && Game.working(o)) { const hot = o.cook && !o.cook.done; src.push({ x: o.x * TILE + 8, y: o.y * TILE + 6, r: hot ? 26 : 16, a: hot ? 0.3 : 0.12, haze: hot ? 3 : 1, top: o.y * TILE - 8 }); }
+      else if (o.id === 'radiator' && Game.working(o)) src.push({ x: o.x * TILE + 8, y: o.y * TILE + 8, r: 26, a: 0.16, haze: 2, top: o.y * TILE - 2 });
+    }
+    g.save(); g.beginPath(); g.rect(TILE, TILE, (W - 2) * TILE, (s.H - 2) * TILE); g.clip();   // 온기는 실내에만
+    g.globalCompositeOperation = 'lighter';
+    for (const w of src) {
+      const pulse = 1 + Math.sin(t * 2.2 + w.x * 0.1) * 0.15;
+      for (let k = 3; k >= 1; k--) {
+        g.fillStyle = `rgba(255,${110 + k * 25},50,${(w.a / 3) * pulse * boost})`;
+        g.beginPath(); g.arc(w.x, w.y, w.r * k / 3, 0, Math.PI * 2); g.fill();
+      }
+    }
+    g.globalCompositeOperation = 'source-over';
+    g.restore();
+    // 아지랑이: 위로 흔들리며 올라가는 옅은 줄
+    for (const w of src) for (let j = 0; j < w.haze; j++) {
+      for (let k = 0; k < 7; k++) {
+        const ph = (t * 0.9 + j * 0.37 + k / 7) % 1, yy = Math.round(w.top - ph * 14), xx = Math.round(w.x - 6 + j * 6 + Math.sin(t * 4 + k + j * 2) * 1.5);
+        g.fillStyle = `rgba(255,225,190,${0.38 * (1 - ph)})`; g.fillRect(xx, yy, 1, 2);
+      }
+    }
   },
 
   drawDoor(P) {
@@ -139,7 +225,13 @@ const Render = {
     P.ring(x + 8, y + 9, 3, PAL.bl3); P.p(x + 8, y + 9, PAL.b3);
     P.r(x + 12, y + 8, 4, 3, PAL.i2);
   },
-  lampXs() { return [0, Game.s.W - 1]; },
+  // 가로등: 가게 양쪽 끝 + 마을 거리를 따라 5칸마다
+  lampXs() {
+    const W = Game.s.W, xs = [0, W - 1];
+    for (let x = -4; x >= -TOWN.mx; x -= 5) xs.push(x);
+    for (let x = W + 3; x < W + TOWN.mx; x += 5) xs.push(x);
+    return xs;
+  },
   // 가게 앞 보도 소품 (NAPLE props): 바닥 기준점 x(중앙), y(발끝)
   streetDecor() {
     const s = Game.s, d = Game.door, y = (s.H + 1) * TILE - 1, out = [];
@@ -360,14 +452,17 @@ const Render = {
   drawLighting(g) {
     const s = Game.s, m = s.min;
     const dusk = Math.max(0, Math.min(1, (m - 16.5 * 60) / 210));
+    this.dusk = dusk;
     let dark = dusk * 0.5;
     if (s.weather === 'rain' || s.weather === 'cloudy') dark += 0.06;
     if (Game.hasEvent('blizzard')) dark += 0.12;
     if (dark <= 0.01) return;
-    const L = this.lg, w = this.light.width, h = this.light.height;
+    const L = this.lg, w = this.light.width, h = this.light.height, OX = Town.ox(), OY = Town.oy();
+    L.setTransform(1, 0, 0, 1, 0, 0);
     L.globalCompositeOperation = 'source-over';
     L.clearRect(0, 0, w, h);
     L.fillStyle = `rgba(12,14,36,${dark})`; L.fillRect(0, 0, w, h);
+    L.setTransform(1, 0, 0, 1, OX, OY);
     L.globalCompositeOperation = 'destination-out';
     const lights = [];
     for (const o of s.objects) {
@@ -376,6 +471,7 @@ const Render = {
       if (o.id === 'boiler' && Game.boilerRunning()) lights.push([o.x * TILE + 20, o.y * TILE + 14, 1.6 * TILE]);
       if (o.id === 'oven') lights.push([o.x * TILE + 8, o.y * TILE + 6, 1.0 * TILE]);
     }
+    for (const [wx, wy, ww, wh] of Town.windows) lights.push([wx + ww / 2, wy + wh / 2, 14]);
     for (const x of this.lampXs()) lights.push([x * TILE + 8, (s.H + STREET_ROWS) * TILE - 54, 2.4 * TILE]);
     for (const [x, y, r] of lights) {
       for (let k = 4; k >= 1; k--) {
@@ -383,7 +479,7 @@ const Render = {
         L.beginPath(); L.arc(x, y, r * k / 4, 0, Math.PI * 2); L.fill();
       }
     }
-    g.drawImage(this.light, 0, 0);
+    g.drawImage(this.light, -OX, -OY);
     // 따뜻한 빛
     g.globalCompositeOperation = 'lighter';
     for (const [x, y, r] of lights) { g.fillStyle = `rgba(255,150,50,${0.06 * dusk})`; g.beginPath(); g.arc(x, y, r * 0.6, 0, Math.PI * 2); g.fill(); }
@@ -391,25 +487,58 @@ const Render = {
   },
 
   drawWeather(g, dt) {
-    const s = Game.s, ww = this.world.width, wh = this.world.height;
+    const s = Game.s, ww = this.world.width, wh = this.world.height, OX = Town.ox(), OY = Town.oy();
+    g.setTransform(1, 0, 0, 1, 0, 0);
     const bl = Game.hasEvent('blizzard'), snow = s.weather === 'snow' || bl, rain = s.weather === 'rain' && !bl;
-    const want = bl ? 260 : snow ? 70 : rain ? 90 : 0;
+    // 돌풍: 바람 세기가 천천히 오르내린다
+    const gust = Math.max(0, Math.sin(this.t * 0.45) + Math.sin(this.t * 1.3) * 0.5);
+    const wind = bl ? 70 + gust * 60 : snow ? 14 + gust * 34 : 10;
+    const want = Math.round((bl ? 420 : snow ? 170 : rain ? 110 : 0) * ww / 600);
     while (this.flakes.length < want) this.flakes.push({ x: Math.random() * ww, y: Math.random() * wh, s: Math.random() });
     if (this.flakes.length > want) this.flakes.length = want;
-    const wind = bl ? 60 : snow ? 6 : 10;
     for (const f of this.flakes) {
       if (rain) { f.y += (140 + f.s * 60) * dt; f.x += wind * dt; }
-      else { f.y += (bl ? 50 : 14 + f.s * 10) * dt; f.x += (wind + Math.sin(this.t * 2 + f.s * 9) * 8) * dt; }
+      else {
+        // 큰 눈송이(가까운 것)는 빠르고 크게
+        const near = f.s > 0.8;
+        f.y += (bl ? 46 : 12 + f.s * 12) * (near ? 1.5 : 1) * dt;
+        f.x += (wind * (0.6 + f.s * 0.8) + Math.sin(this.t * 2 + f.s * 9) * 8) * dt;
+      }
       if (f.y > wh) { f.y = -2; f.x = Math.random() * ww; }
       if (f.x > ww) f.x -= ww;
-      const tx = Math.floor(f.x / TILE), ty = Math.floor(f.y / TILE);
-      const inside = Game.isInterior(tx, ty);
-      g.globalAlpha = inside ? 0.18 : 0.85;
+      const tx = Math.floor((f.x - OX) / TILE), ty = Math.floor((f.y - OY) / TILE);
+      g.globalAlpha = Game.isInterior(tx, ty) ? 0.1 : 0.9;
       if (rain) { g.fillStyle = '#9ab8d8'; g.fillRect(Math.round(f.x), Math.round(f.y), 1, 3); }
-      else { g.fillStyle = '#ffffff'; g.fillRect(Math.round(f.x), Math.round(f.y), f.s > 0.7 ? 2 : 1, f.s > 0.7 ? 2 : 1); }
+      else {
+        const sz = f.s > 0.92 ? 3 : f.s > 0.7 ? 2 : 1;
+        g.fillStyle = f.s > 0.5 ? '#ffffff' : '#dfe8f2';
+        g.fillRect(Math.round(f.x), Math.round(f.y), sz, sz);
+        // 바람이 세면 꼬리가 생긴다
+        if (wind > 40 && sz > 1) { g.globalAlpha *= 0.4; g.fillRect(Math.round(f.x) - 3, Math.round(f.y), 3, 1); }
+      }
     }
     g.globalAlpha = 1;
-    if (bl) { g.fillStyle = `rgba(220,230,255,${0.08 + Math.sin(this.t * 1.7) * 0.04})`; g.fillRect(0, 0, ww, wh); }
+    if (snow) {
+      // 바람결: 길게 쓸려가는 흰 줄
+      const n = bl ? 14 : Math.round(gust * 6);
+      for (let i = 0; i < n; i++) {
+        const y = (hash(i, 3, 5) * wh + this.t * 6 * (i % 3)) % wh, len = 24 + hash(i, 9, 2) * 50;
+        const x = ((hash(i, 7, 1) * ww + this.t * (120 + i * 13) * (bl ? 1.6 : 1)) % (ww + len)) - len;
+        g.fillStyle = `rgba(240,246,255,${bl ? 0.28 : 0.16})`; g.fillRect(Math.round(x), Math.round(y), Math.round(len), 1);
+      }
+      // 땅을 스치는 눈가루 (쌓인 눈이 있을 때)
+      if ((s.snow || 0) > 0.15 && wind > 25) {
+        const rows = [s.H, s.H + 1, s.H + 2], m = Math.round((bl ? 40 : 18) * (s.snow || 0) * (wind / 60));
+        for (let i = 0; i < m; i++) {
+          const ty = rows[i % 3], y = OY + ty * TILE + 2 + hash(i, ty, 4) * 12 + Math.sin(this.t * 3 + i) * 2;
+          const x = ((hash(i, 11, 6) * ww + this.t * wind * 1.8) % ww);
+          g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(Math.round(x), Math.round(y), 2 + (i % 3), 1);
+        }
+      }
+    }
+    if (bl) { g.fillStyle = `rgba(220,230,255,${0.1 + gust * 0.05})`; g.fillRect(0, 0, ww, wh); }
+    else if (snow) { g.fillStyle = `rgba(220,230,255,${0.03 + gust * 0.02})`; g.fillRect(0, 0, ww, wh); }
+    g.setTransform(1, 0, 0, 1, OX, OY);
   },
 
   drawGhost(P, ui) {
@@ -433,15 +562,15 @@ const Render = {
   },
 
   drawFx() {
-    const g = this.fg, k = this.scale * this.dpr;
+    const g = this.fg, k = this.cam.z * this.dpr, d = this.dpr;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.fx.width, this.fx.height);
-    const fs = Math.max(11, Math.round(5.5 * k));
+    const fs = Math.max(11 * d, Math.min(16 * d, Math.round(5.5 * k)));
     g.font = `${fs}px Galmuri11, monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineJoin = 'round';
     for (const f of Game.rt.floats) {
-      const x = f.x * TILE * k, y = f.y * TILE * k;
+      const sp = this.toScreen(f.x * TILE, f.y * TILE), x = sp.x * d, y = sp.y * d;
       g.globalAlpha = Math.min(1, f.life);
       g.lineWidth = Math.max(3, fs / 4); g.strokeStyle = '#1a100a'; g.strokeText(f.text, x, y);
       g.fillStyle = f.color; g.fillText(f.text, x, y);

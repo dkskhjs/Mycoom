@@ -63,6 +63,9 @@ const Game = {
     const total = WEATHERS.reduce((a, w) => a + w.w, 0);
     let r = Math.random() * total;
     for (const w of WEATHERS) { r -= w.w; if (r <= 0) { this.s.weather = w.id; break; } }
+    // 밤새 쌓이거나 녹은 눈 (0~1)
+    const sn = this.s.snow || 0;
+    this.s.snow = this.s.weather === 'snow' ? Math.max(sn, 0.45 + Math.random() * 0.3) : this.s.weather === 'sunny' ? sn * 0.3 : sn * 0.6;
   },
 
   save() {
@@ -95,7 +98,12 @@ const Game = {
   get inlet() { return { x: 0, y: this.s.inletY ?? 2 }; },
   isDoor(x, y) { const d = this.door; return x === d.x && y === d.y; },
   isEntrance(x, y) { const d = this.door; return x === d.x && y === d.y - 1; },
-  isStreet(x, y) { return y >= this.s.H && y < this.s.H + STREET_ROWS && x >= 0 && x < this.s.W; },
+  // 거리는 마을 여백까지 이어진다
+  isStreet(x, y) { return y >= this.s.H && y < this.s.H + STREET_ROWS && x >= this.streetX0() && x <= this.streetX1(); },
+  streetX0() { return -TOWN.mx; },
+  streetX1() { return this.s.W + TOWN.mx - 1; },
+  // 손님은 가게 근처에서 나타나고, 행인은 마을 끝에서 끝까지 걷는다
+  sideX(side, far) { return side ? (far ? this.streetX1() : this.s.W + 4) : (far ? this.streetX0() : -5); },
 
   weather() {
     const w = WEATHERS.find(w => w.id === this.s.weather);
@@ -571,23 +579,23 @@ const Game = {
   },
 
   spawnCustomer(forceVip = false) {
-    const s = this.s, side = Math.random() < 0.5 ? 0 : s.W - 1;
+    const s = this.s, side = Math.random() < 0.5 ? 0 : 1, sx = this.sideX(side, false);
     const type = this.pickType(forceVip);
-    const c = { id: this.rt.cid++, type, x: side, y: s.H + 1 + (Math.random() < 0.5 ? 1 : 0), path: [], state: 'pass', seat: null, order: null, wait: 0, timer: 0, frame: 0, step: 0, sat: 0 };
+    const c = { id: this.rt.cid++, type, x: sx, y: s.H + 1 + (Math.random() < 0.5 ? 1 : 0), path: [], state: 'pass', seat: null, order: null, wait: 0, timer: 0, frame: 0, step: 0, sat: 0 };
     const seats = this.reachableSeats();
     if (seats.length) {
       const st = seats[Math.floor(Math.random() * seats.length)];
       const p = this.findPath(c.x, c.y, st.x, st.y);
       if (p) { c.seat = st; c.path = p; c.state = 'toSeat'; }
     }
-    if (c.state === 'pass') c.path = this.findPath(c.x, c.y, s.W - 1 - side, c.y) || [];
+    if (c.state === 'pass') c.path = this.findPath(c.x, c.y, this.sideX(1 - side, true), c.y) || [];
     this.rt.customers.push(c);
     return c;
   },
   spawnPasser() {
-    const s = this.s, side = Math.random() < 0.5 ? 0 : s.W - 1, row = s.H + 1 + (Math.random() < 0.5 ? 0 : 1);
-    const c = { id: this.rt.cid++, type: this.pickType(), x: side, y: row, path: [], state: 'pass', frame: 0, step: 0 };
-    c.path = this.findPath(side, row, s.W - 1 - side, row) || [];
+    const s = this.s, side = Math.random() < 0.5 ? 0 : 1, row = s.H + 1 + (Math.random() < 0.5 ? 0 : 1), sx = this.sideX(side, true);
+    const c = { id: this.rt.cid++, type: this.pickType(), x: sx, y: row, path: [], state: 'pass', frame: 0, step: 0 };
+    c.path = this.findPath(sx, row, this.sideX(1 - side, true), row) || [];
     this.rt.customers.push(c);
   },
 
@@ -601,7 +609,7 @@ const Game = {
     }
     c.state = 'leaving'; c.order = null;
     const sx = Math.round(c.x), sy = Math.round(c.y);
-    c.path = this.findPath(sx, sy, Math.random() < 0.5 ? 0 : s.W - 1, s.H + 1 + (Math.random() < 0.5 ? 1 : 0)) || [];
+    c.path = this.findPath(sx, sy, this.sideX(Math.random() < 0.5 ? 0 : 1, true), s.H + 1 + (Math.random() < 0.5 ? 1 : 0)) || [];
     c.seat = null;
   },
 
@@ -748,6 +756,9 @@ const Game = {
     }
 
     s.min += gm;
+    // 눈 쌓임: 눈 오는 날 천천히, 눈보라면 빠르게. 맑으면 녹는다
+    const snowRate = this.hasEvent('blizzard') ? 0.5 : s.weather === 'snow' ? 0.12 : s.weather === 'sunny' ? -0.15 : s.weather === 'rain' ? -0.25 : -0.03;
+    s.snow = Math.max(0, Math.min(1, (s.snow || 0) + snowRate * gm / 60));
 
     // 석탄 소비
     if (running) {
