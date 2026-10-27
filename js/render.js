@@ -83,7 +83,7 @@ const Render = {
 
     // 1. 타일
     for (let y = 0; y < H + STREET_ROWS; y++) for (let x = 0; x < W; x++) {
-      const v = Math.floor(hash(x, y, 1) * 2);
+      const v = Sprites.variant(x, y);
       if (y >= H) { g.drawImage(Sprites.street(v), x * TILE, y * TILE); continue; }
       const i = Game.idx(x, y);
       if (Game.isWall(x, y)) g.drawImage(Sprites.wall(s.wall[i], v), x * TILE, y * TILE);
@@ -92,6 +92,7 @@ const Render = {
     // 연석
     P.r(0, H * TILE, W * TILE, 1, PAL.s3);
     Town.drawSnow(g); Town.drawFront(g);
+    g.drawImage(this.toneOverlay(), 0, 0);   // 넓은 범위 색 얼룩
     this.drawDoor(P); this.drawInlet(P);
     P.r(0, (H + 1) * TILE, W * TILE, 1, PAL.s1); // 보도/차도 경계
 
@@ -135,7 +136,8 @@ const Render = {
     // 5. 천장 보기
     if (ceilView) {
       g.globalAlpha = 0.93;
-      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) g.drawImage(Sprites.ceil(s.ceil[Game.idx(x, y)], Math.floor(hash(x, y, 1) * 2)), x * TILE, y * TILE);
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) g.drawImage(Sprites.ceil(s.ceil[Game.idx(x, y)], Sprites.variant(x, y)), x * TILE, y * TILE);
+      g.drawImage(this.toneOverlay(), 0, 0);
       for (const o of s.objects) if (DATA.objects[o.id].layer === 'ceil') g.drawImage(Sprites.object(o.id).canvas, o.x * TILE, o.y * TILE);
       g.globalAlpha = 1;
     }
@@ -210,6 +212,26 @@ const Render = {
         g.fillStyle = `rgba(255,225,190,${0.38 * (1 - ph)})`; g.fillRect(xx, yy, 1, 2);
       }
     }
+  },
+
+  // 가게 칸 위에 몇 칸에 걸쳐 은은하게 밝고 어두운 얼룩 (위치로만 정해지므로 크기가 바뀔 때만 다시 만든다)
+  toneOverlay() {
+    const s = Game.s, key = s.W + 'x' + s.H;
+    if (this._tone && this._toneKey === key) return this._tone;
+    const [c, g] = makeCanvas(s.W * TILE, s.H * TILE);
+    const cell = 40;   // 얼룩 하나 크기(px) ≈ 2.5칸
+    const n = (x, y) => {   // 부드러운 값 잡음 0~1
+      const gx = x / cell, gy = y / cell, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+      const sm = t => t * t * (3 - 2 * t), a = hash(x0, y0, 17), b = hash(x0 + 1, y0, 17), cc = hash(x0, y0 + 1, 17), d = hash(x0 + 1, y0 + 1, 17);
+      return (a + (b - a) * sm(fx)) * (1 - sm(fy)) + (cc + (d - cc) * sm(fx)) * sm(fy);
+    };
+    for (let y = 0; y < s.H * TILE; y += 2) for (let x = 0; x < s.W * TILE; x += 2) {
+      const t = (n(x, y) - 0.5) * 0.9 + (hash(x >> 3, y >> 3, 23) - 0.5) * 0.12;
+      g.fillStyle = t > 0 ? `rgba(255,236,205,${(t * 0.22).toFixed(3)})` : `rgba(18,10,6,${(-t * 0.28).toFixed(3)})`;
+      g.fillRect(x, y, 2, 2);
+    }
+    this._tone = c; this._toneKey = key;
+    return c;
   },
 
   drawDoor(P) {

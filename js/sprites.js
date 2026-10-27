@@ -722,6 +722,45 @@ const NAPLE_SHEETS = {
 // Kenney Pixel Platformer 타일 (18px, [열, 행])
 const KENNEY_TILES = { coin: [11, 7], heart: [4, 2], heartHalf: [5, 2], heartEmpty: [6, 2], snowman: [5, 7] };
 
+// ───────── 타일 변형 ─────────
+// 같은 마감재를 넓게 깔아도 바둑판처럼 보이지 않게: 칸마다 6가지 변형을 고르고,
+// 변형마다 사용 흔적(얼룩·긁힘·옹이)을 다르게 얹고, 홀수 변형은 좌우 반전한다.
+const TILE_VARIANTS = 6;
+// 무늬가 칸 경계를 넘어 이어지거나 좌우가 정해진 재질은 반전하지 않는다
+const NO_FLIP = new Set(['herring', 'hextile', 'checker', 'mosaic', 'brassgrid', 'rug', 'carpet', 'tin', 'coffered',
+  'brassplate', 'gearceil', 'glassdome', 'fresco', 'porthole', 'gearwall', 'stained', 'damask', 'woodpanel', 'stripe']);
+
+function weatherTile(c, kind, id, v) {
+  const g = c.getContext('2d'), img = g.getImageData(0, 0, 16, 16), d = img.data;
+  const seed = [...id].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) + v * 101 + (kind === 'wall' ? 5 : kind === 'ceil' ? 9 : 0);
+  const top = kind === 'wall' ? 4 : 0;   // 벽은 위 갓돌(0~3줄)은 건드리지 않는다
+  const shade = (i, f) => { for (let k = 0; k < 3; k++) d[i + k] = Math.max(0, Math.min(255, d[i + k] * f)); };
+  // 1) 잔 얼룩: 픽셀 몇 개를 살짝 밝게/어둡게
+  for (let y = top; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const r = hash(x, y, seed);
+    if (r < 0.07) shade((y * 16 + x) * 4, 0.84 + hash(x, y, seed + 1) * 0.3);
+  }
+  // 2) 변형마다 하나씩 눈에 띄는 흔적
+  const fx = 2 + Math.floor(hash(v, 1, seed) * 11), fy = top + 2 + Math.floor(hash(v, 2, seed) * (11 - top));
+  const kindOf = v % 3;
+  if (v > 0) {
+    if (kindOf === 0) { // 얼룩(물·커피 자국)
+      for (let y = -1; y <= 1; y++) for (let x = -2; x <= 2; x++) if (Math.abs(x) + Math.abs(y) < 3 && hash(x, y, seed + 3) < 0.8) shade(((fy + y) * 16 + fx + x) * 4, 0.82);
+    } else if (kindOf === 1) { // 긁힘
+      for (let k = 0; k < 4; k++) { const px = fx + k, py = fy + (k >> 1); if (px < 16 && py < 16) shade((py * 16 + px) * 4, 1.18); }
+    } else { // 옹이·흠집
+      shade((fy * 16 + fx) * 4, 0.7); if (fx + 1 < 16) shade((fy * 16 + fx + 1) * 4, 0.85);
+    }
+  }
+  g.putImageData(img, 0, 0);
+  if (v % 2 === 1 && !NO_FLIP.has(id)) {
+    const [c2, g2] = makeCanvas(16, 16);
+    g2.translate(16, 0); g2.scale(-1, 1); g2.drawImage(c, 0, 0);
+    return c2;
+  }
+  return c;
+}
+
 const Sprites = {
   cache: new Map(),
   images: {},
@@ -798,10 +837,23 @@ const Sprites = {
     return entry;
   },
 
-  floor(id, v = 0) { return this._build(`floor_${id}_${v}`, 16, 16, P => FLOOR_ART[id](P, v)).canvas; },
-  wall(id, v = 0) { return this._build(`wall_${id}_${v}`, 16, 16, P => WALL_ART[id](P, v)).canvas; },
-  ceil(id, v = 0) { return this._build(`ceil_${id}_${v}`, 16, 16, P => CEIL_ART[id](P, v)).canvas; },
-  street(v = 0) { return this._build(`street_${v}`, 16, 16, P => streetArt(P, v)).canvas; },
+  // 마감재 타일: 직접 넣은 그림(assets/sprites)은 그대로, 코드로 그린 것은 변형·흔적을 얹는다
+  _tile(kind, id, v, art) {
+    const key = `${kind}_${id}_${v}`;
+    if (this.cache.has(key)) return this.cache.get(key).canvas;
+    if (this.images[key]) return this._build(key, 16, 16, () => {}).canvas;
+    const [c, g] = makeCanvas(16, 16);
+    art(pen(g), v);
+    const out = weatherTile(c, kind, id, v);
+    this.cache.set(key, { canvas: out, tall: 0 });
+    return out;
+  },
+  floor(id, v = 0) { return this._tile('floor', id, v, (P, v) => FLOOR_ART[id](P, v)); },
+  wall(id, v = 0) { return this._tile('wall', id, v, (P, v) => WALL_ART[id](P, v)); },
+  ceil(id, v = 0) { return this._tile('ceil', id, v, (P, v) => CEIL_ART[id](P, v)); },
+  street(v = 0) { return this._tile('street', 'cobble_street', v, (P, v) => streetArt(P, v)); },
+  // 칸 좌표로 변형 번호 고르기
+  variant(x, y) { return Math.floor(hash(x, y, 1) * TILE_VARIANTS); },
   icon(id) { return this._build(`icon_${id}`, 9, 9, P => drawIcon(P, id)).canvas; },
 
   object(id) {

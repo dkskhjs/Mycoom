@@ -39,7 +39,7 @@ const Town = {
     // 바탕: 뒷골목 자갈 + 거리 연장
     for (let y = yTop; y < yBot; y++) for (let x = x0; x < x1; x++) {
       if (x >= 0 && x < W && y >= 0 && y < H + STREET_ROWS) continue;
-      g.drawImage(Sprites.street(Math.floor(hash(x, y, 1) * 2)), x * TILE, y * TILE);
+      g.drawImage(Sprites.street(Sprites.variant(x, y)), x * TILE, y * TILE);
     }
     P.r(x0 * TILE, yStreet * TILE, (x1 - x0) * TILE, 1, PAL.s3);
     P.r(x0 * TILE, (yStreet + 1) * TILE, (x1 - x0) * TILE, 1, PAL.s1);
