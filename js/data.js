@@ -176,7 +176,12 @@ const DATA = {
     barista: { name: '보조 바리스타', icon: '☕', hire: 1200, wage: 90, lv: 2, max: 2, chars: ['smith_f', 'smith_m'],     desc: '쉬고 있는 조리 설비로 재고가 적은 메뉴를 만들고, 완성품을 카운터로 옮깁니다 (재료는 창고에서 씀)' },
     cleaner: { name: '청소부',        icon: '🧹', hire: 500,  wage: 40, lv: 2, max: 2, chars: ['miner_f', 'miner_m'],     desc: '바닥의 커피 얼룩을 찾아가 닦습니다' },
     stoker:  { name: '보일러공',      icon: '🔧', hire: 900,  wage: 70, lv: 3, max: 1, chars: ['plumber_m', 'plumber_f'], desc: '압력이 높으면 밸브를 열고, 새는 배관을 고치고(🪙40), 석탄이 떨어져 가면 주문합니다' },
+    // 증기 로봇: 일급 대신 매일 석탄을 먹고, 보일러가 멈추면 같이 멈춘다. 사람 직원 한도와 별도
+    bot_serve:   { name: '황동 서빙봇',   icon: '🤖', robot: 'tray',   role: 'waiter',  hire: 2400, wage: 0, coal: 3, lv: 3, max: 2, speed: 0.95, desc: '지치지 않고 빠르게 서빙하는 황동 오토마톤. 일급 대신 석탄을 먹어요' },
+    bot_clean:   { name: '구리 청소봇',   icon: '🤖', robot: 'brush',  role: 'cleaner', hire: 1500, wage: 0, coal: 2, lv: 2, max: 2, speed: 0.6,  desc: '바퀴로 굴러다니며 회전 솔로 얼룩을 닦는 증기 청소기' },
+    bot_barista: { name: '녹청 바리스타봇', icon: '🤖', robot: 'kettle', role: 'barista', hire: 3600, wage: 0, coal: 4, lv: 5, max: 1, speed: 0.8,  desc: '주전자 머리의 태엽 바리스타. 조리와 완성품 정리를 맡아요' },
   },
+  robotNames: ['볼트', '너트', '코그', '피스톤', '리벳', '스프로킷', '크랭크', '플라이휠', '밸브', '태엽'],
   staffNames: ['한스', '엘리자', '오스카', '마틸다', '테오', '클라라', '휴고', '로자', '펠릭스', '이다', '빅토르', '헬가', '루돌프', '아그네스', '에밀', '프리다', '구스타프', '릴리', '아서', '베아트리스'],
   customerTypes: [
     { id: 'adult_m',    name: '시민 (남)',      weight: 18, pay: 1.0, picky: 0,  patience: 70, coat: '#6b4f3a', hat: '#2b2b2b', hair: '#4a2e1c' },

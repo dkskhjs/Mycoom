@@ -449,16 +449,24 @@ const Render = {
   },
   // 고용 직원: 손님과 같은 캐릭터 시트를 쓰고, 머리 위에 역할 리본 + 들고 가는 메뉴
   drawCrew(P, e) {
-    const type = DATA.customerTypes.find(t => t.id === e.ref.char) || DATA.customerTypes[0];
-    const state = e.path.length ? 'walk' : 'idle', frame = e.path.length ? Math.floor(e.step / 1.2) : Math.floor(this.t * 2 + e.ref.uid);
-    const spr = Sprites.customer(type, state, frame, e.face || 'down');
-    const fx = Math.round(e.x * TILE) + 8, fy = Math.round(e.y * TILE) + 15;
-    this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, spr.sheet ? (e.face === 'side' && e.dir === -1) : e.dir === -1);
-    const col = { waiter: '#e8dcc0', barista: '#c8952f', cleaner: '#7fc8e8', stoker: '#d0503a' }[e.ref.kind] || '#fff';
+    const def = DATA.staff[e.ref.kind], fx = Math.round(e.x * TILE) + 8, fy = Math.round(e.y * TILE) + 15;
+    let spr;
+    if (def.robot) {   // 증기 로봇: 걸을 때 4프레임, 멈추면 살짝 들썩 (증기가 끊기면 정지)
+      const on = Game.boilerRunning(), frame = e.path.length ? Math.floor(e.step / 0.9) : on ? Math.floor(this.t * 2) % 2 : 0;
+      spr = { canvas: Sprites.robot(def.robot, frame, e.face || 'down'), ax: 8, ay: 24, sheet: false };
+      this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, e.face === 'side' && e.dir === -1);
+      if (!on) { const k = Math.floor(this.t * 2) % 2; if (k) { P.r(fx + 4, fy - 27, 3, 3, PAL.k); P.r(fx + 5, fy - 26, 1, 1, '#ffd35a'); } }   // 증기 부족 표시
+    } else {
+      const type = DATA.customerTypes.find(t => t.id === e.ref.char) || DATA.customerTypes[0];
+      const state = e.path.length ? 'walk' : 'idle', frame = e.path.length ? Math.floor(e.step / 1.2) : Math.floor(this.t * 2 + e.ref.uid);
+      spr = Sprites.customer(type, state, frame, e.face || 'down');
+      this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, spr.sheet ? (e.face === 'side' && e.dir === -1) : e.dir === -1);
+    }
+    const col = { waiter: '#e8dcc0', barista: '#c8952f', cleaner: '#7fc8e8', stoker: '#d0503a' }[Game.role(e.ref.kind)] || '#fff';
     const top = fy - (spr.sheet ? 30 : 25);
     P.r(fx - 2, top, 5, 2, PAL.k); P.r(fx - 1, top, 3, 1, col);   // 역할 표시 리본
     if (e.carry) { P.r(fx - 5, top - 2, 11, 1, PAL.i3); this.wg.drawImage(Sprites.icon(e.carry), fx - 4, top - 12); }
-    if (e.cast > 1 && e.ref.kind === 'cleaner') { const k = Math.floor(this.t * 8) % 3; P.r(fx + 4 + k, fy - 2, 2, 1, '#bfe6ff'); }
+    if (e.cast > 1 && Game.role(e.ref.kind) === 'cleaner') { const k = Math.floor(this.t * 8) % 3; P.r(fx + 4 + k, fy - 2, 2, 1, '#bfe6ff'); }
   },
   drawCat(P, k) {
     const pose = k.path.length ? 'walk' : k.state === 'nap' ? 'nap' : 'sit';

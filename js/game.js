@@ -289,7 +289,8 @@ const Game = {
     g.people = people;
     add('손님', people, T.person.sens, T.person.lat);
     if (rt.staff && s.open) add('바리스타', 1, T.barista.sens, T.barista.lat);
-    if (s.open) add('직원', rt.crew.length, T.barista.sens, T.barista.lat);
+    if (s.open) add('직원', rt.crew.filter(e => !this.isRobot(e.ref.kind)).length, T.barista.sens, T.barista.lat);
+    add('증기 로봇', rt.crew.filter(e => this.isRobot(e.ref.kind)).length * (this.boilerRunning() ? 1 : 0), 90, 25);
     for (const cat of s.cats) { const k = DATA.cats.find(c => c.id === cat.kind); add(`${cat.name}(${k.name})`, 1, k.sens, k.lat); g.cats++; }
     add('식물 (증산)', s.objects.filter(o => DATA.plantObjects.includes(o.id)).length, T.plant.sens, T.plant.lat);
     for (const o of s.objects) if (o.cook && !o.cook.done && this.working(o)) { const [a, b] = T.cooking[o.id] || [0, 0]; add(`${DATA.objects[o.id].name} 조리`, 1, a, b); }
@@ -753,8 +754,10 @@ const Game = {
     if (food) { s.money -= food; s.today.spent += food; }
     const wages = this.wages();
     if (wages) { s.money -= wages; s.today.spent += wages; }
+    const robotCoal = Math.min(s.coal, this.robotCoal());
+    s.coal -= robotCoal;
     for (const e of this.rt.crew) { e.path = []; e.task = null; e.carry = null; }
-    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, wages, loanPaid, debt: this.debt() };
+    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, wages, robotCoal, loanPaid, debt: this.debt() };
     s.events = []; s.coalPriceMul = 1; s.boiler.pressure = Math.min(s.boiler.pressure, 50);
     s.day++; s.min = OPEN_HOUR * 60;
     this.rollWeather();
@@ -1187,22 +1190,28 @@ const Game = {
   // ───────── 고용 직원 ─────────
   // 서빙 직원은 주인공과 같은 서빙 대기열을 나눠 갖고, 나머지는 각자 할 일을 찾아 걸어가서 처리한다.
   staffCap() { return 2 + Math.floor((this.s.level - 1) / 2); },
-  hasServer() { return !!this.rt.staff || this.rt.crew.some(e => e.ref.kind === 'waiter'); },
+  robotCap() { return 1 + Math.floor(this.s.level / 3); },
+  role(kind) { return DATA.staff[kind].role || kind; },
+  isRobot(kind) { return !!DATA.staff[kind].robot; },
+  robotCoal() { return this.s.crew.reduce((a, c) => a + (DATA.staff[c.kind].coal || 0), 0); },
+  hasServer() { return !!this.rt.staff || this.rt.crew.some(e => this.role(e.ref.kind) === 'waiter'); },
   wages() { return this.s.crew.reduce((a, c) => a + DATA.staff[c.kind].wage, 0); },
   hireInfo(kind) {
     const d = DATA.staff[kind], s = this.s, n = s.crew.filter(c => c.kind === kind).length;
-    const why = d.lv > s.level ? `Lv.${d.lv}` : n >= d.max ? '최대' : s.crew.length >= this.staffCap() ? '자리 없음' : s.money < d.hire ? '돈 부족' : null;
+    const robot = !!d.robot, same = s.crew.filter(c => this.isRobot(c.kind) === robot).length;
+    const why = d.lv > s.level ? `Lv.${d.lv}` : n >= d.max ? '최대' : same >= (robot ? this.robotCap() : this.staffCap()) ? '자리 없음' : s.money < d.hire ? '돈 부족' : null;
     return { why, n };
   },
   hire(kind) {
     const d = DATA.staff[kind], inf = this.hireInfo(kind);
-    if (inf.why) { this.toast(inf.why === '자리 없음' ? `지금 레벨에서는 직원을 ${this.staffCap()}명까지 둘 수 있어요` : inf.why === '최대' ? `${d.name}은(는) ${d.max}명까지` : inf.why, 'bad'); return false; }
+    if (inf.why) { this.toast(inf.why === '자리 없음' ? (d.robot ? `지금 레벨에서는 로봇을 ${this.robotCap()}대까지` : `지금 레벨에서는 직원을 ${this.staffCap()}명까지 둘 수 있어요`) : inf.why === '최대' ? `${d.name}은(는) ${d.max}명까지` : inf.why, 'bad'); return false; }
     if (!this.spend(d.hire)) return false;
-    const used = new Set(this.s.crew.map(c => c.name)), pool = DATA.staffNames.filter(n => !used.has(n));
-    const name = pool[Math.floor(Math.random() * pool.length)] || '직원';
-    this.s.crew.push({ uid: this.s.nextUid++, kind, name, char: d.chars[Math.floor(Math.random() * d.chars.length)] });
+    const used = new Set(this.s.crew.map(c => c.name)), pool = (d.robot ? DATA.robotNames : DATA.staffNames).filter(n => !used.has(n));
+    let name = pool[Math.floor(Math.random() * pool.length)] || '직원';
+    if (d.robot) name = `${name}-${10 + Math.floor(Math.random() * 90)}`;
+    this.s.crew.push({ uid: this.s.nextUid++, kind, name, char: d.chars ? d.chars[Math.floor(Math.random() * d.chars.length)] : null });
     this.syncCrew(); this.save();
-    this.toast(`${d.icon} ${name} (${d.name}) 고용! 일급 🪙${d.wage}`, 'good'); this.sfx('bell');
+    this.toast(d.robot ? `🤖 ${name} (${d.name}) 가동! 매일 석탄 ${d.coal}` : `${d.icon} ${name} (${d.name}) 고용! 일급 🪙${d.wage}`, 'good'); this.sfx(d.robot ? 'heavy' : 'bell');
     return true;
   },
   fire(uid) {
@@ -1211,7 +1220,7 @@ const Game = {
     if (e && e.task && e.task.k === 'serve' && e.task.ref.state === 'waiting') this.rt.serveQ.unshift(e.task.ref);   // 들고 있던 서빙은 되돌림
     this.s.crew = this.s.crew.filter(q => q !== c);
     this.syncCrew(); this.save();
-    this.toast(`${c.name}에게 작별 인사를 했어요`);
+    this.toast(this.isRobot(c.kind) ? `🤖 ${c.name}의 증기를 빼고 창고로 보냈어요` : `${c.name}에게 작별 인사를 했어요`);
   },
   crewAt(x, y) { return this.rt.crew.find(e => Math.round(e.x) === x && Math.round(e.y) === y); },
   // 대기 자리: 카운터에서 가까운 빈 칸부터 (주인공 자리·좌석·입구 제외)
@@ -1262,7 +1271,8 @@ const Game = {
     return opts.length ? opts[0][0] : null;
   },
   findJob(e) {
-    const s = this.s, rt = this.rt, kind = e.ref.kind, sx = Math.round(e.x), sy = Math.round(e.y);
+    const s = this.s, rt = this.rt, kind = this.role(e.ref.kind), sx = Math.round(e.x), sy = Math.round(e.y);
+    if (this.isRobot(e.ref.kind) && !this.boilerRunning()) return null;   // 로봇은 증기가 있어야 움직인다
     const taken = (k, ref) => rt.crew.some(o => o !== e && o.task && o.task.k === k && o.task.ref === ref);
     if (kind === 'waiter') {
       if (!s.open) return null;
@@ -1318,7 +1328,10 @@ const Game = {
         e.look -= gm;
         if (e.look <= 0) { e.look = 0.6; const job = this.findJob(e); if (job) { e.task = job; e.path = job.path; e.carry = job.carry || null; } }
       }
-      if (e.path.length && !this.walkCrew(e, gm)) continue;
+      const d = DATA.staff[e.ref.kind];
+      if (d.robot && !this.boilerRunning()) { e.path = []; e.task = null; e.carry = null; continue; }   // 증기가 끊기면 그 자리에 멈춤
+      if (d.robot && e.path.length && Math.random() < gm * 0.4) this.puff(e.x * 16 + 8, e.y * 16 - 6, 'rgba(240,240,240,0.6)');
+      if (e.path.length && !this.walkCrew(e, gm, d.speed || 0.75)) continue;
       if (e.task) {
         const t = e.task; e.task = null;
         if (t.x != null) this.faceTo(e, t.x, t.y);

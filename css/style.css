@@ -274,3 +274,5 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 /* 직원 */
 .expand.crew .srow.hire .mname { display: flex; flex-direction: column; gap: 2px; }
 .dim.small { font-size: 11px; line-height: 1.4; }
+.expand .subhead { margin: 10px 0 2px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--brass-hi); font-size: 12px; }
+.srow.robot b { display: inline-flex; align-items: center; gap: 4px; }

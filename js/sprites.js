@@ -698,6 +698,54 @@ function drawIcon(P, id) {
 
 // 임시 손님 도트 (14 x 24, 2등신) — assets/chars/ 시트가 없을 때만 쓴다.
 // t.f: 긴 머리 + 치마, t.small: 아이 체형(머리·몸통이 4px 아래로)
+// 증기 로봇 직원 (16×24, 발밑 = y23). model: tray 서빙 · brush 청소 · kettle 바리스타
+function drawRobotArt(P, model, frame, face) {
+  const f = frame % 4, back = face === 'up', side = face === 'side', bob = f % 2;
+  const eye = (x, y) => { P.r(x, y, 2, 2, PAL.k); P.p(x, y, PAL.glow2); P.p(x + 1, y + 1, PAL.glow1); };
+  if (model === 'brush') {   // 구리 돔 청소봇: 바퀴 + 회전 솔
+    P.ellipse(8, 23, 6, 1, PAL.shadow);
+    P.r(2, 19, 12, 4, PAL.k); P.r(3, 20, 10, 2, PAL.i1);
+    for (let i = 0; i < 3; i++) P.disc(4 + i * 4, 21, 1, (i + f) % 2 ? PAL.i3 : PAL.i2);   // 바퀴
+    P.ellipse(8, 15, 6, 5, PAL.k); P.ellipse(8, 15, 5, 4, PAL.c2); P.r(4, 12, 4, 1, PAL.c4); P.r(3, 17, 10, 2, PAL.c1);
+    P.r(2, 18, 12, 1, PAL.b2);   // 황동 띠
+    if (!back) { P.r(7, 7, 2, 5, PAL.i2); P.disc(8, 6, 2, PAL.k); P.disc(8, 6, 1, PAL.glow2); P.p(side ? 9 : 8, 6, PAL.glow3); }
+    else { P.r(7, 9, 2, 3, PAL.i2); P.r(6, 13, 4, 2, PAL.i1); }
+    const bx = side ? 13 : 1;   // 솔
+    P.r(bx, 21, 3, 2, PAL.w2); for (let i = 0; i < 3; i++) P.p(bx + ((i + f) % 3), 23, PAL.cr1);
+    return;
+  }
+  const kettle = model === 'kettle';
+  const body = kettle ? [PAL.v1, PAL.v3, PAL.v0] : [PAL.b2, PAL.b3, PAL.b1];
+  P.ellipse(8, 23, 5, 1, PAL.shadow);
+  // 다리 (걷기 4프레임)
+  const l = [0, 1, 0, -1][f];
+  P.r(4, 18, 3, 5 + Math.min(0, l), PAL.k); P.r(9, 18, 3, 5 - Math.max(0, l), PAL.k);
+  P.r(5, 18, 1, 4 + Math.min(0, l), PAL.i3); P.r(10, 18, 1, 4 - Math.max(0, l), PAL.i3);
+  // 몸통 (원통 보일러)
+  const by = 10 - bob;
+  P.r(3, by, 10, 9, PAL.k); P.r(4, by + 1, 8, 7, body[0]); P.r(4, by + 1, 2, 7, body[1]); P.r(10, by + 1, 2, 7, body[2]);
+  P.r(3, by + 3, 10, 1, PAL.k); P.p(5, by + 3, PAL.b3); P.p(10, by + 3, PAL.b3);   // 리벳 띠
+  if (!back) {
+    if (kettle) { P.disc(8, by + 5, 2, PAL.k); P.disc(8, by + 5, 1, PAL.cr2); P.p(8, by + 4, PAL.red2); }   // 압력계
+    else { P.r(7, by + 5, 2, 2, PAL.glow1); P.p(7, by + 5, PAL.glow3); }                                 // 화실 창
+  } else { P.r(6, by + 4, 4, 3, PAL.i1); P.p(7, by + 5, PAL.i3); }
+  // 팔
+  P.r(1, by + 1, 2, 6, PAL.k); P.r(13, by + 1, 2, 6, PAL.k); P.r(1, by + 2, 1, 4, PAL.i3); P.r(14, by + 2, 1, 4, PAL.i3);
+  if (model === 'tray' && !back) { P.r(side ? 11 : 12, by - 1, 5, 1, PAL.i4); P.r(side ? 11 : 12, by, 5, 1, PAL.k); }   // 쟁반
+  // 머리
+  const hy = by - 8;
+  if (kettle) {   // 주전자 머리 + 주둥이
+    P.ellipse(8, hy + 4, 4, 4, PAL.k); P.ellipse(8, hy + 4, 3, 3, PAL.c2); P.r(6, hy + 1, 3, 1, PAL.c4);
+    P.r(side ? 12 : 11, hy + 3, 3, 2, PAL.k); P.p(side ? 13 : 12, hy + 3, PAL.c3);
+    P.r(7, hy - 1, 2, 2, PAL.k); P.p(7, hy - 1, PAL.b3);
+  } else {        // 유리 돔 머리 + 굴뚝
+    P.disc(8, hy + 4, 4, PAL.k); P.disc(8, hy + 4, 3, PAL.i2); P.r(6, hy + 1, 2, 1, PAL.i4);
+    P.r(7, hy - 2, 2, 3, PAL.k); P.p(7, hy - 2, PAL.i3);
+  }
+  if (!back) { if (side) eye(9, hy + 4); else { eye(5, hy + 4); eye(9, hy + 4); } }
+  else P.r(6, hy + 4, 4, 1, PAL.i1);
+}
+
 function drawCustomerArt(P, t, sitting, frame) {
   const by = sitting ? 3 : 0, k = t.small ? 4 : 0, hair = t.hair || '#4a2e1c';
   P.ellipse(7, 23, 4, 1, PAL.shadow);
@@ -962,6 +1010,9 @@ const Sprites = {
     return { canvas: this._build(key, 14, 24, P => drawCustomerArt(P, type, sitting, frame)).canvas, ax: 7, ay: 24 };
   },
 
+  robot(model, frame, face = 'down') {
+    return this._build(`robot_${model}_${face}_${frame % 4}`, 16, 24, P => drawRobotArt(P, model, frame, face)).canvas;
+  },
   cat(kind, pose, frame) {
     const k = DATA.cats.find(c => c.id === kind);
     return this._build(`cat_${kind}_${pose}_${pose === 'walk' ? frame % 2 : 0}`, 18, 12, P => drawCatArt(P, k, pose, frame)).canvas;
@@ -978,6 +1029,7 @@ const Sprites = {
     else if (kind === 'char') src = this.charFrame(id, 'down', 0);
     else if (kind === 'player') src = this.playerFrame(id);
     else if (kind === 'cat') src = this.cat(id, 'sit', 0);
+    else if (kind === 'robot') src = this.robot(id, 0);
     else src = this.object(id).canvas;
     const scale = Math.max(1, Math.floor(size / Math.max(src.width, src.height)));
     const [c, g] = makeCanvas(src.width * scale, src.height * scale);
