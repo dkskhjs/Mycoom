@@ -6,7 +6,7 @@
 <title>스팀 &amp; 빈즈</title>
 <link rel="stylesheet" href="css/style.css">
 
-<!-- 1. Firebase SDK -->
+<!-- Firebase SDK (CDN) -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -32,13 +32,14 @@
     <button id="musicBtn" class="btn ghost" title="음악 켜기/끄기 (M)">♪</button>
     <button id="menuBtn" class="btn ghost" title="메뉴">☰</button>
 
-    <!-- 로그인 상태 및 버튼 영역 -->
+    <!-- 로그인 상태 영역 -->
     <div id="userAuthArea" style="display: inline-flex; align-items: center; gap: 8px;">
       <button id="authBtn" class="btn ghost" title="계정 로그인" onclick="openAuthModal()">🔒 로그인</button>
       <span id="userEmail" style="font-size: 12px; color: #aaa; display: none;"></span>
-      <button id="logoutBtn" class="btn ghost" title="로그아웃" style="display: none;">로그아웃</button>
+      <button id="logoutBtn" class="btn ghost" title="로그아웃" style="display: none;" onclick="logoutAccount()">로그아웃</button>
     </div>
   </header>
+
   <main>
     <section id="stage">
       <div id="banner" hidden></div>
@@ -68,21 +69,21 @@
   <div id="toasts"></div>
 </div>
 
-<!-- 로그인 모달 -->
-<div id="authModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: #222; color: #fff; padding: 20px; border-radius: 12px; width: 260px; text-align: center; border: 2px solid #555; box-shadow: 0 10px 30px rgba(0,0,0,0.9);">
+<!-- 계정 인증 전용 모달 (독립형 id: authModal 사용) -->
+<div id="authModal" hidden style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: #222; color: #fff; padding: 20px; border-radius: 12px; width: 260px; text-align: center; border: 1px solid #555; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
   <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">계정 로그인</h3>
   <div style="margin-bottom: 12px;">
     <input type="email" id="authEmail" placeholder="이메일" style="width: 100%; padding: 8px; margin-bottom: 6px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #111; color: #fff;">
     <input type="password" id="authPassword" placeholder="비밀번호" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #111; color: #fff;">
   </div>
   <div style="display: flex; justify-content: space-between; gap: 6px;">
-    <button id="btnLoginSubmit" class="btn" style="flex: 1; padding: 6px 0;">로그인</button>
-    <button id="btnRegisterSubmit" class="btn ghost" style="flex: 1; padding: 6px 0;">회원가입</button>
-    <button id="btnCloseModal" class="btn ghost" onclick="closeAuthModal()" style="flex: 1; padding: 6px 0;">닫기</button>
+    <button id="btnLoginSubmit" class="btn" style="flex: 1;" onclick="handleLogin()">로그인</button>
+    <button id="btnRegisterSubmit" class="btn ghost" style="flex: 1;" onclick="handleRegister()">회원가입</button>
+    <button id="btnCloseModal" class="btn ghost" style="flex: 1;" onclick="closeAuthModal()">닫기</button>
   </div>
 </div>
 
-<!-- 기존 게임 엔진 스크립트 먼저 로드 -->
+<!-- 기존 게임 엔진 스크립트 먼저 실행 -->
 <script src="assets/manifest.js"></script>
 <script src="js/data.js"></script>
 <script src="js/naple_atlas.js"></script>
@@ -94,7 +95,7 @@
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 
-<!-- Firebase 스크립트는 맨 끝에 배치 -->
+<!-- 파이어베이스 초기화 스크립트는 게임 로드 후 맨 나중에 실행 -->
 <script src="js/firebase-init.js"></script>
 </body>
 </html>
