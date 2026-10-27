@@ -15,6 +15,15 @@ const SFX = {
     document.addEventListener('visibilitychange', () => { if (!this.ctx) return; document.hidden ? this.ctx.suspend() : this.ctx.resume(); });
     Game.on('sfx', n => this.play(n));
     Game.on('toast', (m, k) => { if (k === 'bad') this.play('error'); });
+    // 버튼·탭·카드를 누를 때마다 기계 조작음 (맵 캔버스는 제외)
+    document.addEventListener('click', e => {
+      const el = e.target.closest && e.target.closest('button, .card, summary, [data-tab]');
+      if (!el || el.disabled) return;
+      this.unlock();
+      if (el.matches('#tabs [data-tab], .subtabs button, #speed button')) this.play('uiTab');
+      else if (el.matches('.card')) this.play('uiCard');
+      else this.play('uiBtn');
+    }, true);
     setInterval(() => this.ambTick(), 100);
   },
 
@@ -91,10 +100,29 @@ const SFX = {
     open(t) { this.bell(1319, t, 0.1, 0.9); this.bell(1760, t + 0.18, 0.09, 1); this.steamWhistle(t + 0.4, 0.6, 0.15, this.cur); },
     close(t) { this.bell(1319, t, 0.08, 1); this.bell(988, t + 0.25, 0.08, 1.2); },
     levelup(t) { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + i * 0.09, 0.25, { type: 'triangle', vol: 0.13 })); this.bell(2093, t + 0.4, 0.06, 0.9); },
+    // UI 조작음: 묵직한 기계 스위치·레버·톱니
+    uiBtn(t) {   // 황동 스위치 딸깍-쿵
+      this.hiss(t, 0.018, { f: 2400, q: 1.2, vol: 0.32, a: 0.001 });
+      this.tone(150, t, 0.11, { vol: 0.32, to: 55 });
+      this.tone(620, t + 0.004, 0.05, { type: 'triangle', vol: 0.06, to: 380 });
+      this.hiss(t + 0.03, 0.05, { type: 'lowpass', f: 700, q: 0.8, vol: 0.14, a: 0.002 });
+    },
+    uiTab(t) {   // 레버 당기는 철컥-쿵
+      this.hiss(t, 0.02, { f: 1800, q: 1.4, vol: 0.28, a: 0.001 });
+      this.hiss(t + 0.07, 0.025, { f: 2600, q: 1.4, vol: 0.3, a: 0.001 });
+      this.tone(120, t + 0.07, 0.16, { vol: 0.38, to: 42 });
+      this.clank(t + 0.07, 310, 0.07);
+    },
+    uiCard(t) {  // 톱니 걸리는 틱
+      this.hiss(t, 0.012, { f: 3200, q: 2, vol: 0.22, a: 0.001 });
+      this.tone(190, t, 0.07, { vol: 0.22, to: 80 });
+      this.tone(880, t + 0.002, 0.03, { type: 'square', vol: 0.03, to: 500 });
+    },
     error(t) { this.tone(150, t, 0.1, { type: 'square', vol: 0.08 }); this.tone(120, t + 0.12, 0.14, { type: 'square', vol: 0.08 }); },
   },
   // 같은 소리가 너무 촘촘하면 거른다 (자동 운영·빠른 배속·드래그)
-  gap: { brush: 0.07, coin: 0.09, coinTip: 0.09, bell: 0.8, pipe: 0.12, remove: 0.1, error: 0.4, ding: 0.15, clink: 0.1, serve: 0.15, place: 0.1 },
+  mix: { uiBtn: 0.6, uiTab: 0.6, uiCard: 0.65 },   // 조작음은 게임 소리보다 한 단계 아래
+  gap: { uiBtn: 0.06, uiTab: 0.08, uiCard: 0.05, brush: 0.07, coin: 0.09, coinTip: 0.09, bell: 0.8, pipe: 0.12, remove: 0.1, error: 0.4, ding: 0.15, clink: 0.1, serve: 0.15, place: 0.1 },
 
   play(name) {
     if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
@@ -103,10 +131,10 @@ const SFX = {
     if (now - (this.last[name] || -9) < (this.gap[name] ?? 0.05)) return;
     this.last[name] = now;
     // 마을 쪽으로 멀어질수록 가게 안 소리는 작게 (UI 반응음은 그대로)
-    const ui = ['error', 'buy', 'coal', 'levelup', 'place', 'heavy', 'pipe', 'remove', 'brush'].includes(name);
+    const ui = ['uiBtn', 'uiTab', 'uiCard', 'error', 'buy', 'coal', 'levelup', 'place', 'heavy', 'pipe', 'remove', 'brush'].includes(name);
     const near = typeof Render !== 'undefined' && Render.focus != null ? Render.focus : 1;
     const g = this.cur = this.ctx.createGain();
-    g.gain.value = ui ? 1 : 0.25 + 0.75 * near; g.connect(this.sfxBus);
+    g.gain.value = (ui ? 1 : 0.25 + 0.75 * near) * (this.mix[name] ?? 1); g.connect(this.sfxBus);
     try { fn.call(this, now + 0.01); } catch (e) {}
     this.cur = null;
     setTimeout(() => g.disconnect(), 4000);
