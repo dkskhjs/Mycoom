@@ -269,6 +269,7 @@ const UI = {
   renderOps() {
     const B = this.body;
     B.append(h('div', { id: 'live-ops', class: 'live' }));
+    B.append(h('h3', {}, '👥 직원'), h('div', { id: 'live-crew', class: 'expand crew' }));
     B.append(h('h3', {}, '메뉴판'));
     const list = h('div', { class: 'menu' });
     for (const [id, r] of Object.entries(DATA.recipes)) {
@@ -453,6 +454,30 @@ const UI = {
         lb.replaceChildren(...kids);
       }
     }
+    const lcw = $('#live-crew');
+    if (lcw) {
+      const sig = JSON.stringify([s.crew, s.level, Math.floor(s.money / 100)]);
+      if (lcw.dataset.sig !== sig) {
+        lcw.dataset.sig = sig;
+        const kids = [h('div', { class: 'dim' }, `직원 ${s.crew.length}/${Game.staffCap()}명 · 일급 합계 🪙${fmt(Game.wages())} (영업 마감 때 지급) · 레벨이 2 오를 때마다 1명 더`)];
+        for (const c of s.crew) {
+          const d = DATA.staff[c.kind];
+          kids.push(h('div', { class: 'srow' },
+            h('span', { class: 'mname' }, Sprites.hasChar(c.char) ? Sprites.thumb('char', c.char, 32) : '', ` ${d.icon} ${c.name}`),
+            h('span', { class: 'dim' }, `${d.name} · 일급 ${d.wage}`),
+            h('button', { class: 'btn ghost', onclick: () => this.confirm(`${c.name} 내보내기`, `${d.name} ${c.name}을(를) 내보낼까요? 고용비는 돌려받지 못해요.`, '내보내기', () => Game.fire(c.uid)) }, '해고')));
+        }
+        for (const [k, d] of Object.entries(DATA.staff)) {
+          const inf = Game.hireInfo(k);
+          kids.push(h('div', { class: 'srow hire' },
+            h('span', { class: 'mname' }, h('b', {}, `${d.icon} ${d.name}`), h('div', { class: 'dim small' }, d.desc)),
+            h('span', { class: 'dim' }, `일급 ${d.wage}${inf.n ? ` · ${inf.n}/${d.max}` : ''}`),
+            h('button', { class: 'btn', disabled: !!inf.why && inf.why !== '돈 부족', title: inf.why || '', onclick: () => this.confirm(`${d.icon} ${d.name} 고용`, `${d.desc}. 고용비 🪙${fmt(d.hire)} · 일급 🪙${d.wage} (매일 영업 마감 때)`, `고용 (🪙${fmt(d.hire)})`, () => Game.hire(k)) },
+              inf.why && inf.why !== '돈 부족' ? inf.why : `🪙${fmt(d.hire)}`)));
+        }
+        lcw.replaceChildren(...kids);
+      }
+    }
     const lc = $('#live-cats');
     if (lc) {
       const sig = JSON.stringify([s.cats, s.level, s.money >= 400]);
@@ -631,6 +656,13 @@ const UI = {
       const i = Game.idx(t.x, t.y), leak = s.leaks.find(l => l.i === i);
       if (leak) return this.popup(e, h('div', {}, h('b', {}, `💧 ${DATA.pipes[leak.type].name} 누수`), h('p', {}, '새는 배관 때문에 이 칸 너머로 흐름이 끊겼습니다.'), h('button', { class: 'btn', onclick: () => { Game.repairLeak(leak.type, i); this.closePopup(); } }, '수리 🪙40')));
     }
+    const crew = Game.inGrid(t.x, t.y) && Game.crewAt(t.x, t.y);
+    if (crew) {
+      const c = crew.ref, d = DATA.staff[c.kind];
+      const doing = crew.task ? { serve: '서빙하러 가는 중', collect: '완성품 가지러 가는 중', cook: '메뉴 만들러 가는 중', wipe: '얼룩 닦으러 가는 중', boiler: '보일러 손보러 가는 중', leak: '누수 고치러 가는 중' }[crew.task.k] : crew.cast > 0 ? '일하는 중' : '대기 중';
+      return this.popup(e, h('div', {}, h('b', {}, `${d.icon} ${c.name}`), h('p', { class: 'dim' }, `${d.name} · 일급 🪙${d.wage} · ${doing}`),
+        h('button', { class: 'btn ghost', onclick: () => { this.closePopup(); this.confirm(`${c.name} 내보내기`, `${d.name} ${c.name}을(를) 내보낼까요?`, '내보내기', () => Game.fire(c.uid)); } }, '해고')));
+    }
     const cat = Game.catAt(t.x, t.y);
     if (cat) {
       const k = DATA.cats.find(c => c.id === cat.ref.kind);
@@ -806,7 +838,7 @@ const UI = {
     this.modal(h('div', {},
       h('h2', {}, `${sum.day}일차 영업 종료`),
       h('table', { class: 'sum' },
-        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ...(sum.loanPaid ? [['대출 상환', fmt(sum.loanPaid)]] : []), ...(sum.debt ? [['남은 빚', fmt(sum.debt)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
+        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ...(sum.wages ? [['직원 급여', fmt(sum.wages)]] : []), ...(sum.loanPaid ? [['대출 상환', fmt(sum.loanPaid)]] : []), ...(sum.debt ? [['남은 빚', fmt(sum.debt)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
           .map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))),
       h('p', { class: 'dim' }, `내일 날씨: ${Game.weather().icon} ${Game.weather().name} (${Game.weather().temp}°)`),
       h('button', { class: 'btn big', onclick: () => this.closeModal() }, Game.s.auto ? '다음 날 준비 (자동 운영: 곧 넘어갑니다)' : '다음 날 준비')));

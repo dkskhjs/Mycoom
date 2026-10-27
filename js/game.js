@@ -40,7 +40,7 @@ const Game = {
       cats: [],
       stains: [],
       loans: [], loanSeq: 1,
-      difficulty: 'easy', auto: false,
+      difficulty: 'easy', auto: false, crew: [],
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -55,7 +55,7 @@ const Game = {
   },
 
   initRuntime() {
-    this.rt = { customers: [], floats: [], particles: [], reacts: [], nets: null, dirty: true, lastHour: -1, cid: 1, passerT: 0, staff: null, serveQ: [], cats: [] };
+    this.rt = { customers: [], floats: [], particles: [], reacts: [], nets: null, dirty: true, lastHour: -1, cid: 1, passerT: 0, staff: null, serveQ: [], cats: [], crew: [] };
     this.recompute();
   },
 
@@ -94,7 +94,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false;
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -249,6 +249,7 @@ const Game = {
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
     this.placeStaff();
+    this.syncCrew();
     this.rt.dirty = false;
   },
 
@@ -282,6 +283,7 @@ const Game = {
     g.people = people;
     add('손님', people, T.person.sens, T.person.lat);
     if (rt.staff && s.open) add('바리스타', 1, T.barista.sens, T.barista.lat);
+    if (s.open) add('직원', rt.crew.length, T.barista.sens, T.barista.lat);
     for (const cat of s.cats) { const k = DATA.cats.find(c => c.id === cat.kind); add(`${cat.name}(${k.name})`, 1, k.sens, k.lat); g.cats++; }
     add('식물 (증산)', s.objects.filter(o => DATA.plantObjects.includes(o.id)).length, T.plant.sens, T.plant.lat);
     for (const o of s.objects) if (o.cook && !o.cook.done && this.working(o)) { const [a, b] = T.cooking[o.id] || [0, 0]; add(`${DATA.objects[o.id].name} 조리`, 1, a, b); }
@@ -476,7 +478,7 @@ const Game = {
     s.inletY = (s.inletY ?? 2) + dy;
     s.expansions++;
     // 거리 행인·바리스타 위치 초기화
-    this.rt.customers = []; this.rt.staff = null; this.rt.serveQ = []; this.rt.cats = [];
+    this.rt.customers = []; this.rt.staff = null; this.rt.serveQ = []; this.rt.cats = []; this.rt.crew = [];
     this.recompute(); this.save();
     this.toast(`🏗 ${dir === 'east' ? '동쪽' : '북쪽'}으로 확장 완료! ${W - 2}×${H - 2}칸`, 'good');
     this.emit('expanded');
@@ -742,7 +744,10 @@ const Game = {
     const loanPaid = this.payLoans();
     const food = s.cats.length * DATA.catFoodPerDay;
     if (food) { s.money -= food; s.today.spent += food; }
-    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, loanPaid, debt: this.debt() };
+    const wages = this.wages();
+    if (wages) { s.money -= wages; s.today.spent += wages; }
+    for (const e of this.rt.crew) { e.path = []; e.task = null; e.carry = null; }
+    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, wages, loanPaid, debt: this.debt() };
     s.events = []; s.coalPriceMul = 1; s.boiler.pressure = Math.min(s.boiler.pressure, 50);
     s.day++; s.min = OPEN_HOUR * 60;
     this.rollWeather();
@@ -982,6 +987,7 @@ const Game = {
       if (rt.passerT <= 0) { rt.passerT = 2 + Math.random() * 4; this.spawnPasser(); }
       this.updateCustomers(dt * MIN_PER_SEC);
       this.updateStaff(dt * MIN_PER_SEC);
+      this.updateCrew(dt * MIN_PER_SEC);
       this.updateCats(dt * MIN_PER_SEC);
       this.autoTick(dt * MIN_PER_SEC);
       return;
@@ -1054,6 +1060,7 @@ const Game = {
 
     this.updateCustomers(gm);
     this.updateStaff(gm);
+    this.updateCrew(gm);
     this.updateCats(gm);
     this.autoTick(gm);
 
@@ -1084,8 +1091,8 @@ const Game = {
       }
       if (c.state === 'waiting') {
         c.wait += gm;
-        if (!c.assigned && (s.counter[c.order] || 0) > 0) { s.counter[c.order]--; c.assigned = true; c.timer = 4; if (rt.staff) rt.serveQ.push(c); }
-        if (c.assigned && !rt.staff) { c.timer -= gm; if (c.timer <= 0) this.serve(c); }
+        if (!c.assigned && (s.counter[c.order] || 0) > 0) { s.counter[c.order]--; c.assigned = true; c.timer = 4; if (this.hasServer()) rt.serveQ.push(c); }
+        if (c.assigned && !this.hasServer()) { c.timer -= gm; if (c.timer <= 0) this.serve(c); }
         else if (c.wait > this.patience(c)) this.customerLeave(c, true);
         continue;
       }
@@ -1168,6 +1175,152 @@ const Game = {
     st.carry = c.order; st.target = c;
     if (!p.length) { this.serve(c); st.target = null; st.carry = null; st.cast = 3; return; }
     st.path = p;
+  },
+
+  // ───────── 고용 직원 ─────────
+  // 서빙 직원은 주인공과 같은 서빙 대기열을 나눠 갖고, 나머지는 각자 할 일을 찾아 걸어가서 처리한다.
+  staffCap() { return 2 + Math.floor((this.s.level - 1) / 2); },
+  hasServer() { return !!this.rt.staff || this.rt.crew.some(e => e.ref.kind === 'waiter'); },
+  wages() { return this.s.crew.reduce((a, c) => a + DATA.staff[c.kind].wage, 0); },
+  hireInfo(kind) {
+    const d = DATA.staff[kind], s = this.s, n = s.crew.filter(c => c.kind === kind).length;
+    const why = d.lv > s.level ? `Lv.${d.lv}` : n >= d.max ? '최대' : s.crew.length >= this.staffCap() ? '자리 없음' : s.money < d.hire ? '돈 부족' : null;
+    return { why, n };
+  },
+  hire(kind) {
+    const d = DATA.staff[kind], inf = this.hireInfo(kind);
+    if (inf.why) { this.toast(inf.why === '자리 없음' ? `지금 레벨에서는 직원을 ${this.staffCap()}명까지 둘 수 있어요` : inf.why === '최대' ? `${d.name}은(는) ${d.max}명까지` : inf.why, 'bad'); return false; }
+    if (!this.spend(d.hire)) return false;
+    const used = new Set(this.s.crew.map(c => c.name)), pool = DATA.staffNames.filter(n => !used.has(n));
+    const name = pool[Math.floor(Math.random() * pool.length)] || '직원';
+    this.s.crew.push({ uid: this.s.nextUid++, kind, name, char: d.chars[Math.floor(Math.random() * d.chars.length)] });
+    this.syncCrew(); this.save();
+    this.toast(`${d.icon} ${name} (${d.name}) 고용! 일급 🪙${d.wage}`, 'good'); this.sfx('bell');
+    return true;
+  },
+  fire(uid) {
+    const c = this.s.crew.find(c => c.uid === uid); if (!c) return;
+    const e = this.rt.crew.find(e => e.ref === c);
+    if (e && e.task && e.task.k === 'serve' && e.task.ref.state === 'waiting') this.rt.serveQ.unshift(e.task.ref);   // 들고 있던 서빙은 되돌림
+    this.s.crew = this.s.crew.filter(q => q !== c);
+    this.syncCrew(); this.save();
+    this.toast(`${c.name}에게 작별 인사를 했어요`);
+  },
+  crewAt(x, y) { return this.rt.crew.find(e => Math.round(e.x) === x && Math.round(e.y) === y); },
+  // 대기 자리: 카운터에서 가까운 빈 칸부터 (주인공 자리·좌석·입구 제외)
+  crewHome(i) {
+    const s = this.s, counter = s.objects.find(o => o.id === 'counter');
+    const cx = counter ? counter.x + 1 : s.W / 2, cy = counter ? counter.y : s.H / 2, hero = this.staffHome(), tiles = [];
+    for (let y = 1; y < s.H - 1; y++) for (let x = 1; x < s.W - 1; x++) {
+      if (!this.isInterior(x, y) || !this.walkable(x, y) || this.isEntrance(x, y)) continue;
+      if (hero && hero[0] === x && hero[1] === y) continue;
+      if (this.rt.nets && this.rt.nets.seats.some(st => st.x === x && st.y === y)) continue;
+      tiles.push([x, y, Math.abs(x - cx) + Math.abs(y - cy)]);
+    }
+    tiles.sort((a, b) => a[2] - b[2]);
+    const t = tiles[Math.min(tiles.length - 1, 1 + i * 2)];
+    return t ? [t[0], t[1]] : null;
+  },
+  syncCrew() {
+    const rt = this.rt;
+    rt.crew = rt.crew.filter(e => this.s.crew.includes(e.ref));
+    for (const c of this.s.crew) if (!rt.crew.some(e => e.ref === c)) {
+      const h = this.crewHome(rt.crew.length) || [this.door.x, this.door.y - 1];
+      rt.crew.push({ ref: c, x: h[0], y: h[1], path: [], face: 'down', dir: 1, step: 0, cast: 0, look: 0, task: null, carry: null });
+    }
+    rt.crew.forEach((e, i) => {
+      e.home = this.crewHome(i) || [Math.round(e.x), Math.round(e.y)];
+      if (!e.path.length && !this.walkable(Math.round(e.x), Math.round(e.y))) { e.x = e.home[0]; e.y = e.home[1]; }
+    });
+  },
+  walkCrew(e, gm, speed = 0.75) {
+    const [tx, ty] = e.path[0];
+    const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), step = speed * gm;
+    if (Math.abs(dx) > Math.abs(dy)) { e.face = 'side'; e.dir = dx > 0 ? 1 : -1; } else if (Math.abs(dy) > 0.001) e.face = dy > 0 ? 'down' : 'up';
+    if (d <= step) { e.x = tx; e.y = ty; e.path.shift(); } else { e.x += dx / d * step; e.y += dy / d * step; }
+    e.step += gm;
+    return !e.path.length;
+  },
+  faceTo(e, x, y) { const dx = x - e.x, dy = y - e.y; if (Math.abs(dx) > Math.abs(dy)) { e.face = 'side'; e.dir = dx > 0 ? 1 : -1; } else e.face = dy < 0 ? 'up' : 'down'; },
+  pathToObj(e, o) {
+    let best = null; const sx = Math.round(e.x), sy = Math.round(e.y);
+    for (const [fx, fy] of this.footprint(o)) { const p = this.pathNextTo(sx, sy, fx, fy); if (p && (!best || p.length < best.length)) best = p; }
+    return best;
+  },
+  // 이 설비로 지금 만들 메뉴: 재료가 있고 진열이 12개 미만인 것 중 가장 적은 것
+  pickRecipe(o) {
+    const s = this.s;
+    const opts = Object.entries(DATA.recipes).filter(([rid, r]) => r.eq === o.id && !this.canCook(o, rid) && (s.counter[rid] || 0) < 12)
+      .sort((a, b) => (s.counter[a[0]] || 0) - (s.counter[b[0]] || 0));
+    return opts.length ? opts[0][0] : null;
+  },
+  findJob(e) {
+    const s = this.s, rt = this.rt, kind = e.ref.kind, sx = Math.round(e.x), sy = Math.round(e.y);
+    const taken = (k, ref) => rt.crew.some(o => o !== e && o.task && o.task.k === k && o.task.ref === ref);
+    if (kind === 'waiter') {
+      if (!s.open) return null;
+      const q = rt.serveQ; while (q.length && q[0].state !== 'waiting') q.shift();
+      const c = q.shift(); if (!c || !c.seat) return null;
+      const p = this.pathNextTo(sx, sy, c.seat.x, c.seat.y);
+      if (!p) { this.serve(c); return null; }
+      return { k: 'serve', ref: c, path: p, carry: c.order, x: c.seat.x, y: c.seat.y, act: () => this.serve(c) };
+    }
+    if (kind === 'barista') {
+      if (!s.open || !s.objects.some(o => o.id === 'counter')) return null;
+      const done = s.objects.find(o => o.cook && o.cook.done && !taken('collect', o));
+      if (done) { const p = this.pathToObj(e, done); if (p) return { k: 'collect', ref: done, path: p, x: done.x, y: done.y, act: () => this.collect(done) }; }
+      for (const o of s.objects) {
+        if (!this.objDef(o).cook || o.cook || !this.working(o) || taken('cook', o)) continue;
+        const rid = this.pickRecipe(o); if (!rid) continue;
+        const p = this.pathToObj(e, o); if (!p) continue;
+        return { k: 'cook', ref: o, path: p, x: o.x, y: o.y, act: () => { if (!o.cook && !this.canCook(o, rid)) this.startCook(o, rid); } };
+      }
+      return null;
+    }
+    if (kind === 'cleaner') {
+      for (const st of s.stains) {
+        if (taken('wipe', st)) continue;
+        const p = sx === st.x && sy === st.y ? [] : this.walkable(st.x, st.y) ? this.findPath(sx, sy, st.x, st.y) : this.pathNextTo(sx, sy, st.x, st.y);
+        if (p) return { k: 'wipe', ref: st, path: p, x: st.x, y: st.y + 1, act: () => { if (s.stains.includes(st)) this.wipeStain(st); } };
+      }
+      return null;
+    }
+    if (kind === 'stoker') {
+      const b = s.boiler, boiler = s.objects.find(o => o.id === 'boiler');
+      if (s.coal < 15 && !this.hasEvent('coalStrike') && s.money >= this.coalPrice() * 3 && this.buy('coal', 2)) this.toast(`🔧 ${e.ref.name}: 석탄 2자루 주문했어요`);
+      if (boiler && !taken('boiler', boiler)) {
+        const fix = b.broken && s.money >= 1200, vent = !b.broken && b.pressure > 70;
+        if (fix || vent) { const p = this.pathToObj(e, boiler); if (p) return { k: 'boiler', ref: boiler, path: p, x: boiler.x, y: boiler.y, act: () => fix ? this.repairBoiler() : this.ventValve() }; }
+      }
+      for (const lk of s.leaks) {
+        if (taken('leak', lk) || s.money < 40) continue;
+        const lx = lk.i % s.W, ly = (lk.i / s.W) | 0;
+        const p = this.pathNextTo(sx, sy, lx, ly) || (this.walkable(lx, ly) ? this.findPath(sx, sy, lx, ly) : null);
+        if (p) return { k: 'leak', ref: lk, path: p, x: lx, y: ly, act: () => { if (s.leaks.includes(lk)) this.repairLeak(lk.type, lk.i); } };
+      }
+      return null;
+    }
+    return null;
+  },
+  updateCrew(gm) {
+    for (const e of this.rt.crew) {
+      e.cast = Math.max(0, e.cast - gm);
+      if (e.cast > 0) continue;
+      // 할 일 찾기 (집에 돌아가는 중에도)
+      if (!e.task) {
+        e.look -= gm;
+        if (e.look <= 0) { e.look = 0.6; const job = this.findJob(e); if (job) { e.task = job; e.path = job.path; e.carry = job.carry || null; } }
+      }
+      if (e.path.length && !this.walkCrew(e, gm)) continue;
+      if (e.task) {
+        const t = e.task; e.task = null;
+        if (t.x != null) this.faceTo(e, t.x, t.y);
+        t.act(); e.cast = 1.5; e.carry = null; e.look = 0;
+      } else if (Math.round(e.x) !== e.home[0] || Math.round(e.y) !== e.home[1]) {
+        e.path = this.findPath(Math.round(e.x), Math.round(e.y), e.home[0], e.home[1]) || [];
+        if (!e.path.length) { e.home = [Math.round(e.x), Math.round(e.y)]; }
+      }
+    }
   },
 
   timeStr() {

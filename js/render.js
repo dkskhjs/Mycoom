@@ -118,6 +118,7 @@ const Render = {
     }
     for (const c of Game.rt.customers) items.push({ z: c.y + 1.02, kind: 'cust', c });
     if (Game.rt.staff) items.push({ z: Game.rt.staff.y + 1.03, kind: 'staff' });
+    for (const e of Game.rt.crew) items.push({ z: e.y + 1.03, kind: 'crew', e });
     for (const k of Game.rt.cats) items.push({ z: k.y + 1.01, kind: 'cat', k });
     for (const d of this.streetDecor()) items.push({ z: d.z, kind: 'img', d });
     items.sort((a, b) => a.z - b.z);
@@ -126,6 +127,7 @@ const Render = {
       if (it.kind === 'obj') { const lifted = ui.tool && ui.tool.kind === 'move' && ui.tool.uid === it.o.uid; if (lifted) g.globalAlpha = 0.3; this.drawObject(P, it.o); if (lifted) g.globalAlpha = util ? 0.55 : 1; }
       else if (it.kind === 'cust') this.drawCustomer(P, it.c);
       else if (it.kind === 'staff') this.drawStaff(P);
+      else if (it.kind === 'crew') this.drawCrew(P, it.e);
       else if (it.kind === 'cat') this.drawCat(P, it.k);
       else {
         const d = it.d, dx = Math.round(d.x - d.img.width / 2), dy = d.y - d.img.height;
@@ -444,6 +446,19 @@ const Render = {
     // 주인공 시트가 오기 전까지 NAPLE 마법사가 대신 일한다
     const fr = st.cast > 0 ? 6 + Math.min(2, Math.floor((3 - st.cast) * 1.2)) : st.path.length ? 2 + Math.floor(st.step / 1.2) % 4 : Math.floor(t * 2) % 2;
     this.blitChar(Sprites.playerFrame(fr), fx - 14, fy - 31, st.dir === -1);
+  },
+  // 고용 직원: 손님과 같은 캐릭터 시트를 쓰고, 머리 위에 역할 리본 + 들고 가는 메뉴
+  drawCrew(P, e) {
+    const type = DATA.customerTypes.find(t => t.id === e.ref.char) || DATA.customerTypes[0];
+    const state = e.path.length ? 'walk' : 'idle', frame = e.path.length ? Math.floor(e.step / 1.2) : Math.floor(this.t * 2 + e.ref.uid);
+    const spr = Sprites.customer(type, state, frame, e.face || 'down');
+    const fx = Math.round(e.x * TILE) + 8, fy = Math.round(e.y * TILE) + 15;
+    this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, spr.sheet ? (e.face === 'side' && e.dir === -1) : e.dir === -1);
+    const col = { waiter: '#e8dcc0', barista: '#c8952f', cleaner: '#7fc8e8', stoker: '#d0503a' }[e.ref.kind] || '#fff';
+    const top = fy - (spr.sheet ? 30 : 25);
+    P.r(fx - 2, top, 5, 2, PAL.k); P.r(fx - 1, top, 3, 1, col);   // 역할 표시 리본
+    if (e.carry) { P.r(fx - 5, top - 2, 11, 1, PAL.i3); this.wg.drawImage(Sprites.icon(e.carry), fx - 4, top - 12); }
+    if (e.cast > 1 && e.ref.kind === 'cleaner') { const k = Math.floor(this.t * 8) % 3; P.r(fx + 4 + k, fy - 2, 2, 1, '#bfe6ff'); }
   },
   drawCat(P, k) {
     const pose = k.path.length ? 'walk' : k.state === 'nap' ? 'nap' : 'sit';

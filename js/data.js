@@ -170,6 +170,14 @@ const DATA = {
 
   // 손님 로스터 — sheet: assets/chars/<sheet>.png (규격은 assets/README.md). 없으면 코드로 그린 임시 도트.
   // f: 여성 버전 (임시 도트에서 긴 머리), small: 아이 체형
+  // 직원: 고용비 + 일급(영업 마감 때 지급). 레벨이 오르면 더 많이 둘 수 있다
+  staff: {
+    waiter:  { name: '서빙 직원',     icon: '🍽', hire: 600,  wage: 60, lv: 1, max: 4, chars: ['adult_f', 'adult_m'],     desc: '카운터의 메뉴를 손님 자리까지 나릅니다. 여럿이면 동시에 서빙해서 손님이 덜 기다려요' },
+    barista: { name: '보조 바리스타', icon: '☕', hire: 1200, wage: 90, lv: 2, max: 2, chars: ['smith_f', 'smith_m'],     desc: '쉬고 있는 조리 설비로 재고가 적은 메뉴를 만들고, 완성품을 카운터로 옮깁니다 (재료는 창고에서 씀)' },
+    cleaner: { name: '청소부',        icon: '🧹', hire: 500,  wage: 40, lv: 2, max: 2, chars: ['miner_f', 'miner_m'],     desc: '바닥의 커피 얼룩을 찾아가 닦습니다' },
+    stoker:  { name: '보일러공',      icon: '🔧', hire: 900,  wage: 70, lv: 3, max: 1, chars: ['plumber_m', 'plumber_f'], desc: '압력이 높으면 밸브를 열고, 새는 배관을 고치고(🪙40), 석탄이 떨어져 가면 주문합니다' },
+  },
+  staffNames: ['한스', '엘리자', '오스카', '마틸다', '테오', '클라라', '휴고', '로자', '펠릭스', '이다', '빅토르', '헬가', '루돌프', '아그네스', '에밀', '프리다', '구스타프', '릴리', '아서', '베아트리스'],
   customerTypes: [
     { id: 'adult_m',    name: '시민 (남)',      weight: 18, pay: 1.0, picky: 0,  patience: 70, coat: '#6b4f3a', hat: '#2b2b2b', hair: '#4a2e1c' },
     { id: 'adult_f',    name: '시민 (여)',      weight: 18, pay: 1.0, picky: 0,  patience: 70, coat: '#7a4a5a', hat: '#5a3a4a', hair: '#7a3a1c', f: true },
