@@ -202,6 +202,41 @@ def facing(im):
     return float(np.where(skin)[1].mean() - (hx.min() + hx.max()) / 2)
 
 
+def step_pose(frame, side, lift=2):
+    """대기 그림에서 걸음 자세 만들기: 몸통(엉덩이 위)은 1px 위로, 한쪽 다리(아래 25%)는 lift px 들기.
+    side: -1 = 왼다리, +1 = 오른다리. 방향이 바뀌지 않아 앞뒤가 섞이지 않는다."""
+    a = np.asarray(frame)
+    op = a[..., 3] > 0
+    if op.sum() < 20:
+        return frame
+    ys, xs = np.where(op)
+    top, bot = ys.min(), ys.max()
+    hip = bot - max(3, int((bot - top) * 0.25))
+    cx = int(round(xs[ys > hip].mean())) if (ys > hip).any() else a.shape[1] // 2
+    out = Image.new('RGBA', frame.size, (0, 0, 0, 0))
+    body = Image.fromarray(a.copy()); body.putalpha(Image.fromarray(np.where(np.arange(a.shape[0])[:, None] < hip, a[..., 3], 0).astype(np.uint8)))
+    out.alpha_composite(body, (0, -1 if top > 0 else 0))
+    for leg_side in (-1, 1):
+        m = np.zeros(a.shape[:2], bool)
+        m[hip:, :cx] = leg_side < 0
+        m[hip:, cx:] = leg_side > 0
+        leg = Image.fromarray(np.dstack([a[..., :3], np.where(m, a[..., 3], 0)]).astype(np.uint8))
+        out.alpha_composite(leg, (0, -lift if leg_side == side else 0))
+    return out
+
+
+def synth_walks(sheet):
+    """정면(0행)·뒷면(1행)의 걷기 4칸(2~5열)을 대기 그림(0열)으로 다시 만든다: 왼발·대기·오른발·대기."""
+    for r in (0, 1):
+        base = sheet.crop((0, r * FRAME, FRAME, (r + 1) * FRAME))
+        poses = [step_pose(base, -1), base, step_pose(base, +1), base]
+        for i, im in enumerate(poses):
+            c = 2 + i
+            sheet.paste((0, 0, 0, 0), (c * FRAME, r * FRAME, (c + 1) * FRAME, (r + 1) * FRAME))
+            sheet.alpha_composite(im, (c * FRAME, r * FRAME))
+    return sheet
+
+
 def build(mapping_path):
     """매핑의 각 항목: work(작업폴더), down/up/side (8칸: 대기2·걷기4·앉기·동작).
     dark: 어두운 디테일 우선 비율(기본 0.22). 그을음·어두운 옷이 많아 뭉개지면 올린다.
@@ -236,6 +271,8 @@ def build(mapping_path):
                 x = c * FRAME + (FRAME - sp.width) // 2
                 y = r * FRAME + FRAME - sp.height
                 sheet.alpha_composite(sp, (max(c * FRAME, x), y))
+        if m.get('synth_walk', True):
+            sheet = synth_walks(sheet)
         os.makedirs('assets/chars', exist_ok=True)
         sheet.save(f'assets/chars/{cid}.png')
         sheet.resize((sheet.width * 4, sheet.height * 4), Image.NEAREST).save(f'{work}/{cid}_x4.png')
