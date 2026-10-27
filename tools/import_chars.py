@@ -7,7 +7,8 @@
   2) 프레임 번호를 게임 규격(정면/뒷면/옆 × 대기2·걷기4·앉기·동작)에 배치:
        python3 tools/import_chars.py build tools/char_map.json
      매핑 예: {"aviator_m": {"work": "...", "down": [0,1, 0,2,1,3, 4,5], "up": [...], "side": ["24f","24f", 26,27,26,27, 28,29]}}
-     번호 뒤 f = 좌우 반전, s = 앉은 자세 합성(앉기 프레임이 없을 때). 옆모습은 오른쪽을 보게 맞춘다.
+     번호 뒤 f = 좌우 반전, s = 앉은 자세 합성(앉기 프레임이 없을 때).
+     옆모습 줄은 얼굴 방향을 재서 왼쪽을 보는 프레임을 자동으로 뒤집는다 (끄려면 "auto_face": false).
 """
 import json, os, sys
 import numpy as np
@@ -184,6 +185,23 @@ def crisp(im, colors=28):
     return Image.fromarray(a)
 
 
+def facing(im):
+    """옆모습 방향 추정: 머리 영역에서 피부색 픽셀이 머리 중심보다 오른쪽이면 +, 왼쪽이면 −. 모르면 0."""
+    a = np.asarray(im).astype(int)
+    op = a[..., 3] > 0
+    if op.sum() < 20:
+        return 0.0
+    ys, xs = np.where(op)
+    top, h = ys.min(), ys.max() - ys.min()
+    head = op.copy(); head[top + int(h * 0.45):] = False
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    skin = head & (r > 170) & (g > 110) & (b > 70) & (r - g > 15) & (r - g < 90) & (r - b > 45)
+    hx = np.where(head)[1]
+    if skin.sum() < 3 or not len(hx):
+        return 0.0
+    return float(np.where(skin)[1].mean() - (hx.min() + hx.max()) / 2)
+
+
 def build(mapping_path):
     """매핑의 각 항목: work(작업폴더), down/up/side (8칸: 대기2·걷기4·앉기·동작).
     dark: 어두운 디테일 우선 비율(기본 0.22). 그을음·어두운 옷이 많아 뭉개지면 올린다.
@@ -209,6 +227,9 @@ def build(mapping_path):
                         im = im.crop((0, 0, im.width, int(im.height * 0.72)))
                     cache[(idx, flip, sit)] = downscale(im, scale, m.get('dark', 0.22))
                 sp = cache[(idx, flip, sit)]
+                # 옆모습은 반드시 오른쪽을 보게: 왼쪽을 보는 프레임은 자동으로 뒤집는다
+                if face == 'side' and m.get('auto_face', True) and facing(sp) < -0.3:
+                    sp = sp.transpose(Image.FLIP_LEFT_RIGHT)
                 if sp.height > FRAME:
                     sp = sp.crop((0, sp.height - FRAME, sp.width, sp.height))
                 # 발끝(아래) 정렬, 가로 가운데

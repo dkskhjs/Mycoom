@@ -26,6 +26,13 @@ const DATA = {
     brassgrid:  { name: '황동 격자 철판', cost: 55, appeal: 3, lv: 3 },
     carpet:     { name: '진홍 카펫',      cost: 50, appeal: 3, lv: 3 },
     marble:     { name: '대리석',         cost: 80, appeal: 4, lv: 5 },
+    cobble:     { name: '자갈 포석',      cost: 18, appeal: 1, lv: 1 },
+    brickfloor: { name: '헤링본 벽돌',    cost: 25, appeal: 1, lv: 1 },
+    parquet:    { name: '쪽모이 원목',    cost: 45, appeal: 3, lv: 2 },
+    hextile:    { name: '육각 타일',      cost: 50, appeal: 3, lv: 3 },
+    steamgrate: { name: '증기 그레이팅',   cost: 60, appeal: 3, lv: 3 },
+    rug:        { name: '페르시아 융단',   cost: 70, appeal: 4, lv: 4 },
+    mosaic:     { name: '황동 모자이크',   cost: 95, appeal: 5, lv: 6 },
   },
 
   // 벽 마감재 (외곽 벽 타일당)
@@ -37,6 +44,12 @@ const DATA = {
     rivet:      { name: '리벳 철판',      cost: 50, appeal: 2, lv: 2 },
     verdigris:  { name: '녹청 구리판',     cost: 70, appeal: 3, lv: 4 },
     stained:    { name: '스테인드글라스 창', cost: 110, appeal: 4, lv: 5 },
+    rustplate:  { name: '녹슨 철판',      cost: 25, appeal: 1, lv: 1 },
+    stripe:     { name: '줄무늬 벽지',     cost: 35, appeal: 2, lv: 1 },
+    subway:     { name: '흰 지하철 타일',  cost: 40, appeal: 2, lv: 2 },
+    porthole:   { name: '현창 황동벽',     cost: 85, appeal: 3, lv: 3 },
+    bookwall:   { name: '서가 벽',        cost: 80, appeal: 4, lv: 4 },
+    gearwall:   { name: '톱니 장식 벽',    cost: 95, appeal: 4, lv: 5 },
   },
 
   // 천장 마감재 (실내 타일당)
@@ -46,6 +59,11 @@ const DATA = {
     tin:        { name: '주석 엠보 타일',  cost: 30, appeal: 2, lv: 2 },
     copper:     { name: '구리 패널',       cost: 45, appeal: 2, lv: 4 },
     glassdome:  { name: '유리 돔 채광창',  cost: 70, appeal: 3, lv: 5 },
+    duct:       { name: '노출 덕트',       cost: 20, appeal: 1, lv: 1 },
+    brassplate: { name: '황동 압착판',     cost: 50, appeal: 2, lv: 3 },
+    coffered:   { name: '격자 우물천장',   cost: 55, appeal: 3, lv: 3 },
+    gearceil:   { name: '톱니 천장',       cost: 65, appeal: 3, lv: 4 },
+    fresco:     { name: '하늘 프레스코',   cost: 90, appeal: 4, lv: 6 },
   },
 
   // 배관 (타일당)

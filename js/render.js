@@ -135,7 +135,7 @@ const Render = {
     // 5. 천장 보기
     if (ceilView) {
       g.globalAlpha = 0.93;
-      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) g.drawImage(Sprites.ceil(s.ceil[Game.idx(x, y)]), x * TILE, y * TILE);
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) g.drawImage(Sprites.ceil(s.ceil[Game.idx(x, y)], Math.floor(hash(x, y, 1) * 2)), x * TILE, y * TILE);
       for (const o of s.objects) if (DATA.objects[o.id].layer === 'ceil') g.drawImage(Sprites.object(o.id).canvas, o.x * TILE, o.y * TILE);
       g.globalAlpha = 1;
     }

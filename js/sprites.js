@@ -135,6 +135,70 @@ const FLOOR_ART = {
     while (y < 16) { P.p(x, y, PAL.s3); if (hash(x, y, v) > 0.5) P.p(x + 1, y, PAL.cr0); x += hash(x, y, 77) > 0.5 ? 1 : -1; x = (x + 16) % 16; y++; }
     P.r(0, 15, 16, 1, PAL.cr0); P.r(15, 0, 1, 16, PAL.cr0);
   },
+  // ── 추가 바닥재 ──
+  cobble(P, v) {
+    P.r(0, 0, 16, 16, '#3e3530');
+    for (let row = 0; row < 4; row++) {
+      const off = (row + v) % 2 ? 2 : 0;
+      for (let x = -off; x < 16; x += 4) {
+        const c = ['#7a6a5c', '#8a7866', '#6c5e52', '#94826e'][Math.floor(hash(x + 7, row, v + 3) * 4)];
+        const x0 = Math.max(0, x), w = Math.min(3, 3 + x) - (x0 - x);
+        if (w > 0) { P.r(x0, row * 4, w, 3, c); P.p(x0, row * 4, '#a8967e'); }
+      }
+    }
+  },
+  brickfloor(P, v) {
+    P.r(0, 0, 16, 16, '#4a2a20');
+    for (let y = 0; y < 16; y += 4) for (let x = 0; x < 16; x += 4) {
+      const vert = ((x + y) / 4) % 2 === 0;
+      const c = ['#9a4a32', '#a85a3c', '#8a3e2a'][Math.floor(hash(x, y, v + 11) * 3)];
+      if (vert) { P.r(x, y, 3, 1, c); P.r(x, y + 1, 3, 2, c); } else { P.r(x, y, 1, 3, c); P.r(x + 1, y, 2, 3, c); }
+      P.p(x, y, '#c07050');
+    }
+  },
+  parquet(P) {
+    // 바구니 짜임: 4x4 블록마다 결 방향이 바뀐다
+    for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
+      const h = (bx + by) % 2 === 0, base = (bx * 3 + by) % 2 ? PAL.w3 : '#9a6a3e';
+      P.r(bx * 4, by * 4, 4, 4, base);
+      for (let k = 0; k < 4; k += 2) h ? P.r(bx * 4, by * 4 + k, 4, 1, PAL.w2) : P.r(bx * 4 + k, by * 4, 1, 4, PAL.w2);
+      P.p(bx * 4 + 3, by * 4 + 3, PAL.w0);
+    }
+  },
+  hextile(P) {
+    // 8x8 팔각 타일을 줄마다 반 칸 어긋나게 → 육각 무늬처럼 보인다
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const row = y >> 3, lx = (x + (row % 2) * 4) % 8, ly = y % 8;
+      const edge = (ly === 0 && lx >= 2 && lx <= 5) || (lx === 0 && ly >= 2 && ly <= 5) ||
+        (lx + ly === 1) || (lx - ly === 6) || (ly - lx === 6) || (lx + ly === 13) || (lx === 7 && ly === 7) || (lx === 0 && ly === 0);
+      const tone = ((x + (row % 2) * 4) >> 3) % 3 === 0 ? '#c9d8cc' : PAL.cr1;
+      P.p(x, y, edge ? '#7a6e5c' : (ly <= 2 && lx >= 2 && lx <= 4 ? PAL.cr2 : tone));
+    }
+  },
+  steamgrate(P) {
+    P.r(0, 0, 16, 16, PAL.i0);
+    for (let y = 1; y < 16; y += 3) { P.r(1, y, 14, 2, '#2a1610'); P.r(1, y, 14, 1, '#5a2a14'); }
+    P.r(0, 0, 16, 1, PAL.i3); P.r(0, 15, 16, 1, PAL.i1); P.r(0, 0, 1, 16, PAL.i2); P.r(15, 0, 1, 16, PAL.i1);
+    for (let y = 2; y < 16; y += 3) for (let x = 3; x < 15; x += 4) P.p(x, y, PAL.i2);
+    P.p(1, 1, PAL.b3); P.p(14, 1, PAL.b3); P.p(1, 14, PAL.b3); P.p(14, 14, PAL.b3);
+  },
+  rug(P) {
+    P.r(0, 0, 16, 16, '#1e2a4e');
+    P.r(0, 0, 16, 2, PAL.red1); P.r(0, 14, 16, 2, PAL.red1); P.r(0, 0, 2, 16, PAL.red1); P.r(14, 0, 2, 16, PAL.red1);
+    P.r(2, 2, 12, 1, PAL.b2); P.r(2, 13, 12, 1, PAL.b2); P.r(2, 2, 1, 12, PAL.b2); P.r(13, 2, 1, 12, PAL.b2);
+    for (let i = 0; i < 3; i++) { P.p(8 - i, 5 + i, PAL.red2); P.p(7 + i, 5 + i, PAL.red2); P.p(8 - i, 10 - i, PAL.red2); P.p(7 + i, 10 - i, PAL.red2); }
+    P.r(7, 7, 2, 2, PAL.b3);
+    P.noise(3, 3, 10, 10, ['#2a3a62', '#18213e'], 0.15, 21);
+  },
+  mosaic(P) {
+    const cols = [PAL.v2, PAL.b2, PAL.cr2, PAL.v1, PAL.b3];
+    for (let y = 0; y < 16; y += 2) for (let x = 0; x < 16; x += 2) {
+      const d = Math.abs(x - 7) + Math.abs(y - 7);
+      const c = d < 3 ? PAL.b3 : d < 6 ? PAL.v2 : d < 9 ? cols[(x + y) % 3 + 2] : (x + y) % 4 ? PAL.cr1 : PAL.b1;
+      P.r(x, y, 2, 2, c); P.p(x + 1, y + 1, '#00000022');
+    }
+    P.r(0, 15, 16, 1, PAL.b0); P.r(15, 0, 1, 16, PAL.b0);
+  },
 };
 
 // ───────────── 벽 ─────────────
@@ -181,6 +245,51 @@ const WALL_ART = {
     }
     P.r(1, 4, 1, 12, PAL.b1); P.r(14, 4, 1, 12, PAL.b1);
   },
+  // ── 추가 벽 마감 ──
+  rustplate(P) {
+    wallCap(P);
+    P.r(0, 4, 16, 12, PAL.i1);
+    P.noise(0, 4, 16, 12, ['#8a4a22', '#a85e2a', '#6a3418', PAL.i2], 0.45, 33);
+    P.r(0, 9, 16, 1, PAL.i0); P.rivets(1, 5, 15, 5, PAL.i3, PAL.i0); P.rivets(1, 11, 15, 5, PAL.i3, PAL.i0);
+    P.r(5, 10, 1, 4, '#5a2a14'); P.r(11, 5, 1, 3, '#5a2a14');
+  },
+  stripe(P) {
+    wallCap(P);
+    for (let x = 0; x < 16; x++) P.r(x, 4, 1, 8, Math.floor(x / 2) % 2 ? PAL.cr1 : PAL.red1);
+    P.r(0, 4, 16, 1, PAL.b1);
+    P.r(0, 12, 16, 4, PAL.w1); P.r(0, 12, 16, 1, PAL.w3); P.r(4, 13, 1, 3, PAL.w0); P.r(11, 13, 1, 3, PAL.w0);
+  },
+  subway(P) {
+    wallCap(P);
+    P.r(0, 4, 16, 12, '#a8a29a');
+    for (let row = 0; row < 4; row++) {
+      const y = 4 + row * 3, off = row % 2 ? 4 : 0;
+      for (let x = -off; x < 16; x += 8) { const x0 = Math.max(0, x); P.r(x0, y, Math.min(7, 7 + x) - (x0 - x), 2, PAL.wh); P.p(x0 + 1, y, '#ffffff'); }
+    }
+    P.r(0, 14, 16, 2, '#2e5a52'); P.r(0, 14, 16, 1, '#4f8a7a');
+  },
+  porthole(P) {
+    wallCap(P);
+    P.r(0, 4, 16, 12, PAL.b1); P.r(0, 4, 16, 1, PAL.b3);
+    P.disc(8, 10, 5, PAL.k); P.disc(8, 10, 4, PAL.b2); P.disc(8, 10, 3, '#4a7fb5'); P.r(6, 8, 2, 1, PAL.bl3); P.p(7, 9, PAL.wh);
+    for (let a = 0; a < 6; a++) { const ang = a * Math.PI / 3; P.p(Math.round(8 + Math.cos(ang) * 5), Math.round(10 + Math.sin(ang) * 5), PAL.b4); }
+    P.p(1, 5, PAL.b4); P.p(14, 5, PAL.b4); P.p(1, 14, PAL.b4); P.p(14, 14, PAL.b4);
+  },
+  bookwall(P) {
+    wallCap(P);
+    P.r(0, 4, 16, 12, PAL.w0);
+    const books = [PAL.red2, PAL.g2, PAL.bl1, PAL.b2, PAL.pu1, PAL.c2, PAL.cr1];
+    [4, 10].forEach((y, r) => {
+      for (let x = 0; x < 16; x++) if (hash(x, r, 5) > 0.12) P.r(x, y + (hash(x, r, 2) > 0.7 ? 1 : 0), 1, 5 - (hash(x, r, 2) > 0.7 ? 1 : 0), books[Math.floor(hash(x, r, 9) * books.length)]);
+      P.r(0, y + 5, 16, 1, PAL.w2);
+    });
+  },
+  gearwall(P) {
+    wallCap(P);
+    P.r(0, 4, 16, 12, PAL.w1); P.r(0, 4, 16, 1, PAL.w3);
+    const gear = (cx, cy, r, c) => { for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4; P.p(Math.round(cx + Math.cos(ang) * (r + 1)), Math.round(cy + Math.sin(ang) * (r + 1)), c); } P.disc(cx, cy, r, c); P.p(cx, cy, PAL.w0); };
+    gear(5, 9, 3, PAL.b2); gear(11, 12, 2, PAL.c2); gear(12, 6, 1, PAL.b1);
+  },
 };
 function brickWall(P, cols, mortar, v) {
   wallCap(P);
@@ -223,6 +332,37 @@ const CEIL_ART = {
     P.r(0, 0, 16, 7, PAL.bl3);
     P.noise(0, 0, 16, 16, [PAL.wh], 0.02, 3);
     P.r(0, 7, 16, 1, PAL.i1); P.r(7, 0, 1, 16, PAL.i1); P.r(0, 15, 16, 1, PAL.i1); P.r(15, 0, 1, 16, PAL.i1);
+  },
+  // ── 추가 천장 ──
+  duct(P) {
+    P.r(0, 0, 16, 16, '#24201c');
+    P.r(0, 3, 16, 5, PAL.i2); P.r(0, 3, 16, 1, PAL.i4); P.r(0, 7, 16, 1, PAL.i0);
+    for (let x = 2; x < 16; x += 5) P.r(x, 3, 1, 5, PAL.i1);
+    P.r(11, 9, 3, 7, PAL.c1); P.r(11, 9, 1, 7, PAL.c3);
+  },
+  coffered(P) {
+    P.r(0, 0, 16, 16, PAL.w2);
+    P.r(2, 2, 12, 12, PAL.w0); P.r(3, 3, 10, 10, PAL.w1); P.r(4, 4, 8, 8, '#4a3020');
+    P.r(2, 2, 12, 1, PAL.w4); P.r(2, 2, 1, 12, PAL.w3); P.p(8, 8, PAL.b3);
+  },
+  brassplate(P) {
+    P.r(0, 0, 16, 16, PAL.b1);
+    for (let y = 0; y < 16; y += 4) for (let x = (y / 4) % 2 * 2; x < 16; x += 4) { P.r(x, y, 2, 2, PAL.b2); P.p(x, y, PAL.b3); }
+    P.r(0, 15, 16, 1, PAL.b0); P.r(15, 0, 1, 16, PAL.b0);
+  },
+  gearceil(P) {
+    P.r(0, 0, 16, 16, PAL.c1);
+    P.noise(0, 0, 16, 16, [PAL.c0, PAL.c2], 0.15, 41);
+    for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4; P.r(Math.round(8 + Math.cos(ang) * 6) - 1, Math.round(8 + Math.sin(ang) * 6) - 1, 2, 2, PAL.b2); }
+    P.ring(8, 8, 5, PAL.b2); P.disc(8, 8, 2, PAL.b3); P.p(8, 8, PAL.b0);
+  },
+  fresco(P, v) {
+    P.r(0, 0, 16, 16, '#7ab0d8'); P.r(0, 0, 16, 5, '#5a94c4');
+    // 구름
+    const cx = 4 + Math.floor(hash(v, 3, 7) * 8);
+    P.ellipse(cx, 9, 4, 2, '#f2f4f6'); P.ellipse(cx + 3, 8, 3, 2, '#ffffff'); P.r(cx - 3, 10, 8, 1, '#d6dde4');
+    P.r(0, 0, 16, 1, PAL.b2); P.r(0, 15, 16, 1, PAL.b2); P.r(0, 0, 1, 16, PAL.b2); P.r(15, 0, 1, 16, PAL.b2);
+    P.p(1, 1, PAL.b4); P.p(14, 14, PAL.b4);
   },
 };
 
@@ -660,7 +800,7 @@ const Sprites = {
 
   floor(id, v = 0) { return this._build(`floor_${id}_${v}`, 16, 16, P => FLOOR_ART[id](P, v)).canvas; },
   wall(id, v = 0) { return this._build(`wall_${id}_${v}`, 16, 16, P => WALL_ART[id](P, v)).canvas; },
-  ceil(id) { return this._build(`ceil_${id}`, 16, 16, P => CEIL_ART[id](P)).canvas; },
+  ceil(id, v = 0) { return this._build(`ceil_${id}_${v}`, 16, 16, P => CEIL_ART[id](P, v)).canvas; },
   street(v = 0) { return this._build(`street_${v}`, 16, 16, P => streetArt(P, v)).canvas; },
   icon(id) { return this._build(`icon_${id}`, 9, 9, P => drawIcon(P, id)).canvas; },
 

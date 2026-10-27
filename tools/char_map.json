@@ -436,7 +436,8 @@
    13,
    16,
    17
-  ]
+  ],
+  "auto_face": false
  },
  "smith_f": {
   "work": "/tmp/claude-0/-home-user-mycoom/2c222f6a-3262-5f90-b4d2-122fa2a19340/scratchpad/sm",
