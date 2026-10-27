@@ -20,7 +20,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 let currentUser = null;
 
-// 3. 로그인 상태 감지 (UI 교체만 담당)
+// 3. 로그인 상태 감지 (화면 렌더링에 영향을 주지 않는 안전한 로직)
 auth.onAuthStateChanged((user) => {
   const authBtn = document.getElementById("authBtn");
   const userEmail = document.getElementById("userEmail");
@@ -48,9 +48,17 @@ auth.onAuthStateChanged((user) => {
     if (userEmail) userEmail.style.display = "none";
     if (logoutBtn) logoutBtn.style.display = "none";
   }
+
+  // 🟢 핵심 추가: 캔버스 크기 재계산 호출 (렌더링 잘림/검은 화면 방지)
+  setTimeout(() => {
+    if (typeof Render !== "undefined" && typeof Render.resize === "function") {
+      const wrap = document.getElementById("canvasWrap");
+      if (wrap) Render.resize(wrap);
+    }
+  }, 100);
 });
 
-// 4. 모달 열기/닫기 및 회원가입/로그인 처리
+// 4. 모달 열기/닫기 및 로그인/회원가입 함수
 function openAuthModal() {
   const modal = document.getElementById("authModal");
   if (modal) modal.hidden = false;
@@ -100,7 +108,7 @@ function logoutAccount() {
   }
 }
 
-// 5. 클라우드 세이브 저장 / 로드
+// 5. 클라우드 세이브 로드 및 저장
 async function saveToCloud(saveDataObj) {
   if (!currentUser) return;
   try {
