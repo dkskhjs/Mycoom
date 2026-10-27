@@ -86,7 +86,7 @@ const Render = {
       const v = Sprites.variant(x, y);
       if (y >= H) { g.drawImage(Sprites.street(v), x * TILE, y * TILE); continue; }
       const i = Game.idx(x, y);
-      if (Game.isWall(x, y)) g.drawImage(Sprites.wall(s.wall[i], v), x * TILE, y * TILE);
+      if (Game.isWall(x, y)) g.drawImage((x === 0 || x === W - 1) && y > 0 && y < H - 1 ? Sprites.wallSide(s.wall[i], v, x === W - 1) : Sprites.wall(s.wall[i], v), x * TILE, y * TILE);
       else g.drawImage(Sprites.floor(s.floor[i], v), x * TILE, y * TILE);
     }
     // 연석

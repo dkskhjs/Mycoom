@@ -1156,6 +1156,19 @@ const Sprites = {
   },
   floor(id, v = 0) { return this._tile('floor', id, v, (P, v) => FLOOR_ART[id](P, v)); },
   wall(id, v = 0) { return this._tile('wall', id, v, (P, v) => WALL_ART[id](P, v)); },
+  // 양옆 세로벽: 위에서 본 벽 윗면(갓돌)이 세로로 바깥쪽을 따라가게. 가로 갓돌(위 4줄)은 벽 무늬로 메운다
+  wallSide(id, v = 0, right = false) {
+    const key = `wallside_${id}_${v}_${right ? 1 : 0}`;
+    if (this.cache.has(key)) return this.cache.get(key).canvas;
+    const src = this.wall(id, v), [c, g] = makeCanvas(16, 16);
+    g.drawImage(src, 0, 4, 16, 12, 0, 4, 16, 12);
+    g.drawImage(src, 0, 8, 16, 4, 0, 0, 16, 4);
+    if (right) { g.translate(16, 0); g.scale(-1, 1); }
+    const P = pen(g);
+    P.r(0, 0, 3, 16, PAL.s1); P.r(0, 0, 1, 16, PAL.s3); P.r(3, 0, 1, 16, PAL.k);
+    this.cache.set(key, { canvas: c, tall: 0 });
+    return c;
+  },
   ceil(id, v = 0) { return this._tile('ceil', id, v, (P, v) => CEIL_ART[id](P, v)); },
   street(v = 0) { return this._tile('street', 'cobble_street', v, (P, v) => streetArt(P, v)); },
   // 칸 좌표로 변형 번호 고르기
