@@ -1219,6 +1219,23 @@ const Sprites = {
       }
     }).canvas;
   },
+  // 옆벽에 건 벽걸이 (24×16): x 0~15 는 벽 칸, 16~ 는 방 안쪽으로 튀어나온 부분. 왼쪽 벽 기준(오른쪽을 봄)
+  wallMount(id) {
+    return this._build(`wallmount_${id}`, 24, 16, P => {
+      if (id === 'sconce') {
+        P.r(14, 4, 2, 8, PAL.k); P.r(14, 5, 1, 6, PAL.b2);
+        P.r(16, 9, 3, 1, PAL.b1); P.r(17, 10, 6, 2, PAL.k); P.r(18, 10, 4, 1, PAL.b2);
+        P.r(18, 3, 4, 7, PAL.k); P.r(19, 4, 2, 5, PAL.glow2); P.p(19, 5, PAL.glow3); P.r(18, 2, 4, 1, PAL.b1);
+      } else if (id === 'walllantern') {
+        P.r(14, 2, 2, 8, PAL.k); P.r(14, 3, 1, 6, PAL.b2);
+        P.r(16, 3, 6, 1, PAL.k); P.r(21, 3, 1, 3, PAL.i2);
+        P.r(17, 5, 8, 1, PAL.k); P.box(18, 6, 6, 9, PAL.b1); P.r(19, 7, 4, 6, PAL.glow2); P.r(20, 8, 1, 3, PAL.glow3); P.r(19, 15, 4, 1, PAL.k);
+      } else if (id === 'bulbpipe') {
+        P.r(12, 0, 4, 16, PAL.c1); P.r(15, 0, 1, 16, PAL.c3); P.r(12, 5, 4, 2, PAL.b1); P.r(12, 11, 4, 2, PAL.b1);
+        for (const y of [2, 8, 14]) { P.r(16, y, 2, 1, PAL.i1); P.disc(19, y, 2, PAL.k); P.disc(19, y, 1, PAL.glow2); P.p(20, y - 1, PAL.glow3); }
+      } else { P.r(14, 4, 2, 8, PAL.b1); P.disc(19, 8, 3, PAL.glow2); }
+    }).canvas;
+  },
   // 돌릴 수 있는 방향: 0 앞(아래를 봄) · 1 오른쪽 · 2 뒤(위를 봄) · 3 왼쪽(1의 좌우 반전)
   dirs(id) {
     const d = DATA.objects[id], art = OBJ_ART[id];

@@ -96,12 +96,8 @@ const Render = {
     g.drawImage(this.toneOverlay(), 0, 0);   // 넓은 범위 색 얼룩
     this.drawStains(P);
     this.drawDoor(P); this.drawInlet(P);
-    // 벽걸이 조명 (오른쪽 벽은 좌우 반전)
-    for (const o of s.objects) if (DATA.objects[o.id].layer === 'wall') {
-      const c = Sprites.object(o.id).canvas;
-      if (o.x === W - 1) { g.save(); g.translate(o.x * TILE * 2 + TILE, 0); g.scale(-1, 1); g.drawImage(c, o.x * TILE, o.y * TILE); g.restore(); }
-      else g.drawImage(c, o.x * TILE, o.y * TILE);
-    }
+    // 벽걸이 조명: 위쪽 벽은 정면, 양옆 벽은 벽에 붙어 방 안쪽으로 튀어나온 옆모습 (오른쪽 벽은 좌우 반전)
+    for (const o of s.objects) if (DATA.objects[o.id].layer === 'wall') this.drawWallItem(o.id, o.x, o.y);
     P.r(0, (H + 1) * TILE, W * TILE, 1, PAL.s1); // 보도/차도 경계
 
     // 2. 설비 보기: 바닥 어둡게 + 난방 범위
@@ -372,6 +368,13 @@ const Render = {
     return out;
   },
 
+  drawWallItem(id, x, y) {
+    const g = this.wg, W = Game.s.W;
+    if (x !== 0 && x !== W - 1) { g.drawImage(Sprites.object(id).canvas, x * TILE, y * TILE); return; }
+    const c = Sprites.wallMount(id);
+    if (x === 0) g.drawImage(c, 0, y * TILE);
+    else { const dx = x * TILE - 8; g.save(); g.translate(dx * 2 + c.width, 0); g.scale(-1, 1); g.drawImage(c, dx, y * TILE); g.restore(); }
+  },
   // 테이블 위 소품을 상판 높이만큼 올려 그린다
   topLift(x, y) { const host = Game.objAt(x, y, 'floor'); return host ? (DATA.objects[host.id].top ?? 8) : 0; },
   // 그릴 방향: 의자는 직접 돌리지 않았다면 옆 테이블 쪽을 본다 (손님도 그쪽을 보고 앉는다)
@@ -740,7 +743,8 @@ const Render = {
       }
       const rot = t.rot || 0, dm = Game.dims(t.id, rot);
       g.globalAlpha = pend ? 0.85 : 0.6;
-      if (rot) this.blitDir(t.id, rot, pos.x, pos.y, rot, false);
+      if (d.layer === 'wall') this.drawWallItem(t.id, pos.x, pos.y);
+      else if (rot) this.blitDir(t.id, rot, pos.x, pos.y, rot, false);
       else g.drawImage(spr.canvas, pos.x * TILE + spr.xoff, (pos.y + d.h) * TILE - spr.canvas.height - (d.layer === 'top' ? this.topLift(pos.x, pos.y) : 0));
       g.globalAlpha = 0.3;
       g.fillStyle = ok ? '#6aff8a' : '#ff5a4a';
