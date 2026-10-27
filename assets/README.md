@@ -115,6 +115,18 @@ python3 tools/import_chars.py build tools/char_map.json
   - id 목록: `js/data.js`의 `objects`
 - 레시피 아이콘: 9×9, 키 `icon_<레시피 id>`
 
+## 이웃 건물 (`assets/buildings/<id>.png`)
+
+가게 좌우 이웃 자리에 쓰는 정면 시점 건물 그림. 생성 이미지를 아래처럼 변환하고 `assets/manifest.js` 의 `BUILDING_MANIFEST` 에 id 를 적으면,
+가게에 가까운 자리부터 하나씩 배치되고 나머지는 코드로 그린 건물로 채워집니다.
+
+```sh
+python3 tools/import_building.py 원본.webp forge 6   # 가로 6칸(96px), 바닥 정렬
+```
+
+- 시점: 아이소메트릭(대각선) 말고 **정면이 화면과 평행 + 지붕이 위에서 보이는** 그림. 지붕이 그림 위쪽 40% 정도면 가장 잘 어울림
+- 들어간 건물: `forge` (대장간)
+
 ## 3. NAPLE 저장소에서 가져온 것 (`assets/naple/`)
 
 사용자 요청으로 NAPLE의 **그래픽과 BGM만** 가져왔습니다 (효과음, 코드는 쓰지 않음).

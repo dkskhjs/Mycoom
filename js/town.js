@@ -55,15 +55,34 @@ const Town = {
     for (let x = x0 * TILE; x < x1 * TILE; x += 6) P.r(x, (yStreet + 2) * TILE + 4, 2, 9, 'rgba(40,30,24,0.5)');
 
     // 1) 이웃 가게들 — 같은 거리에 면한 건물 (가게 좌우)
-    const row = (from, to) => {
+    // 그림 건물(assets/buildings)은 가게에 가까운 자리부터 하나씩, 나머지는 코드로 그린 건물
+    const art = (window.BUILDING_MANIFEST || []).map(id => Sprites.sheets['bld_' + id]).filter(Boolean);
+    let artI = 0;
+    const row = (from, to, nearRight) => {
+      // nearRight: 가게가 오른쪽에 있음 → 오른쪽 끝부터 채운다
+      const slots = [];
       let x = from;
       while (x < to) {
         const w = Math.min(to - x, 3 + Math.floor(R() * 4));
-        if (w >= 3) this.building(P, g, R, x, Math.max(-2, Math.floor(R() * 4) - 1), w, H, snowy, true);
-        x += w + (R() < 0.5 ? 1 : 0);
+        slots.push([x, w]); x += w + (R() < 0.5 ? 1 : 0);
       }
+      if (artI < art.length) {
+        const img = art[artI], tw = Math.ceil(img.width / TILE);
+        const bx = nearRight ? to - tw : from;
+        if (to - from >= tw) {
+          this.artBuilding(P, g, img, bx, H, snowy);
+          artI++;
+          for (const [sx, sw] of slots) {
+            const a0 = Math.max(sx, bx + tw + (nearRight ? 0 : 1)), a1 = Math.min(sx + sw, nearRight ? bx - 1 : to);
+            const lo = nearRight ? sx : a0, hi = nearRight ? Math.min(sx + sw, bx - 1) : sx + sw;
+            if (nearRight ? hi - lo >= 3 : sx >= bx + tw + 1 && sw >= 3) this.building(P, g, R, lo, Math.max(-2, Math.floor(R() * 4) - 1), hi - lo, H, snowy, true);
+          }
+          return;
+        }
+      }
+      for (const [sx, sw] of slots) if (sw >= 3) this.building(P, g, R, sx, Math.max(-2, Math.floor(R() * 4) - 1), sw, H, snowy, true);
     };
-    row(x0, -1); row(W + 1, x1);
+    row(x0, -1, true); row(W + 1, x1, false);
 
     // 2) 뒤쪽 랜드마크 줄 — 원경 그림이 없을 때만 코드로 그린다
     if (!vista) {
@@ -215,6 +234,24 @@ const Town = {
       P.box(chx, chy, 7, 12, PAL.red1); P.r(chx - 1, chy, 9, 2, PAL.s2);
       this.chimneys.push([chx + 3, chy - 1, 0.6]);
     }
+  },
+
+  // 그림 건물: 거리(bottom 줄)에 바닥을 맞추고, 그림 지붕 위로는 같은 깊이의 지붕을 이어 그려
+  // 위에서 내려다본 건물 덩어리처럼 보이게 한다
+  artBuilding(P, g, img, bx, bottom, snowy) {
+    const tw = Math.ceil(img.width / TILE), x = bx * TILE + Math.floor((tw * TILE - img.width) / 2);
+    const y = bottom * TILE - img.height;
+    const roofTop = (bottom - 6) * TILE;
+    if (y > roofTop) {
+      for (let yy = Math.floor(roofTop / TILE); yy * TILE < y + 4; yy++) for (let xx = bx; xx < bx + tw; xx++) g.drawImage(this.roofTile('tar', snowy), xx * TILE, yy * TILE);
+      P.r(bx * TILE, roofTop, tw * TILE, 1, PAL.k); P.r(bx * TILE, roofTop, 1, y - roofTop + 4, PAL.k); P.r((bx + tw) * TILE - 1, roofTop, 1, y - roofTop + 4, PAL.k);
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx * TILE + 1, roofTop + 1, tw * TILE - 2, Math.floor((y - roofTop) / 2));
+    }
+    g.drawImage(img, x, y);
+    if (snowy) { P.r(x + 2, y + Math.round(img.height * 0.12), img.width - 4, 2, '#eef3f8'); }
+    this.cover(bx, Math.floor(Math.min(y, roofTop) / TILE), tw, bottom - Math.floor(Math.min(y, roofTop) / TILE));
+    // 굴뚝 연기: 그림 위쪽에서 가장 높은 불투명 픽셀 근처
+    this.chimneys.push([x + Math.round(img.width * 0.78), y + 2, 0.6]);
   },
 
   clockTower(P, g, tx, ty, snowy) {

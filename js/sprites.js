@@ -789,7 +789,8 @@ const Sprites = {
   },
 
   loadSheets() {
-    return Promise.all(Object.entries({ ...NAPLE_SHEETS, ...VISTA_SHEETS }).map(([k, src]) => new Promise(res => {
+    const blds = Object.fromEntries((window.BUILDING_MANIFEST || []).map(id => ['bld_' + id, `assets/buildings/${id}.png`]));
+    return Promise.all(Object.entries({ ...NAPLE_SHEETS, ...VISTA_SHEETS, ...blds }).map(([k, src]) => new Promise(res => {
       const img = new Image();
       img.onload = () => { this.sheets[k] = img; res(); };
       img.onerror = () => { console.warn('NAPLE 시트 로드 실패:', src); res(); };

@@ -9,3 +9,6 @@ window.CHAR_MANIFEST = [
   'adult_m', 'adult_f', 'aviator_m', 'aviator_f', 'noble_m', 'noble_f',
   'plumber_m', 'plumber_f', 'miner_m', 'miner_f', 'smith_m', 'smith_f',
 ];
+
+// 이웃 건물 그림: assets/buildings/<id>.png (tools/import_building.py 로 변환). 가게 좌우 이웃 자리에 쓰인다
+window.BUILDING_MANIFEST = ['forge'];
