@@ -66,11 +66,11 @@
     </aside>
   </main>
   <div id="toasts"></div>
-</div> <!-- #app 닫기 -->
+</div>
 
-<!-- 🟢 최상위 레이어 모달 영역 (#app 밖에 배치하여 캔버스 레이어에 묻히는 문제 완전 방지) -->
+<!-- 🟢 독립 모달 영역 (display: none으로 초기 설정되어 어두운 막 제거됨) -->
 <div id="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 999999; justify-content: center; align-items: center;">
-  <div class="modal-content" style="background: #222; color: #fff; padding: 24px; border-radius: 12px; width: 300px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.8);">
+  <div class="modal-content" style="background: #222; color: #fff; padding: 24px; border-radius: 12px; width: 280px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.8);">
     <h3 id="modalTitle" style="margin-top: 0; margin-bottom: 16px;">계정 로그인</h3>
     <div style="margin-bottom: 16px;">
       <input type="email" id="authEmail" placeholder="이메일" style="width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #111; color: #fff;">
@@ -84,10 +84,8 @@
   </div>
 </div>
 
-<!-- 2. Firebase 연동 초기화 파일 -->
+<!-- 2. Firebase 연동 파일 및 게임 스크립트 -->
 <script src="js/firebase-init.js"></script>
-
-<!-- 3. 기존 게임 스크립트 파일들 -->
 <script src="assets/manifest.js"></script>
 <script src="js/data.js"></script>
 <script src="js/naple_atlas.js"></script>
@@ -100,4 +98,3 @@
 <script src="js/main.js"></script>
 </body>
 </html>
-
