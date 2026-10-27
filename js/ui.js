@@ -38,7 +38,13 @@ const UI = {
     Game.on('opened', () => this.refresh());
     Game.on('expanded', () => { Render.flakes = []; Render.resize($('#canvasWrap')); this.refresh(); });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { this.setTool(null); this.closePopup(); }
+      if (e.key === 'Escape') { const t = this.state.tool; this.setTool(t && t.fromEdit ? { kind: 'edit' } : null); this.closePopup(); }
+      if (e.target.closest && e.target.closest('input')) return;
+      if (e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') this.rotateTool();
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const t = this.state.tool, o = t && t.kind === 'move' && Game.s.objects.find(q => q.uid === t.uid);
+        if (o) { e.preventDefault(); Game.removeObject(o); Game.save(); this.setTool(t.fromEdit ? { kind: 'edit' } : null); }
+      }
       if (e.key === ' ' && e.target === document.body) { e.preventDefault(); Game.paused = !Game.paused; this.syncSpeed(); }
     });
     setInterval(() => this.refreshLive(), 300);
@@ -61,6 +67,14 @@ const UI = {
     document.querySelectorAll('.card[data-key]').forEach(c => c.classList.toggle('sel', !!tool && c.dataset.key === this.toolKey(tool)));
     $('#toolHint').textContent = tool ? `${this.toolName(tool)} — 맵을 클릭/드래그 · ESC/우클릭 취소` : '오브젝트를 클릭해서 사용 · 도구를 골라 건설';
     $('#cancelTool').hidden = !tool;
+    const rb = $('#rotTool');
+    if (rb) rb.hidden = !(tool && (tool.kind === 'object' || tool.kind === 'move') && Game.canRotate(tool.id));
+  },
+  rotateTool() {
+    const t = this.state.tool;
+    if (!t || (t.kind !== 'object' && t.kind !== 'move') || !Game.canRotate(t.id)) return;
+    t.rot = (t.rot || 0) ^ 1;
+    this.setTool(t);
   },
   toolKey(t) { return t.kind + ':' + (t.id || t.type || ''); },
   toolName(t) {
@@ -68,7 +82,8 @@ const UI = {
     if (t.kind === 'pipe') return DATA.pipes[t.type].name + ' 깔기';
     if (t.kind === 'erase') return '배관 철거';
     if (t.kind === 'remove') return '오브젝트 철거';
-    if (t.kind === 'move') return `${DATA.objects[t.id].name} 옮기기 — 놓을 곳을 클릭`;
+    if (t.kind === 'edit') return '✥ 편집 — 옮길 오브젝트를 클릭해 들어 올리세요';
+    if (t.kind === 'move') return `${DATA.objects[t.id].name} 옮기기 — 놓을 곳 클릭${Game.canRotate(t.id) ? ' · R 회전' : ''} · Del 철거`;
     const tbl = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[t.kind];
     return tbl[t.id].name + ' 바르기';
   },
@@ -108,6 +123,7 @@ const UI = {
       grid.append(this.card({ key: 'pipe:' + type, thumb: this.pipeThumb(type), name: p.name, cost: p.cost, lines: ['칸당'], onClick: () => this.setTool({ kind: 'pipe', type }) }));
     }
     grid.append(this.card({ key: 'erase:', thumb: this.textThumb('✖', '#ff8a7a'), name: '배관 철거', cost: 0, onClick: () => this.setTool({ kind: 'erase' }) }));
+    grid.append(this.card({ key: 'edit:', thumb: this.textThumb('✥', '#9fd6ff'), name: '편집 (이동·회전)', cost: 0, lines: ['클릭해 들기 · R 회전'], onClick: () => this.setTool({ kind: 'edit' }) }));
     grid.append(this.card({ key: 'remove:', thumb: this.textThumb('⚒', '#ffb070'), name: '오브젝트 철거', cost: 0, lines: ['50% 환급'], onClick: () => this.setTool({ kind: 'remove' }) }));
     B.append(grid);
     B.append(h('h3', {}, '설비 상태'), h('div', { id: 'live-util', class: 'live' }));
@@ -130,6 +146,7 @@ const UI = {
       if (sub === 'light' ? !d.light : d.cat !== cat) continue;
       grid.append(this.card({ key: 'object:' + id, thumb: Sprites.thumb('obj', id, 40), name: d.name, cost: d.cost, lv: d.lv, lines: [`분위기 +${d.appeal}`, d.light ? `💡 조명 ${d.light}칸` : '', this.needsText(d)].filter(Boolean), onClick: () => this.setTool({ kind: 'object', id }) }));
     }
+    if (!matTable || sub === 'ceil' || sub === 'light') grid.append(this.card({ key: 'edit:', thumb: this.textThumb('✥', '#9fd6ff'), name: '편집 (이동·회전)', cost: 0, lines: ['클릭해 들기 · R 회전'], onClick: () => this.setTool({ kind: 'edit' }) }));
     if (!matTable || sub === 'ceil' || sub === 'light') grid.append(this.card({ key: 'remove:', thumb: this.textThumb('⚒', '#ffb070'), name: '철거', cost: 0, lines: ['50% 환급'], onClick: () => this.setTool({ kind: 'remove' }) }));
     B.append(grid);
     if (matTable) B.append(h('div', { id: 'live-bulk', class: 'bulk' }));
@@ -449,6 +466,8 @@ const UI = {
     cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); gesture = null; this.painting = false; });
     cv.addEventListener('pointerleave', () => { this.state.hover = null; });
     
+    $('#rotTool').addEventListener('click', () => this.rotateTool());
+    $('#cancelTool').addEventListener('click', () => { const t = this.state.tool; this.setTool(t && t.kind === 'move' && t.fromEdit ? { kind: 'edit' } : null); });
     $('#camShop').addEventListener('click', () => Render.fitShop());
     $('#camTown').addEventListener('click', () => Render.fitTown());
     $('#zoomIn').addEventListener('click', () => Render.zoomAt(1.25));
@@ -462,10 +481,16 @@ const UI = {
     if (k === 'floor' || k === 'wall' || k === 'ceil') Game.paint(k, x, y, t.id);
     else if (k === 'pipe') Game.placePipe(t.type, x, y);
     else if (k === 'erase') Game.erasePipe(x, y);
-    else if (k === 'object' && !dragging) { if (Game.placeObject(t.id, x, y)) { Game.save(); if (DATA.objects[t.id].unique) this.setTool(null); } }
+    else if (k === 'object' && !dragging) { if (Game.placeObject(t.id, x, y, t.rot || 0)) { Game.save(); if (DATA.objects[t.id].unique) this.setTool(null); } }
+    else if (k === 'edit' && !dragging) {
+      // 편집 도구: 클릭한 오브젝트를 들어 올린다 (천장 보기면 천장 오브젝트)
+      const ceil = this.state.mode === 'interior' && this.state.sub === 'ceil';
+      let o = Game.objAt(x, y, ceil ? 'ceil' : 'floor') || (!ceil && Game.inGrid(x, y + 1) && (() => { const b = Game.objAt(x, y + 1); return b && Sprites.object(b.id).tall >= 8 ? b : null; })());
+      if (o) this.setTool({ kind: 'move', id: o.id, uid: o.uid, rot: o.rot || 0, fromEdit: true });
+    }
     else if (k === 'move' && !dragging) {
       const o = Game.s.objects.find(q => q.uid === t.uid);
-      if (o && Game.moveObject(o, x, y)) this.setTool(null);
+      if (o && Game.moveObject(o, x, y, t.rot || 0)) this.setTool(t.fromEdit ? { kind: 'edit' } : null);
     }
     else if (k === 'remove' && !dragging) {
       const o = Game.objAt(x, y, this.state.sub === 'ceil' && this.state.mode === 'interior' ? 'ceil' : 'floor') || Game.objAt(x, y, 'ceil');
@@ -532,7 +557,8 @@ const UI = {
     if (d.light) box.append(h('div', { class: 'dim' }, `💡 조명 반경 ${d.light}칸`));
     // 편집: 옮기기 · 좌우 뒤집기 · 철거
     box.append(h('div', { class: 'editrow' },
-      h('button', { class: 'btn', onclick: () => { this.closePopup(); this.setTool({ kind: 'move', id: o.id, uid: o.uid }); } }, '✥ 옮기기'),
+      h('button', { class: 'btn', onclick: () => { this.closePopup(); this.setTool({ kind: 'move', id: o.id, uid: o.uid, rot: o.rot || 0 }); } }, '✥ 옮기기'),
+      Game.canRotate(o.id) ? h('button', { class: 'btn', onclick: () => { Game.rotateObject(o); } }, '⟳ 회전') : null,
       h('button', { class: 'btn', onclick: () => { Game.flipObject(o); } }, '⇋ 뒤집기'),
       h('button', { class: 'btn ghost', onclick: () => { Game.removeObject(o); Game.save(); this.closePopup(); } }, `철거 (+${fmt(d.cost / 2)})`)));
     this.popup(e, box);

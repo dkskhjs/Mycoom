@@ -194,3 +194,4 @@ details .chips { margin-top: 6px; }
 #tutorial .tut-btns { display: flex; gap: 6px; justify-content: flex-end; }
 .card.tut { border-color: var(--brass-hi); animation: tutpulse .8s infinite alternate; }
 @keyframes tutpulse { from { box-shadow: 0 0 0 0 rgba(239,199,96,.0); } to { box-shadow: 0 0 0 3px rgba(239,199,96,.7); } }
+#toolbar .tbtns { display: flex; gap: 6px; }

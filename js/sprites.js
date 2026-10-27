@@ -939,6 +939,17 @@ const Sprites = {
     return e;
   },
 
+  // 90° 돌린 오브젝트 그림 (세로로 놓인 소파·카운터 등)
+  objectRot(id) {
+    const k = 'objrot_' + id;
+    if (!this.cache.has(k)) {
+      const src = this.object(id).canvas, [c, g] = makeCanvas(src.height, src.width);
+      g.translate(src.height, 0); g.rotate(Math.PI / 2); g.drawImage(src, 0, 0);
+      this.cache.set(k, c);
+    }
+    return this.cache.get(k);
+  },
+
   // 반환: { canvas, ax, ay, sheet } — (ax, ay) 는 발 밑 중앙 기준점
   // state: 'idle' | 'walk' | 'sit' | 'act'
   customer(type, state, frame, face = 'down') {

@@ -114,7 +114,7 @@ const Render = {
     for (const o of s.objects) {
       const d = DATA.objects[o.id];
       if (d.layer === 'ceil') continue;
-      items.push({ z: o.y + d.h, kind: 'obj', o });
+      items.push({ z: o.y + Game.dims(o.id, o.rot).h, kind: 'obj', o });
     }
     for (const c of Game.rt.customers) items.push({ z: c.y + 1.02, kind: 'cust', c });
     if (Game.rt.staff) items.push({ z: Game.rt.staff.y + 1.03, kind: 'staff' });
@@ -123,7 +123,7 @@ const Render = {
     items.sort((a, b) => a.z - b.z);
     g.globalAlpha = util ? 0.55 : 1;
     for (const it of items) {
-      if (it.kind === 'obj') this.drawObject(P, it.o);
+      if (it.kind === 'obj') { const lifted = ui.tool && ui.tool.kind === 'move' && ui.tool.uid === it.o.uid; if (lifted) g.globalAlpha = 0.3; this.drawObject(P, it.o); if (lifted) g.globalAlpha = util ? 0.55 : 1; }
       else if (it.kind === 'cust') this.drawCustomer(P, it.c);
       else if (it.kind === 'staff') this.drawStaff(P);
       else if (it.kind === 'cat') this.drawCat(P, it.k);
@@ -350,6 +350,12 @@ const Render = {
 
   drawObject(P, o) {
     const spr = Sprites.object(o.id), d = DATA.objects[o.id];
+    if (o.rot && d.w !== d.h) {   // 세로로 돌린 직사각형: 돌린 그림을 바닥 정렬
+      const c = Sprites.objectRot(o.id), dm = Game.dims(o.id, o.rot), g = this.wg;
+      const rx = o.x * TILE + Math.round((dm.w * TILE - c.width) / 2), ry = (o.y + dm.h) * TILE - c.height;
+      if (o.flip) { g.save(); g.translate(rx * 2 + c.width, 0); g.scale(-1, 1); g.drawImage(c, rx, ry); g.restore(); } else g.drawImage(c, rx, ry);
+      return;
+    }
     const dx = o.x * TILE + spr.xoff, dy = (o.y + d.h) * TILE - spr.canvas.height;
     if (o.flip) { const g = this.wg; g.save(); g.translate(o.x * TILE * 2 + d.w * TILE, 0); g.scale(-1, 1); g.drawImage(spr.canvas, dx, dy); g.restore(); }
     else this.wg.drawImage(spr.canvas, dx, dy);
@@ -477,7 +483,7 @@ const Render = {
 
   drawObjStatus(P, o, util) {
     const d = DATA.objects[o.id], spr = Sprites.object(o.id);
-    const cx = o.x * TILE + (d.w * TILE) / 2, top = o.y * TILE - spr.tall;
+    const dmo = Game.dims(o.id, o.rot), cx = o.x * TILE + (dmo.w * TILE) / 2, top = o.y * TILE - spr.tall;
     if (d.needs && d.needs.length && !Game.working(o)) {
       if (util || d.cook || o.id === 'sink' || o.id === 'boiler') {
         if (Math.floor(this.t * 2) % 2 === 0 || util) {
@@ -487,7 +493,7 @@ const Render = {
       }
     }
     if (o.cook && !o.cook.done) {
-      const x = o.x * TILE + 2, y = top - 4, w = d.w * TILE - 4;
+      const x = o.x * TILE + 2, y = top - 4, w = dmo.w * TILE - 4;
       P.r(x, y, w, 3, PAL.k); P.r(x + 1, y + 1, Math.round((w - 2) * Math.min(1, o.cook.t / o.cook.total)), 1, PAL.glow2);
     } else if (o.cook && o.cook.done) {
       const bob = Math.round(Math.sin(this.t * 5) * 1.5);
@@ -663,16 +669,18 @@ const Render = {
     if (!Game.inGrid(h.x, h.y)) return;
     if (t.kind === 'object' || t.kind === 'move') {
       const d = DATA.objects[t.id], spr = Sprites.object(t.id);
-      const ok = Game.canPlace(t.id, h.x, h.y, t.uid || 0).ok;
+      const ok = Game.canPlace(t.id, h.x, h.y, t.uid || 0, t.rot || 0).ok;
       if (d.light) {   // 조명이 닿는 범위 미리보기
         g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(h.x * TILE + 8, h.y * TILE + 8, d.light * TILE, 0, Math.PI * 2); g.fill();
         g.strokeStyle = 'rgba(255,214,120,0.6)'; g.lineWidth = 1; g.stroke();
       }
+      const rot = t.rot || 0, dm = Game.dims(t.id, rot);
       g.globalAlpha = 0.65;
-      g.drawImage(spr.canvas, h.x * TILE + spr.xoff, (h.y + d.h) * TILE - spr.canvas.height);
+      if (rot && d.w !== d.h) { const c = Sprites.objectRot(t.id); g.drawImage(c, h.x * TILE + Math.round((dm.w * TILE - c.width) / 2), (h.y + dm.h) * TILE - c.height); }
+      else g.drawImage(spr.canvas, h.x * TILE + spr.xoff, (h.y + d.h) * TILE - spr.canvas.height);
       g.globalAlpha = 0.35;
       g.fillStyle = ok ? '#6aff8a' : '#ff5a4a';
-      g.fillRect(h.x * TILE, h.y * TILE, d.w * TILE, d.h * TILE);
+      g.fillRect(h.x * TILE, h.y * TILE, dm.w * TILE, dm.h * TILE);
       g.globalAlpha = 1;
     } else {
       const c = t.kind === 'erase' || t.kind === 'remove' ? '#ff5a4a' : '#fff2a0';
