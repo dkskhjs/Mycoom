@@ -11,4 +11,4 @@ window.CHAR_MANIFEST = [
 ];
 
 // 이웃 건물 그림: assets/buildings/<id>.png (tools/import_building.py 로 변환). 가게 좌우 이웃 자리에 쓰인다
-window.BUILDING_MANIFEST = ['forge'];
+window.BUILDING_MANIFEST = ['bakery', 'forge', 'clockshop', 'laundry', 'coalshop'];

@@ -1,6 +1,6 @@
 // 가게 주변 스팀펑크 마을 풍경 — 필지 바깥 여백에 그리는 정적 배경 + 약간의 애니메이션
 // 좌표는 게임 격자(가게 좌상단 = 0,0) 기준. 여백 때문에 음수 좌표도 쓴다.
-const TOWN = { mx: 12, mt: 18, mb: 9 };
+const TOWN = { mx: 22, mt: 18, mb: 9 };
 // 원경 그림이 끝나고 코드로 그린 거리가 시작하는 줄 (가게 위쪽으로 몇 칸)
 const VISTA_GROUND = 4;
 
@@ -55,34 +55,37 @@ const Town = {
     for (let x = x0 * TILE; x < x1 * TILE; x += 6) P.r(x, (yStreet + 2) * TILE + 4, 2, 9, 'rgba(40,30,24,0.5)');
 
     // 1) 이웃 가게들 — 같은 거리에 면한 건물 (가게 좌우)
-    // 그림 건물(assets/buildings)은 가게에 가까운 자리부터 하나씩, 나머지는 코드로 그린 건물
+    // 그림 건물(assets/buildings)을 가게 좌우로 번갈아, 가게에 가까운 자리부터 채우고 남는 곳은 코드로 그린 건물
     const art = (window.BUILDING_MANIFEST || []).map(id => Sprites.sheets['bld_' + id]).filter(Boolean);
-    let artI = 0;
-    const row = (from, to, nearRight) => {
-      // nearRight: 가게가 오른쪽에 있음 → 오른쪽 끝부터 채운다
-      const slots = [];
+    // 남은 자리가 더 넓은 쪽에 하나씩 (가로 칸 + 사이 1칸)
+    const sides = [[], []], room = [TOWN.mx - 1, TOWN.mx - 1];
+    for (const img of [...art].sort((p, q) => q.width - p.width)) {   // 넓은 건물부터 자리 잡기
+      const need = Math.ceil(img.width / TILE) + 1, k = room[0] >= room[1] ? 0 : 1;
+      if (room[k] >= need) { sides[k].push(img); room[k] -= need; }
+      else if (room[1 - k] >= need) { sides[1 - k].push(img); room[1 - k] -= need; }
+    }
+    const proc = (from, to) => {  // [from, to) 를 코드 건물로
       let x = from;
-      while (x < to) {
+      while (to - x >= 3) {
         const w = Math.min(to - x, 3 + Math.floor(R() * 4));
-        slots.push([x, w]); x += w + (R() < 0.5 ? 1 : 0);
+        if (to - x - w > 0 && to - x - w < 3) { this.building(P, g, R, x, Math.max(-2, Math.floor(R() * 4) - 1), to - x, H, snowy, true); return; }
+        this.building(P, g, R, x, Math.max(-2, Math.floor(R() * 4) - 1), w, H, snowy, true);
+        x += w + (R() < 0.5 ? 1 : 0);
       }
-      if (artI < art.length) {
-        const img = art[artI], tw = Math.ceil(img.width / TILE);
-        const bx = nearRight ? to - tw : from;
-        if (to - from >= tw) {
-          this.artBuilding(P, g, img, bx, H, snowy);
-          artI++;
-          for (const [sx, sw] of slots) {
-            const a0 = Math.max(sx, bx + tw + (nearRight ? 0 : 1)), a1 = Math.min(sx + sw, nearRight ? bx - 1 : to);
-            const lo = nearRight ? sx : a0, hi = nearRight ? Math.min(sx + sw, bx - 1) : sx + sw;
-            if (nearRight ? hi - lo >= 3 : sx >= bx + tw + 1 && sw >= 3) this.building(P, g, R, lo, Math.max(-2, Math.floor(R() * 4) - 1), hi - lo, H, snowy, true);
-          }
-          return;
-        }
-      }
-      for (const [sx, sw] of slots) if (sw >= 3) this.building(P, g, R, sx, Math.max(-2, Math.floor(R() * 4) - 1), sw, H, snowy, true);
     };
-    row(x0, -1, true); row(W + 1, x1, false);
+    const row = (from, to, nearRight, imgs) => {
+      // nearRight: 가게가 오른쪽 → to 쪽부터 바깥(from 쪽)으로 채운다
+      let edge = nearRight ? to : from;
+      for (const img of imgs) {
+        const tw = Math.ceil(img.width / TILE);
+        const bx = nearRight ? edge - tw : edge;
+        if (bx < from || bx + tw > to) break;
+        this.artBuilding(P, g, img, bx, H, snowy);
+        edge = nearRight ? bx - 1 : bx + tw + 1;
+      }
+      nearRight ? proc(from, edge) : proc(edge, to);
+    };
+    row(x0, -1, true, sides[0]); row(W + 1, x1, false, sides[1]);
 
     // 2) 뒤쪽 랜드마크 줄 — 원경 그림이 없을 때만 코드로 그린다
     if (!vista) {
@@ -242,7 +245,8 @@ const Town = {
     const tw = Math.ceil(img.width / TILE), x = bx * TILE + Math.floor((tw * TILE - img.width) / 2);
     const y = bottom * TILE - img.height;
     const roofTop = (bottom - 6) * TILE;
-    if (y > roofTop) {
+    // 지붕이 위에서 보이게 그려진(키가 큰) 그림은 그대로, 정면도처럼 납작한 그림만 뒤에 지붕을 잇는다
+    if (img.height < 4.5 * TILE && y > roofTop) {
       for (let yy = Math.floor(roofTop / TILE); yy * TILE < y + 4; yy++) for (let xx = bx; xx < bx + tw; xx++) g.drawImage(this.roofTile('tar', snowy), xx * TILE, yy * TILE);
       P.r(bx * TILE, roofTop, tw * TILE, 1, PAL.k); P.r(bx * TILE, roofTop, 1, y - roofTop + 4, PAL.k); P.r((bx + tw) * TILE - 1, roofTop, 1, y - roofTop + 4, PAL.k);
       g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx * TILE + 1, roofTop + 1, tw * TILE - 2, Math.floor((y - roofTop) / 2));
