@@ -204,6 +204,15 @@ const DATA = {
     { id: 'tuxedo',   name: '턱시도냥',   fur: ['#2a2a2e', '#141416', '#f4f4f0'], sens: 15, lat: 5,  cost: 700,  lv: 2, kg: 4.2 },
     { id: 'coon',     name: '증기 메인쿤', fur: ['#8a5a32', '#4a2e18', '#e8d0a8'], sens: 28, lat: 9,  cost: 1500, lv: 3, kg: 8, big: true },
   ],
+  // 증기 은행 대출: 원금 × (1 + 이자) 를 days 일에 나눠 영업 마감 때 자동 상환
+  loans: [
+    { id: 'small', name: '소액 운영자금',   amount: 3000,  rate: 0.08, days: 7,  lv: 1 },
+    { id: 'mid',   name: '설비 개선 대출',  amount: 8000,  rate: 0.12, days: 12, lv: 2 },
+    { id: 'big',   name: '증기왕 사업자금', amount: 20000, rate: 0.18, days: 20, lv: 4 },
+  ],
+  loanLateFee: 0.1,   // 상환 못한 날 그날 상환금의 10% 가 잔액에 붙고 평판 -3
+  // 대출 한도(남은 원리금 합계 기준) = 4000 + 레벨×3000 + 평판×60
+
   // 커피 얼룩: 손님이 다 마시고 일어날 때 쏟는 확률, 얼룩 하나당 분위기 감점, 근처 손님 만족도 감점
   stain: { chance: 0.22, max: 30, appeal: 2, nearSat: 5 },
   catMax: 3,

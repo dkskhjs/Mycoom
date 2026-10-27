@@ -175,6 +175,8 @@ const UI = {
       h('span', { class: 'dim', 'data-stock': 'coal' }, ''),
       h('button', { class: 'btn', id: 'coalBtn', onclick: () => { Game.buy('coal'); this.refreshLive(); } }, '')));
     B.append(list);
+    B.append(h('h3', {}, '🏦 증기 은행'), h('div', { id: 'live-bank', class: 'expand' }));
+    B.append(h('p', { class: 'tip' }, `대출금은 바로 입금되고, 원금과 이자를 정해진 날 수로 나눠 매일 영업 마감 때 자동으로 갚습니다. 그날 돈이 모자라면 연체료(상환금의 ${DATA.loanLateFee * 100}%)가 붙고 평판이 떨어져요. 언제든 미리 갚을 수 있습니다.`));
     B.append(h('h3', {}, '🐈 고양이 입양'), h('div', { id: 'live-cats', class: 'expand' }));
     B.append(h('p', { class: 'tip' }, `고양이는 따뜻한 난방 칸에서 낮잠을 잡니다. 분위기 +${DATA.catAppeal}, 근처 손님 만족도 상승, 체온으로 현열·잠열을 조금 냅니다. 사료비 하루 🪙${DATA.catFoodPerDay}/마리.`));
     B.append(h('h3', {}, '🏗 공간 확장'), h('div', { id: 'live-expand', class: 'expand' }));
@@ -201,6 +203,8 @@ const UI = {
     const n = Game.rt.nets;
     // 상단 바
     $('#money').textContent = fmt(s.money);
+    $('#money').parentElement.title = Game.debt() ? `돈 (빚 ${fmt(Game.debt())})` : '돈';
+    $('#money').parentElement.classList.toggle('debt', Game.debt() > 0);
     $('#coal').textContent = Math.floor(s.coal);
     $('#coal').parentElement.classList.toggle('warn', s.coal < 15);
     const stars = s.rep / 20;
@@ -286,6 +290,30 @@ const UI = {
       const k = el.dataset.stock;
       el.textContent = k === 'coal' ? `보유 ${Math.floor(s.coal)}` : `보유 ${s.stock[k]}`;
     });
+    const lb = $('#live-bank');
+    if (lb) {
+      const sig = JSON.stringify([s.loans, s.level, Math.round(s.rep), Math.floor(s.money / 100)]);
+      if (lb.dataset.sig !== sig) {
+        lb.dataset.sig = sig;
+        const kids = [h('div', { class: 'dim' }, `빚 ${fmt(Game.debt())} / 한도 ${fmt(Game.loanLimit())} (레벨·평판이 오르면 늘어남)`)];
+        for (const l of s.loans) {
+          kids.push(h('div', { class: 'srow' + (l.missed ? ' late' : '') },
+            h('span', { class: 'mname' }, `${l.name}${l.missed ? ` ⚠연체 ${l.missed}회` : ''}`),
+            h('span', { class: 'dim' }, `남은 ${fmt(l.balance)} · 매일 ${fmt(Math.min(l.perDay, l.balance))}`),
+            h('span', { class: 'btns' },
+              h('button', { class: 'btn ghost', disabled: s.money < 1, onclick: () => Game.repayLoan(l.uid, l.perDay) }, '하루치'),
+              h('button', { class: 'btn', disabled: s.money < l.balance, onclick: () => Game.repayLoan(l.uid) }, '완납'))));
+        }
+        for (const d of DATA.loans) {
+          const inf = Game.loanInfo(d.id);
+          kids.push(h('div', { class: 'srow' },
+            h('span', { class: 'mname' }, `${d.name} 🪙${fmt(d.amount)}`),
+            h('span', { class: 'dim' }, `이자 ${Math.round(d.rate * 100)}% · ${d.days}일 · 매일 ${fmt(inf.perDay)}`),
+            h('button', { class: 'btn', disabled: !!inf.why, onclick: () => Game.takeLoan(d.id) }, inf.why || '빌리기')));
+        }
+        lb.replaceChildren(...kids);
+      }
+    }
     const lc = $('#live-cats');
     if (lc) {
       const sig = JSON.stringify([s.cats, s.level, s.money >= 400]);
@@ -560,7 +588,7 @@ const UI = {
     this.modal(h('div', {},
       h('h2', {}, `${sum.day}일차 영업 종료`),
       h('table', { class: 'sum' },
-        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
+        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ...(sum.loanPaid ? [['대출 상환', fmt(sum.loanPaid)]] : []), ...(sum.debt ? [['남은 빚', fmt(sum.debt)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
           .map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))),
       h('p', { class: 'dim' }, `내일 날씨: ${Game.weather().icon} ${Game.weather().name} (${Game.weather().temp}°)`),
       h('button', { class: 'btn big', onclick: () => this.closeModal() }, '다음 날 준비')));

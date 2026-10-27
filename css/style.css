@@ -179,3 +179,7 @@ details .chips { margin-top: 6px; }
 #modal::before { filter: brightness(.6); z-index: -1; }
 #world, #fx { z-index: 1; }
 #modal { isolation: isolate; }
+.expand .srow.late .mname { color: var(--bad); }
+.expand .btns { display: flex; gap: 4px; }
+.stat.debt { border-color: #a8652a; }
+.stat.debt::after { content: '빚'; font-size: 10px; color: #e0a060; margin-left: 2px; }

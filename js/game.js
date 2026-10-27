@@ -38,6 +38,7 @@ const Game = {
       stock: { beans: 10, milk: 10, tea: 10, flour: 0, cocoa: 0 },
       cats: [],
       stains: [],
+      loans: [], loanSeq: 1,
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -82,7 +83,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= [];
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1;
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -265,7 +266,7 @@ const Game = {
 
   // ───────── 건설 ─────────
   spend(n) {
-    if (this.s.money < n) { this.toast('돈이 부족합니다', 'bad'); return false; }
+    if (this.s.money < n) { this.toast(`돈이 부족합니다 (${Math.ceil(n - this.s.money)} 부족) — 상점 탭 증기 은행에서 대출할 수 있어요`, 'bad'); return false; }
     this.s.money -= n; this.s.today.spent += n; return true;
   },
   paint(layer, x, y, id) {
@@ -438,6 +439,53 @@ const Game = {
   },
   catAt(x, y) { return this.rt.cats.find(c => Math.round(c.x) === x && Math.round(c.y) === y); },
 
+  // ───────── 증기 은행 ─────────
+  debt() { return this.s.loans.reduce((a, l) => a + l.balance, 0); },
+  loanLimit() { return Math.round((4000 + this.s.level * 3000 + this.s.rep * 60) / 100) * 100; },
+  loanInfo(id) {
+    const d = DATA.loans.find(l => l.id === id), s = this.s;
+    const total = Math.round(d.amount * (1 + d.rate)), perDay = Math.ceil(total / d.days);
+    let why = null;
+    if (d.lv > s.level) why = `Lv.${d.lv} 필요`;
+    else if (this.debt() + total > this.loanLimit()) why = '한도 초과';
+    return { ...d, total, perDay, why };
+  },
+  takeLoan(id) {
+    const inf = this.loanInfo(id), s = this.s;
+    if (inf.why) { this.toast(inf.why, 'bad'); return false; }
+    s.money += inf.amount;
+    s.loans.push({ uid: s.loanSeq++, id, name: inf.name, balance: inf.total, perDay: inf.perDay, missed: 0 });
+    this.toast(`🏦 ${inf.name} ${inf.amount.toLocaleString()} 입금! 매일 마감 때 ${inf.perDay.toLocaleString()}씩 ${inf.days}일 상환`, 'good');
+    this.save();
+    return true;
+  },
+  repayLoan(uid, amount) {
+    const s = this.s, l = s.loans.find(q => q.uid === uid);
+    if (!l) return;
+    const pay = Math.min(amount ?? l.balance, l.balance, Math.floor(s.money));
+    if (pay <= 0) { this.toast('갚을 돈이 없습니다', 'bad'); return; }
+    s.money -= pay; l.balance -= pay;
+    if (l.balance <= 0) { s.loans = s.loans.filter(q => q !== l); this.toast(`🏦 ${l.name} 완납!`, 'good'); }
+    else this.toast(`🏦 ${pay.toLocaleString()} 상환 (남은 ${l.balance.toLocaleString()})`);
+    this.save();
+  },
+  // 영업 마감 때 자동 상환. 못 내면 연체료 + 평판 하락
+  payLoans() {
+    const s = this.s; let paid = 0;
+    for (const l of [...s.loans]) {
+      const due = Math.min(l.perDay, l.balance);
+      if (s.money >= due) { s.money -= due; l.balance -= due; paid += due; }
+      else {
+        const fee = Math.ceil(due * DATA.loanLateFee);
+        l.balance += fee; l.missed++;
+        s.rep = Math.max(0, s.rep - 3);
+        this.toast(`🏦 ${l.name} 상환금 ${due.toLocaleString()}을 못 냈습니다 — 연체료 ${fee} 추가, 평판 하락`, 'bad');
+      }
+      if (l.balance <= 0) { s.loans = s.loans.filter(q => q !== l); this.toast(`🏦 ${l.name} 완납!`, 'good'); }
+    }
+    return paid;
+  },
+
   // ───────── 커피 얼룩 ─────────
   // 좌석 옆 바닥(걸을 수 있는 칸)에 쏟는다. 칸 안 위치·크기는 무작위.
   spill(sx, sy) {
@@ -537,9 +585,10 @@ const Game = {
     this.rt.customers = []; this.rt.serveQ = [];
     if (this.rt.staff) { this.rt.staff.path = []; this.rt.staff.carry = null; this.rt.staff.target = null; }
     for (const r of this.s.objects) if (r.cook && !r.cook.done) r.cook = null;
+    const loanPaid = this.payLoans();
     const food = s.cats.length * DATA.catFoodPerDay;
     if (food) { s.money -= food; s.today.spent += food; }
-    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food };
+    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, loanPaid, debt: this.debt() };
     s.events = []; s.coalPriceMul = 1; s.boiler.pressure = Math.min(s.boiler.pressure, 50);
     s.day++; s.min = OPEN_HOUR * 60;
     this.rollWeather();
