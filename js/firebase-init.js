@@ -10,7 +10,14 @@ const firebaseConfig = {
 };
 
 // 2. Firebase 초기화
-firebase.initializeApp(firebaseConfig);
+try {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+} catch (e) {
+  console.error("Firebase 초기화 에러:", e);
+}
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
@@ -19,7 +26,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
 
 let currentUser = null;
 
-// 3. 로그인 상태 감지
+// 3. 로그인 상태 감지 (안전한 UI 전환)
 auth.onAuthStateChanged((user) => {
   const authBtn = document.getElementById("authBtn");
   const userEmail = document.getElementById("userEmail");
@@ -38,7 +45,11 @@ auth.onAuthStateChanged((user) => {
     }
     if (logoutBtn) logoutBtn.style.display = "inline-flex";
 
-    loadFromCloud();
+    // 지연 로딩을 통해 게임 엔진 초기화 완료 후 안전하게 불러오기
+    setTimeout(() => {
+      loadFromCloud();
+    }, 1000);
+
   } else {
     currentUser = null;
     console.log("⚪ 비로그인 상태");
@@ -49,7 +60,7 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// 4. 회원가입/로그인/로그아웃 함수
+// 4. 회원가입/로그인/로그아웃 처리
 async function registerAccount(email, password) {
   try {
     const res = await auth.createUserWithEmailAndPassword(email, password);
@@ -76,7 +87,7 @@ function logoutAccount() {
   auth.signOut().then(() => alert("로그아웃 되었습니다."));
 }
 
-// 5. 세이브 데이터 동기화
+// 5. 세이브 데이터 동기화 (예외 안전 처리)
 async function saveToCloud(saveDataObj) {
   if (!currentUser) return;
   try {
@@ -96,6 +107,8 @@ async function loadFromCloud() {
     const doc = await db.collection("saves").doc(currentUser.uid).get();
     if (doc.exists) {
       const saveData = doc.data().data;
+      
+      // 게임 객체가 완전히 준비된 경우에만 안전하게 반영
       if (typeof Game !== "undefined" && typeof Game.applyCloudSave === "function") {
         Game.applyCloudSave(saveData);
       } else if (typeof applyCloudSave === "function") {
@@ -108,9 +121,9 @@ async function loadFromCloud() {
   }
 }
 
-// 6. 모달 열기/닫기 제어 함수 (CSS display 제어)
+// 6. 모달 열기/닫기
 function closeAuthModal() {
-  const modal = document.getElementById("modal");
+  const modal = document.getElementById("authModal");
   if (modal) {
     modal.style.display = "none";
   }
@@ -121,13 +134,13 @@ function closeAuthModal() {
 }
 
 function openAuthModal() {
-  const modal = document.getElementById("modal");
+  const modal = document.getElementById("authModal");
   if (modal) {
-    modal.style.display = "flex";
+    modal.style.display = "block";
   }
 }
 
-// 7. 모달 내부 버튼 이벤트 연결
+// 7. 모달 버튼 이벤트 연결
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnLoginSubmit")?.addEventListener("click", async () => {
     const email = document.getElementById("authEmail").value;
@@ -141,5 +154,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const pass = document.getElementById("authPassword").value;
     if (!email || !pass) return alert("이메일과 비밀번호를 입력해 주세요.");
     await registerAccount(email, pass);
+  });
+
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    if (confirm("로그아웃 하시겠습니까?")) {
+      logoutAccount();
+    }
   });
 });
