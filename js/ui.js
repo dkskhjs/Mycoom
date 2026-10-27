@@ -20,8 +20,13 @@ const UI = {
     this.tabs = $('#tabs'); this.body = $('#panelBody');
     this.tabs.addEventListener('click', e => {
       const b = e.target.closest('[data-tab]'); if (!b) return;
-      this.setMode(b.dataset.tab);
+      if (b.dataset.tab !== this.state.mode) this.setMode(b.dataset.tab);
+      if (this.isSheet()) this.openSheet();
     });
+    $('#sheetClose').addEventListener('click', () => this.closeSheet());
+    window.addEventListener('resize', () => this.placeCamCtl());
+    $('#bulkTool').addEventListener('click', () => { const t = this.state.tool; if (t && ['floor', 'wall', 'ceil'].includes(t.kind)) { Game.paintAll(t.kind, t.id); this.syncToolbar(); } });
+    matchMedia('(max-width: 860px)').addEventListener?.('change', () => this.closeSheet());
     $('#speed').addEventListener('click', e => {
       const b = e.target.closest('[data-speed]'); if (!b) return;
       const v = +b.dataset.speed;
@@ -69,6 +74,19 @@ const UI = {
     });
   },
 
+  // ───────── 모바일: 패널은 탭을 누르면 화면을 덮는 시트, 배치 도구를 고르면 다시 맵으로 ─────────
+  isSheet() { return matchMedia('(max-width: 860px)').matches; },
+  openSheet() {
+    const tb = $('#topbar').getBoundingClientRect();
+    document.documentElement.style.setProperty('--sheet-top', Math.round(tb.bottom) + 'px');
+    document.body.classList.add('sheet-open');
+    this.closePopup();
+    const names = { utility: '🔧 설비', interior: '🎨 인테리어', ops: '☕ 운영', shop: '🛒 상점' };
+    $('#sheetTitle').textContent = names[this.state.mode] || '';
+  },
+  closeSheet() { document.body.classList.remove('sheet-open'); },
+  // 카메라 버튼은 도구 막대 높이에 맞춰 바로 위에
+  placeCamCtl() { const tb = $('#toolbar'), cc = $('#camctl'); if (tb && cc) cc.style.bottom = (tb.offsetHeight + 8) + 'px'; },
   setMode(mode) {
     this.state.mode = mode; this.setTool(null); this.closePopup();
     document.querySelectorAll('#tabs [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === mode));
@@ -79,6 +97,7 @@ const UI = {
     if (prev && prev !== tool && prev.cells && prev.cells.size) this.toast(`확정하지 않은 ${prev.kind === 'erase' ? '철거' : '배관'} ${prev.cells.size}칸은 취소됐어요`);
     if (tool && (tool.kind === 'pipe' || tool.kind === 'erase')) tool.cells ??= new Set();
     this.state.tool = tool;
+    if (tool && tool !== prev) this.closeSheet();   // 배치할 때는 맵 화면으로
     document.querySelectorAll('.card[data-key]').forEach(c => c.classList.toggle('sel', !!tool && c.dataset.key === this.toolKey(tool)));
     this.syncToolbar();
   },
@@ -105,6 +124,17 @@ const UI = {
     $('#cancelTool').textContent = pend ? '✕ 취소' : '선택 해제';
     const rb = $('#rotTool');
     if (rb) rb.hidden = !(t && (t.kind === 'object' || t.kind === 'move') && Game.canRotate(t.id));
+    requestAnimationFrame(() => this.placeCamCtl());
+    const bk = $('#bulkTool');
+    if (bk) {
+      const paint = t && ['floor', 'wall', 'ceil'].includes(t.kind);
+      bk.hidden = !paint;
+      if (paint) {
+        const inf = Game.paintAllInfo(t.kind, t.id);
+        bk.textContent = inf.n ? `🖌 전체 ${inf.n}칸 (${fmt(inf.cost)})` : '🖌 전부 이 재질';
+        bk.disabled = !inf.n || Game.s.money < inf.cost;
+      }
+    }
     const ok = $('#okTool'); if (!ok) return;
     ok.hidden = !pend;
     if (!pend) return;
@@ -543,7 +573,7 @@ const UI = {
       if (!gesture) return;
       if (gesture.kind === 'maybe') this.clickSelect(gesture.t, gesture.ev);
       if (gesture.kind === 'pan' && gesture.right && gesture.moved < 6) this.cancelTool();
-      if (gesture.kind === 'paint' && this.painting) { this.painting = false; Game.save(); }
+      if (gesture.kind === 'paint' && this.painting) { this.painting = false; Game.save(); this.syncToolbar(); }
       if (gesture.kind !== 'pinch' || ptrs.size === 0) gesture = null;
     };
     cv.addEventListener('pointerup', end);

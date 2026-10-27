@@ -227,3 +227,23 @@ body.panel-hidden #stage { flex: 1; height: auto; }
 }
 html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 #app { background: var(--bg); }
+/* ── 모바일: 맵을 크게, 패널은 탭을 누르면 화면을 덮는 시트 ── */
+#sheetBar { display: none; }
+@media (max-width: 860px) {
+  #stage { flex: 1; height: auto; }
+  #panel { flex: none; }
+  #panelBody { display: none; }
+  #tabs { border-bottom: 0; }
+  #tabs button { padding: 11px 2px; }
+  body.sheet-open #panel { position: fixed; left: 0; right: 0; top: var(--sheet-top, 0); bottom: 0; z-index: 25; border-top: 3px solid var(--brass); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -8px 20px rgba(0,0,0,.5); }
+  body.sheet-open #sheetBar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg2); border-bottom: 2px solid var(--brass-lo); }
+  body.sheet-open #sheetTitle { color: var(--brass-hi); font-size: 14px; }
+  body.sheet-open #panelBody { display: block; flex: 1; }
+  #toolbar { flex-wrap: wrap; }
+  #toolbar .tbtns { flex-wrap: wrap; justify-content: flex-end; }
+}
+@media (max-width: 860px) {
+  #toolHint { flex: 1 1 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #toolbar .tbtns { flex: 1 1 auto; }
+  #toolbar .tbtns:empty, #toolbar .tbtns:not(:has(button:not([hidden]))) { display: none; }
+}
