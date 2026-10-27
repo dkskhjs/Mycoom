@@ -605,3 +605,20 @@ const UI = {
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
   },
 };
+
+// js/ui.js 파일 하단에 추가
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 🔒 로그인 버튼 클릭 시 모달 열기
+  document.getElementById("authBtn")?.addEventListener("click", () => {
+    const modal = document.getElementById("modal");
+    if (modal) modal.hidden = false;
+  });
+
+  // 🔓 로그아웃 버튼 클릭 시 로그아웃 실행
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    if (confirm("로그아웃 하시겠습니까?")) {
+      logoutAccount();
+    }
+  });
+});
