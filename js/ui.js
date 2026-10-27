@@ -258,12 +258,12 @@ const UI = {
       list.append(h('div', { class: 'srow' },
         h('span', { class: 'sicon' }, ing.icon), h('span', { class: 'mname' }, ing.name),
         h('span', { class: 'dim', 'data-stock': id }, ''),
-        h('button', { class: 'btn', onclick: () => { Game.buy(id); this.refreshLive(); } }, `+${ing.pack} · 🪙${ing.price}`)));
+        h('button', { class: 'btn', onclick: () => this.showBuy(id) }, `구매 · 🪙${ing.price}/${ing.pack}개`)));
     }
     list.append(h('div', { class: 'srow' },
       h('span', { class: 'sicon' }, '⚫'), h('span', { class: 'mname' }, '석탄'),
       h('span', { class: 'dim', 'data-stock': 'coal' }, ''),
-      h('button', { class: 'btn', id: 'coalBtn', onclick: () => { Game.buy('coal'); this.refreshLive(); } }, '')));
+      h('button', { class: 'btn', id: 'coalBtn', onclick: () => this.showBuy('coal') }, '')));
     B.append(list);
     B.append(h('h3', {}, '🏦 증기 은행'), h('div', { id: 'live-bank', class: 'expand' }));
     B.append(h('p', { class: 'tip' }, `대출금은 바로 입금되고, 원금과 이자를 정해진 날 수로 나눠 매일 영업 마감 때 자동으로 갚습니다. 그날 돈이 모자라면 연체료(상환금의 ${DATA.loanLateFee * 100}%)가 붙고 평판이 떨어져요. 언제든 미리 갚을 수 있습니다.`));
@@ -415,7 +415,7 @@ const UI = {
           kids.push(h('div', { class: 'srow' },
             h('span', { class: 'mname' }, `${d.name} 🪙${fmt(d.amount)}`),
             h('span', { class: 'dim' }, `이자 ${Math.round(d.rate * 100)}% · ${d.days}일 · 매일 ${fmt(inf.perDay)}`),
-            h('button', { class: 'btn', disabled: !!inf.why, onclick: () => Game.takeLoan(d.id) }, inf.why || '빌리기')));
+            h('button', { class: 'btn', disabled: !!inf.why, onclick: () => this.confirm(`🏦 ${d.name}`, `🪙${fmt(d.amount)}을 빌립니다. 이자 ${Math.round(d.rate * 100)}% · ${d.days}일 동안 매일 마감 때 🪙${fmt(inf.perDay)}씩 자동 상환`, '빌리기', () => Game.takeLoan(d.id)) }, inf.why || '빌리기')));
         }
         lb.replaceChildren(...kids);
       }
@@ -430,7 +430,7 @@ const UI = {
           const locked = k.lv > s.level, full = s.cats.length >= DATA.catMax;
           kids.push(h('div', { class: 'srow' }, h('span', { class: 'mname' }, Sprites.thumb('cat', k.id, 32), ' ', k.name),
             h('span', { class: 'dim' }, `${k.kg}kg · 현열 ${k.sens}W · 잠열 ${k.lat}W`),
-            h('button', { class: 'btn', disabled: locked || full, onclick: () => Game.adoptCat(k.id) }, locked ? `Lv.${k.lv}` : full ? '가득' : `🪙${fmt(k.cost)}`)));
+            h('button', { class: 'btn', disabled: locked || full, onclick: () => this.confirm(`🐈 ${k.name} 입양`, `🪙${fmt(k.cost)} · 사료비 하루 🪙${DATA.catFoodPerDay}`, `입양 (🪙${fmt(k.cost)})`, () => Game.adoptCat(k.id)) }, locked ? `Lv.${k.lv}` : full ? '가득' : `🪙${fmt(k.cost)}`)));
         }
         lc.replaceChildren(...kids);
       }
@@ -446,17 +446,12 @@ const UI = {
             const inf = Game.expandInfo(d);
             return h('div', { class: 'srow' }, h('span', { class: 'mname' }, label),
               h('span', { class: 'dim' }, inf.room < inf.step ? '최대' : `→ ${inf.newW - 2}×${inf.newH - 2}`),
-              h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: ev => {
-                const b = ev.currentTarget;
-                if (b.dataset.armed) { Game.expand(d); return; }
-                b.dataset.armed = '1'; b.textContent = `확정? 🪙${fmt(inf.cost)}`; b.classList.add('danger');
-                setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = `🪙${fmt(inf.cost)}`; b.classList.remove('danger'); } }, 3000);
-              } }, inf.why && inf.why !== '돈 부족' ? inf.why : `🪙${fmt(inf.cost)}`));
+              h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: () => this.confirm(`🏗 ${label}`, `가게가 ${inf.newW - 2}×${inf.newH - 2}칸으로 넓어집니다. 새 칸은 맨흙이에요.`, `공사 (🪙${fmt(inf.cost)})`, () => Game.expand(d)) }, inf.why && inf.why !== '돈 부족' ? inf.why : `🪙${fmt(inf.cost)}`));
           }));
       }
     }
     const cb = $('#coalBtn');
-    if (cb) { cb.textContent = `+${DATA.coal.pack} · 🪙${Game.coalPrice()}`; cb.disabled = Game.hasEvent('coalStrike'); }
+    if (cb) { cb.textContent = `구매 · 🪙${Game.coalPrice()}/${DATA.coal.pack}개`; cb.disabled = Game.hasEvent('coalStrike'); }
   },
   statusRow(ok, text) { return h('div', { class: 'srow2 ' + (ok ? 'ok' : 'no') }, (ok ? '✔ ' : '✘ ') + text); },
 
@@ -685,6 +680,52 @@ const UI = {
     const m = $('#modal'); m.replaceChildren(h('div', { class: 'mbox' }, content)); m.hidden = false;
   },
   closeModal() { $('#modal').hidden = true; },
+  // 단순 확인창
+  confirm(title, text, okLabel, onOk) {
+    this.modal(h('div', { class: 'buybox' }, h('h2', {}, title), h('p', {}, text),
+      h('div', { class: 'buybtns' },
+        h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '취소'),
+        h('button', { class: 'btn big', onclick: () => { this.closeModal(); onOk(); this.refreshLive(); } }, okLabel))));
+  },
+  // 재료·석탄 구매 확인창: 개수(묶음) 조절
+  showBuy(kind) {
+    const coal = kind === 'coal', ing = coal ? null : DATA.ingredients[kind];
+    const name = coal ? '석탄' : ing.name, icon = coal ? '⚫' : ing.icon, pack = coal ? DATA.coal.pack : ing.pack;
+    const price = () => coal ? Game.coalPrice() : ing.price;
+    const have = () => coal ? Math.floor(Game.s.coal) : Game.s.stock[kind];
+    const max = () => Math.max(1, Math.min(99, Math.floor(Game.s.money / price())));
+    let qty = 1;
+    const qEl = h('input', { class: 'qty', type: 'number', min: 1, max: 99, value: 1, inputmode: 'numeric' });
+    const info = h('div', { class: 'buyinfo' }), okBtn = h('button', { class: 'btn big' }, '');
+    const sync = () => {
+      qty = Math.max(1, Math.min(99, Math.floor(+qEl.value || 1)));
+      if (+qEl.value !== qty) qEl.value = qty;
+      const total = price() * qty, short = total > Game.s.money;
+      info.replaceChildren(...[
+        h('div', {}, `보유 ${fmt(have())}개 → `, h('b', {}, `${fmt(have() + pack * qty)}개`), h('span', { class: 'dim' }, ` (+${fmt(pack * qty)})`)),
+        h('div', {}, `합계 `, h('b', { class: short ? 'bad' : '' }, `🪙${fmt(total)}`), h('span', { class: 'dim' }, ` · 남는 돈 🪙${fmt(Game.s.money - total)}`)),
+        short ? h('div', { class: 'bad' }, '돈이 모자라요') : null].filter(Boolean));
+      okBtn.textContent = `구매 (🪙${fmt(total)})`;
+      okBtn.disabled = short;
+    };
+    const step = d => () => { qEl.value = Math.max(1, Math.min(99, qty + d)); sync(); };
+    qEl.addEventListener('input', sync);
+    qEl.addEventListener('keydown', e => { if (e.key === 'Enter') okBtn.click(); });
+    okBtn.addEventListener('click', () => { if (Game.buy(kind, qty)) { this.closeModal(); this.toast(`${icon} ${name} ${fmt(pack * qty)}개 구매 (🪙${fmt(price() * qty)})`, 'good'); this.refreshLive(); } else sync(); });
+    this.modal(h('div', { class: 'buybox' },
+      h('h2', {}, `${icon} ${name} 구매`),
+      h('p', { class: 'dim' }, `1묶음 = ${pack}개 · 🪙${fmt(price())}`),
+      h('div', { class: 'stepper' },
+        h('button', { class: 'btn ghost', onclick: step(-10) }, '−10'),
+        h('button', { class: 'btn ghost', onclick: step(-1) }, '−'),
+        qEl, h('span', { class: 'dim' }, '묶음'),
+        h('button', { class: 'btn ghost', onclick: step(1) }, '＋'),
+        h('button', { class: 'btn ghost', onclick: step(10) }, '+10'),
+        h('button', { class: 'btn ghost', onclick: () => { qEl.value = max(); sync(); } }, '최대')),
+      info,
+      h('div', { class: 'buybtns' }, h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '취소'), okBtn)));
+    sync();
+  },
 
   showTitle() {
     App.onTitle = true;

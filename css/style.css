@@ -211,3 +211,13 @@ body.panel-hidden #stage { flex: 1; height: auto; }
 /* 전체화면·홈 화면 앱: 노치/홈 표시줄 영역 피하기 */
 #app { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; }
 .fs-hint { font-size: 11px; margin-top: 10px; line-height: 1.5; }
+/* 상점 구매 확인창 */
+.buybox h2 { text-align: center; }
+.buybox p { text-align: center; }
+.stepper { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.stepper .btn { min-width: 40px; }
+.stepper .qty { width: 64px; text-align: center; font: inherit; font-size: 18px; padding: 6px; background: #120c0a; color: var(--brass-hi); border: 2px solid var(--brass); }
+.buyinfo { text-align: center; margin: 8px 0 12px; line-height: 1.8; }
+.buyinfo .bad, .buyinfo b.bad { color: #ff8a7a; }
+.buybtns { display: flex; gap: 8px; justify-content: center; }
+.buybtns .btn.big { flex: 1; margin: 0; }

@@ -691,15 +691,19 @@ const Game = {
   },
 
   // ───────── 상점 ─────────
-  buy(kind) {
+  // 묶음 단위로 qty 개 한꺼번에 (상점 확인창에서 개수 조절)
+  buy(kind, qty = 1) {
+    qty = Math.max(1, Math.floor(qty));
     if (kind === 'coal') {
-      if (this.hasEvent('coalStrike')) { this.toast('석탄 배달부 파업 중!', 'bad'); return; }
-      const p = this.coalPrice();
-      if (this.spend(p)) { this.s.coal += DATA.coal.pack; this.sfx('coal'); }
-      return;
+      if (this.hasEvent('coalStrike')) { this.toast('석탄 배달부 파업 중!', 'bad'); return false; }
+      if (!this.spend(this.coalPrice() * qty)) return false;
+      this.s.coal += DATA.coal.pack * qty; this.sfx('coal');
+      return true;
     }
     const ing = DATA.ingredients[kind];
-    if (this.spend(ing.price)) { this.s.stock[kind] += ing.pack; this.sfx('buy'); }
+    if (!this.spend(ing.price * qty)) return false;
+    this.s.stock[kind] += ing.pack * qty; this.sfx('buy');
+    return true;
   },
 
   // ───────── 영업 ─────────
