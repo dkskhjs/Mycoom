@@ -30,6 +30,17 @@ const UI = {
     });
     $('#openBtn').addEventListener('click', () => { Game.s.open ? null : Game.openCafe(); this.refresh(); });
     $('#menuBtn').addEventListener('click', () => this.showSystemMenu());
+    $('#autoBtn').addEventListener('click', () => { Game.setAuto(!Game.s.auto); this.refreshLive(); });
+    // 패널 숨기기: 화면을 온전히 감상 (모바일에서 특히). 마지막 상태 기억
+    const setPanel = hidden => {
+      document.body.classList.toggle('panel-hidden', hidden);
+      $('#panelBtn').textContent = hidden ? '🛠 패널 보이기' : '🛠 패널 숨기기';
+      try { localStorage.setItem('steamcafe_panel_hidden', hidden ? '1' : '0'); } catch (e) {}
+      if (App.started) setTimeout(() => Render.resize($('#canvasWrap')), 30);
+    };
+    this.setPanel = setPanel;
+    $('#panelBtn').addEventListener('click', () => setPanel(!document.body.classList.contains('panel-hidden')));
+    try { if (localStorage.getItem('steamcafe_panel_hidden') === '1') setPanel(true); } catch (e) {}
     this.bindCanvas();
     Game.on('toast', (m, k) => this.toast(m, k));
     Game.on('built', () => this.refreshLive());
@@ -239,6 +250,7 @@ const UI = {
     const it = Game.indoorTemp();
     $('#indoor').textContent = `실내 ${Math.round(it)}° 💧${Math.round(Game.humidity())}%`;
     $('#indoor').parentElement.className = 'stat ' + (it >= 20 ? 'good' : it >= 18 ? '' : 'warn');
+    const ab = $('#autoBtn'); ab.classList.toggle('on', !!s.auto); ab.textContent = s.auto ? '🤖 자동 ON' : '🤖 자동';
     const ob = $('#openBtn');
     ob.textContent = s.open ? '영업 중…' : '☕ 영업 시작';
     ob.disabled = s.open; ob.classList.toggle('ready', !s.open && Game.canOpen());
@@ -385,7 +397,7 @@ const UI = {
       }
     }
     const cb = $('#coalBtn');
-    if (cb) { cb.textContent = `+${DATA.coal.pack} · 🪙${Math.round(DATA.coal.price * s.coalPriceMul)}`; cb.disabled = Game.hasEvent('coalStrike'); }
+    if (cb) { cb.textContent = `+${DATA.coal.pack} · 🪙${Game.coalPrice()}`; cb.disabled = Game.hasEvent('coalStrike'); }
   },
   statusRow(ok, text) { return h('div', { class: 'srow2 ' + (ok ? 'ok' : 'no') }, (ok ? '✔ ' : '✘ ') + text); },
 
@@ -637,7 +649,9 @@ const UI = {
         ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ...(sum.loanPaid ? [['대출 상환', fmt(sum.loanPaid)]] : []), ...(sum.debt ? [['남은 빚', fmt(sum.debt)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
           .map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))),
       h('p', { class: 'dim' }, `내일 날씨: ${Game.weather().icon} ${Game.weather().name} (${Game.weather().temp}°)`),
-      h('button', { class: 'btn big', onclick: () => this.closeModal() }, '다음 날 준비')));
+      h('button', { class: 'btn big', onclick: () => this.closeModal() }, Game.s.auto ? '다음 날 준비 (자동 운영: 곧 넘어갑니다)' : '다음 날 준비')));
+    // 자동 운영 중이면 정산 화면을 잠깐 보여 주고 다음 날로
+    if (Game.s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box) this.closeModal(); }, 6000); }
   },
   showSystemMenu() {
     this.modal(h('div', {},
@@ -647,6 +661,11 @@ const UI = {
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),
         h('button', { class: 'btn big danger', onclick: () => { Game.wipe(); this.showPlots(); } }, '지우고 새로 시작'),
         h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'))) }, '처음부터'),
+      h('h3', {}, '난이도'),
+      h('div', { class: 'diffs' }, Object.entries(DATA.difficulty).map(([k, d]) =>
+        h('button', { class: 'btn diff' + (Game.s && Game.s.difficulty === k ? ' on' : ''), onclick: () => { Game.setDifficulty(k); this.showSystemMenu(); } },
+          h('b', {}, d.name), h('span', { class: 'dim' }, d.desc)))),
+      h('button', { class: 'btn big', onclick: () => { Game.setAuto(!Game.s.auto); this.showSystemMenu(); } }, Game.s && Game.s.auto ? '🤖 자동 운영 끄기' : '🤖 자동 운영 켜기'),
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
       h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));

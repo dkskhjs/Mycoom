@@ -39,6 +39,7 @@ const Game = {
       cats: [],
       stains: [],
       loans: [], loanSeq: 1,
+      difficulty: 'easy', auto: false,
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -92,7 +93,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1;
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false;
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -572,12 +573,56 @@ const Game = {
       else {
         const fee = Math.ceil(due * DATA.loanLateFee);
         l.balance += fee; l.missed++;
-        s.rep = Math.max(0, s.rep - 3);
-        this.toast(`🏦 ${l.name} 상환금 ${due.toLocaleString()}을 못 냈습니다 — 연체료 ${fee} 추가, 평판 하락`, 'bad');
+        this.changeRep(-3);
+        this.toast(`🏦 ${l.name} 상환금 ${due.toLocaleString()}을 못 냈습니다 — 연체료 ${fee} 추가`, 'bad');
       }
       if (l.balance <= 0) { s.loans = s.loans.filter(q => q !== l); this.toast(`🏦 ${l.name} 완납!`, 'good'); }
     }
     return paid;
+  },
+
+  // ───────── 난이도 ─────────
+  diff() { return DATA.difficulty[this.s.difficulty] || DATA.difficulty.easy; },
+  setDifficulty(k) { this.s.difficulty = k; this.save(); this.toast(`난이도: ${this.diff().name}`, 'good'); },
+  // 평판 변화는 모두 여기로: 떨어질 때만 난이도 배율 (쉬움은 0 → 안 떨어짐)
+  changeRep(delta) {
+    if (delta < 0) delta *= this.diff().repLoss;
+    this.s.rep = Math.max(0, Math.min(100, this.s.rep + delta));
+  },
+  patience(c) { return c.type.patience * this.diff().patience; },
+  coalPrice() { return Math.round(DATA.coal.price * this.s.coalPriceMul * this.diff().coalMul); },
+
+  // ───────── 자동 운영 ─────────
+  // 켜 두면 게임 3분마다: 완성품 수거, 진열이 적은 메뉴부터 조리, 재료·석탄 보충, 압력·누수·얼룩 처리, 아침 개점
+  setAuto(on) { this.s.auto = !!on; this.save(); this.toast(on ? '🤖 자동 운영 켬 — 조리·수거·재료 구매·사고 처리를 알아서 합니다' : '🤖 자동 운영 끔', on ? 'good' : 'info'); },
+  autoTick(gm) {
+    const s = this.s, rt = this.rt;
+    if (!s.auto) return;
+    rt.autoT = (rt.autoT || 0) + gm;
+    if (rt.autoT < 3) return;
+    rt.autoT = 0;
+    // 아침: 정산 화면을 닫았으면 바로 개점
+    const modalOpen = typeof document !== 'undefined' && document.getElementById('modal') && !document.getElementById('modal').hidden;
+    if (!s.open) { if (!modalOpen && this.canOpen()) this.openCafe(); return; }
+    // 사고 처리
+    if (s.boiler.pressure > 70) this.ventValve();
+    if (s.boiler.broken && s.money >= 800) this.repairBoiler();
+    for (const l of [...s.leaks]) if (s.money >= 40) this.repairLeak(l.type, l.i);
+    for (const st of [...s.stains]) this.wipeStain(st);
+    // 수거 + 조리
+    for (const o of s.objects) {
+      const d = this.objDef(o); if (!d.cook) continue;
+      if (o.cook && o.cook.done) { this.collect(o); continue; }
+      if (o.cook || !this.working(o)) continue;
+      const opts = Object.entries(DATA.recipes).filter(([rid, r]) => r.eq === o.id && !this.canCook(o, rid) && (s.counter[rid] || 0) < 12)
+        .sort((a, b) => (s.counter[a[0]] || 0) - (s.counter[b[0]] || 0));
+      if (opts.length) this.startCook(o, opts[0][0]);
+    }
+    // 재료 보충: 지금 만들 수 있는 메뉴에 쓰는 재료가 3개 미만이면 (돈이 넉넉할 때만)
+    const eqs = new Set(s.objects.filter(o => this.objDef(o).cook).map(o => o.id)), need = new Set();
+    for (const r of Object.values(DATA.recipes)) if (r.lv <= s.level && eqs.has(r.eq)) Object.keys(r.use).forEach(k => need.add(k));
+    for (const k of need) if ((s.stock[k] || 0) < 3 && s.money >= DATA.ingredients[k].price * 3) this.buy(k);
+    if (s.coal < 25 && !this.hasEvent('coalStrike') && s.money >= this.coalPrice() * 3) this.buy('coal');
   },
 
   // ───────── 커피 얼룩 ─────────
@@ -638,7 +683,7 @@ const Game = {
   buy(kind) {
     if (kind === 'coal') {
       if (this.hasEvent('coalStrike')) { this.toast('석탄 배달부 파업 중!', 'bad'); return; }
-      const p = Math.round(DATA.coal.price * this.s.coalPriceMul);
+      const p = this.coalPrice();
       if (this.spend(p)) { this.s.coal += DATA.coal.pack; }
       return;
     }
@@ -771,9 +816,8 @@ const Game = {
     const s = this.s;
     if (angry) {
       s.today.angry++;
-      const loss = c.type.vip ? 4 : 1.2;
-      s.rep = Math.max(0, s.rep - loss);
-      this.float(c.x + 0.5, c.y - 0.5, '화났음! 평판↓', '#ff7a6a');
+      this.changeRep(-(c.type.vip ? 4 : 1.2));
+      this.float(c.x + 0.5, c.y - 0.5, DATA.byeLines[Math.floor(Math.random() * DATA.byeLines.length)], '#e8dcc0');
     }
     c.state = 'leaving'; c.order = null;
     const sx = Math.round(c.x), sy = Math.round(c.y);
@@ -789,7 +833,7 @@ const Game = {
     if (c.seat && this.rt.cats.some(k => Math.abs(k.x - c.seat.x) + Math.abs(k.y - c.seat.y) <= 2)) sat += 6;
     if (c.seat && this.s.stains.some(st => Math.abs(st.x - c.seat.x) + Math.abs(st.y - c.seat.y) <= 1)) sat -= DATA.stain.nearSat;
     if (c.seat && this.nightLevel() > 0.35 && !this.rt.nets.lit.has(this.idx(c.seat.x, c.seat.y))) sat -= DATA.darkSeatPenalty;
-    sat -= (c.wait / c.type.patience) * 25;
+    sat -= (c.wait / this.patience(c)) * 25;
     return Math.max(0, Math.min(100, sat));
   },
   payCustomer(c) {
@@ -800,11 +844,12 @@ const Game = {
     const base = Math.round(r.price * c.type.pay), tipAmt = Math.round(base * tip);
     s.money += base + tipAmt;
     s.today.revenue += base; s.today.tips += tipAmt; s.today.served++;
-    s.rep = Math.max(0, Math.min(100, s.rep + (sat - 55) / 45 * (c.type.vip ? 2.4 : 1.0)));
+    this.changeRep((sat - 55) / 45 * (c.type.vip ? 2.4 : 1.0));
     this.addXp(c.type.vip ? 12 : 4);
-    const face = sat >= 85 ? '최고!' : sat >= 70 ? '좋아요' : sat >= 55 ? '' : '별로...';
-    this.float(c.x + 0.5, c.y - 0.6, `+${base + tipAmt}${tipAmt ? ' (팁)' : ''} ${face}`, sat >= 55 ? '#ffd76a' : '#ff9a8a');
-    this.rt.reacts.push({ x: c.x, y: c.y, kind: sat >= 70 ? 'heart' : sat >= 45 ? 'heartHalf' : 'heartEmpty', life: 1.6 });
+    // 손님은 늘 좋은 말을 하고 나간다 (만족도는 팁·하트 크기로만 드러남)
+    const line = sat >= 55 || Math.random() < 0.6 ? DATA.happyLines[Math.floor(Math.random() * DATA.happyLines.length)] : '';
+    this.float(c.x + 0.5, c.y - 0.6, `+${base + tipAmt}${tipAmt ? ' (팁)' : ''} ${line}`, '#ffd76a');
+    this.rt.reacts.push({ x: c.x, y: c.y, kind: sat >= 55 ? 'heart' : 'heartHalf', life: 1.6 });
   },
   addXp(n) {
     const s = this.s; s.xp += n;
@@ -853,7 +898,7 @@ const Game = {
     inspector: { name: '증기 안전 감독관', w: 1, can: g => g.s.day >= 2,
       start: g => {
         const s = g.s, ok = s.boiler.pressure < 80 && !s.leaks.length && s.stains.length <= 5 && s.objects.some(o => o.id === 'sink' && g.working(o));
-        if (ok) { s.money += 300; s.rep = Math.min(100, s.rep + 3); g.toast('🔍 증기 안전 감독관 점검 통과! 포상금 300, 평판 상승', 'good'); }
+        if (ok) { s.money += 300; g.changeRep(3); g.toast('🔍 증기 안전 감독관 점검 통과! 포상금 300, 평판 상승', 'good'); }
         else { s.money -= 250; g.toast('🔍 감독관 점검 불합격 (압력/누수/위생 문제) — 벌금 250', 'bad'); }
       }, instant: true },
   },
@@ -922,6 +967,7 @@ const Game = {
       this.updateCustomers(dt * MIN_PER_SEC);
       this.updateStaff(dt * MIN_PER_SEC);
       this.updateCats(dt * MIN_PER_SEC);
+      this.autoTick(dt * MIN_PER_SEC);
       return;
     }
 
@@ -952,7 +998,7 @@ const Game = {
       if (b.pressure >= 100) {
         b.broken = true; b.pressure = 0;
         s.events = s.events.filter(e => e.id !== 'pressure');
-        s.rep = Math.max(0, s.rep - 4);
+        this.changeRep(-4);
         if (boiler) for (let i = 0; i < 30; i++) this.puff(boiler.x * 16 + 16, boiler.y * 16 + 10, i % 3 ? 'rgba(255,255,255,0.9)' : '#ff8a2a', 1, 24);
         this.toast('💥 보일러 과압 파열! 모든 증기 설비 정지. 보일러를 눌러 수리하세요 (800)', 'bad');
       }
@@ -993,6 +1039,7 @@ const Game = {
     this.updateCustomers(gm);
     this.updateStaff(gm);
     this.updateCats(gm);
+    this.autoTick(gm);
 
     if (s.min >= CLOSE_HOUR * 60) this.closeCafe();
   },
@@ -1023,7 +1070,7 @@ const Game = {
         c.wait += gm;
         if (!c.assigned && (s.counter[c.order] || 0) > 0) { s.counter[c.order]--; c.assigned = true; c.timer = 4; if (rt.staff) rt.serveQ.push(c); }
         if (c.assigned && !rt.staff) { c.timer -= gm; if (c.timer <= 0) this.serve(c); }
-        else if (c.wait > c.type.patience) this.customerLeave(c, true);
+        else if (c.wait > this.patience(c)) this.customerLeave(c, true);
         continue;
       }
       if (c.state === 'eating') {
@@ -1084,7 +1131,9 @@ const Game = {
       st.step += gm;
       if (!st.path.length && st.target) {
         // 도착: 서빙
-        st.face = st.target.seat.y < st.y ? 'up' : st.target.seat.y > st.y ? 'down' : 'side'; if (st.face === 'side') st.dir = st.target.seat.x > st.x ? 1 : -1;
+        // 가져가는 사이 손님이 떠났으면(seat 가 비었으면) 방향만 건너뛴다
+        const seat = st.target.seat;
+        if (seat) { st.face = seat.y < st.y ? 'up' : seat.y > st.y ? 'down' : 'side'; if (st.face === 'side') st.dir = seat.x > st.x ? 1 : -1; }
         this.serve(st.target); st.target = null; st.carry = null; st.cast = 3;
         st.path = this.findPath(Math.round(st.x), Math.round(st.y), st.home[0], st.home[1]) || [];
       }

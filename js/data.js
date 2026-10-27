@@ -238,5 +238,15 @@ const DATA = {
   // 공간 확장: 한 번에 2칸씩. n번째(0부터) 확장은 Lv.(2+n) 필요, 공사비 = expandBase × (1 + 0.75n)
   expandStep: 2,
 
+  // 난이도: repLoss = 평판 감소 배율(쉬움은 안 떨어짐), patience = 손님 인내심 배율, coalMul = 석탄값 배율
+  difficulty: {
+    easy:   { name: '쉬움',   repLoss: 0,   patience: 1.3, coalMul: 1,    desc: '평판이 떨어지지 않고 손님이 오래 기다려 줍니다' },
+    normal: { name: '보통',   repLoss: 1,   patience: 1,   coalMul: 1,    desc: '기본 규칙' },
+    hard:   { name: '어려움', repLoss: 1.5, patience: 0.8, coalMul: 1.25, desc: '평판이 더 쉽게 떨어지고 손님이 급하며 석탄이 비쌉니다' },
+  },
+  // 손님이 나가며 하는 말 (항상 좋은 말)
+  happyLines: ['맛있어요!', '또 올게요~', '분위기 좋네요', '따뜻해서 좋아요', '커피 향 최고!', '단골 할래요', '잘 먹었습니다', '여기 마음에 들어요'],
+  byeLines: ['다음에 또 올게요', '바빠 보이네요, 또 올게요', '나중에 다시 올게요'],
+
   levels: [0, 60, 160, 320, 560, 900, 1350, 1950, 2700, 3600, 5000],
 };

@@ -195,3 +195,14 @@ details .chips { margin-top: 6px; }
 .card.tut { border-color: var(--brass-hi); animation: tutpulse .8s infinite alternate; }
 @keyframes tutpulse { from { box-shadow: 0 0 0 0 rgba(239,199,96,.0); } to { box-shadow: 0 0 0 3px rgba(239,199,96,.7); } }
 #toolbar .tbtns { display: flex; gap: 6px; }
+/* 자동 운영 버튼 */
+#autoBtn.on { border-color: var(--good); color: var(--good); background: linear-gradient(#2e4a22, #1c3014); }
+/* 난이도 선택 */
+.diffs { display: grid; gap: 6px; margin-bottom: 8px; }
+.btn.diff { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 10px; }
+.btn.diff.on { border-color: var(--good); box-shadow: 0 0 0 1px var(--good); }
+.mbox h3 { color: var(--brass-hi); margin: 10px 0 6px; font-size: 14px; }
+/* 패널 숨기기 */
+body.panel-hidden #panel { display: none; }
+body.panel-hidden #stage { flex: 1; height: auto; }
+#camctl { flex-wrap: wrap; justify-content: flex-end; }

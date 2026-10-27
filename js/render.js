@@ -471,11 +471,11 @@ const Render = {
     if (c.state !== 'waiting' || !c.order) return;
     const f = this.custFoot(c), headH = Sprites.hasChar(c.type.id) ? 27 : c.type.small ? 19 : 23;
     const x = f.x - 7, y = f.y - headH - 16;
-    const angry = c.wait > c.type.patience * 0.66;
+    const angry = c.wait > Game.patience(c) * 0.66;
     this.bubble(P, x, y, 13, 13, angry ? '#ffd6cc' : PAL.wh);
     this.wg.drawImage(Sprites.icon(c.order), x + 2, y + 2);
     // 인내심 바
-    const pct = c.assigned ? 1 : Math.max(0, 1 - c.wait / c.type.patience);
+    const pct = c.assigned ? 1 : Math.max(0, 1 - c.wait / Game.patience(c));
     P.r(x, y - 3, 13, 2, PAL.k);
     P.r(x, y - 3, Math.max(1, Math.round(13 * pct)), 2, pct > 0.5 ? PAL.g3 : pct > 0.25 ? PAL.glow2 : PAL.red3);
     if (c.type.vip) { P.p(x + 11, y + 1, PAL.b3); P.p(x + 10, y + 2, PAL.b3); }
