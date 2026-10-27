@@ -72,9 +72,24 @@ const Game = {
 
   save() {
     if (!this.s) return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* 저장 불가 환경 */ }
+    
+    // 1. 기존 로컬 스토리지 저장 (유지)
+    try { 
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); 
+    } catch (e) { 
+      /* 저장 불가 환경 */ 
+    }
+
+    // 2. 🟢 파이어베이스 클라우드 저장 추가
+    if (typeof saveToCloud === "function") {
+      saveToCloud(this.s);
+    }
   },
-  hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } },
+
+  hasSave() { 
+    try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } 
+  },
+
   load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
@@ -87,6 +102,33 @@ const Game = {
       this.initRuntime();
       return true;
     } catch (e) { return false; }
+  },
+
+  // 3. 🟢 파이어베이스에서 클라우드 데이터(saveData)를 전달받았을 때 게임에 세이브를 주입하고 화면을 갱신하는 함수
+  applyCloudSave(cloudSaveData) {
+    if (!cloudSaveData) return;
+    try {
+      this.s = cloudSaveData;
+      
+      // 영업 중 데이터 복구 시 아침으로 리셋하는 예외 처리 동일하게 적용
+      if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
+      const st = this.s;
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1;
+      
+      this.initRuntime();
+      
+      // UI나 렌더링 갱신 함수가 있다면 호출 (예: render(), updateUI() 등)
+      if (typeof render === "function") render();
+      if (typeof updateUI === "function") updateUI();
+
+      console.log("🟢 클라우드 데이터가 게임에 성공적으로 적용되었습니다!");
+    } catch (e) {
+      console.error("클라우드 세이브 적용 중 오류 발생:", e);
+    }
+  },
+
+  wipe() { 
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {} 
   },
   wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} },
 
