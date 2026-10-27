@@ -92,6 +92,13 @@ const Tutorial = {
     const st = this.current();
     document.querySelectorAll('.card.tut').forEach(c => c.classList.remove('tut'));
     if (st && st.card) { const c = document.querySelector(`.card[data-key="${st.card}"]`); if (c) c.classList.add('tut'); }
+    // 눌러야 할 탭도 깜빡 (모바일에서 시트가 닫혀 있을 때 특히)
+    document.querySelectorAll('#tabs .tut').forEach(b => b.classList.remove('tut'));
+    if (st && !UI.state.tool) {
+      const a = st.after && st.after(Game), tab = (a && a.tab) || st.tab;
+      const sheetClosed = UI.isSheet() && !document.body.classList.contains('sheet-open');
+      if (tab && (tab !== UI.state.mode || sheetClosed)) { const b = document.querySelector(`#tabs [data-tab="${tab}"]`); if (b) b.classList.add('tut'); }
+    }
   },
 
   targets() { const st = this.current(); return st && st.targets ? st.targets(Game) : []; },

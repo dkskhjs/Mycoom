@@ -80,13 +80,16 @@ const UI = {
     const tb = $('#topbar').getBoundingClientRect();
     document.documentElement.style.setProperty('--sheet-top', Math.round(tb.bottom) + 'px');
     document.body.classList.add('sheet-open');
-    this.closePopup();
+    this.closePopup(); Tutorial.markCard();
     const names = { utility: '🔧 설비', interior: '🎨 인테리어', ops: '☕ 운영', shop: '🛒 상점' };
     $('#sheetTitle').textContent = names[this.state.mode] || '';
   },
-  closeSheet() { document.body.classList.remove('sheet-open'); },
+  closeSheet() { document.body.classList.remove('sheet-open'); if (typeof Tutorial !== 'undefined' && Game.s) Tutorial.markCard(); },
   // 카메라 버튼은 도구 막대 높이에 맞춰 바로 위에
-  placeCamCtl() { const tb = $('#toolbar'), cc = $('#camctl'); if (tb && cc) cc.style.bottom = (tb.offsetHeight + 8) + 'px'; },
+  placeCamCtl() {
+    const tb = $('#toolbar'), cc = $('#camctl'); if (tb && cc) cc.style.bottom = (tb.offsetHeight + 8) + 'px';
+    document.documentElement.style.setProperty('--sheet-top', Math.round($('#topbar').getBoundingClientRect().bottom) + 'px');
+  },
   setMode(mode) {
     this.state.mode = mode; this.setTool(null); this.closePopup();
     document.querySelectorAll('#tabs [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === mode));

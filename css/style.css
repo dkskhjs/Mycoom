@@ -256,3 +256,11 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 #tutorial.flash { animation: tutflash 1.2s ease-out 2; }
 @keyframes tutflash { 0%, 100% { box-shadow: 0 6px 0 #0a0605; } 30% { box-shadow: 0 0 0 4px #ffe08a, 0 6px 0 #0a0605; } }
 @media (max-width: 860px) { #tutorial { left: 6px; top: 6px; font-size: 11px; } }
+#tabs button.tut { color: var(--brass-hi); animation: tutpulse .8s infinite alternate; position: relative; z-index: 1; }
+/* 모바일: 튜토리얼은 화면에 고정 → 패널 시트가 열려도 위에 뜬다 (시트에선 맨 아래) */
+@media (max-width: 860px) {
+  #tutorial { position: fixed; top: calc(var(--sheet-top, 0px) + 6px); z-index: 26; }
+  body.sheet-open #tutorial { top: auto; bottom: calc(env(safe-area-inset-bottom) + 8px); left: 8px; right: 8px; width: auto; max-width: none; background: #211711; box-shadow: 0 -4px 14px rgba(0,0,0,.6); }
+  #tutorial { background: #211711; }
+  body.sheet-open #panelBody { padding-bottom: 90px; }
+}
