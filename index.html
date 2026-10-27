@@ -60,6 +60,20 @@
   </main>
   <div id="toasts"></div>
   <div id="modal" hidden></div>
+  <div class="modal-content" style="background:#222; color:#fff; padding:20px; border-radius:8px; max-width:320px; margin:100px auto; text-align:center;">
+      <h3 id="modalTitle">계정 로그인</h3>
+      <div style="margin: 10px 0;">
+        <input type="email" id="authEmail" placeholder="이메일" style="width:90%; padding:8px; margin-bottom:8px;">
+        <input type="password" id="authPassword" placeholder="비밀번호" style="width:90%; padding:8px;">
+      </div>
+      <div style="display:flex; justify-content:space-around; margin-top:15px;">
+        <button id="btnLoginSubmit" class="btn">로그인</button>
+        <button id="btnRegisterSubmit" class="btn ghost">회원가입</button>
+        <button id="btnCloseModal" class="btn ghost">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- 2. Firebase 연동 초기화 파일 -->
