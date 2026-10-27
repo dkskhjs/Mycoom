@@ -197,6 +197,7 @@ const Render = {
     const zShop = Math.min(this.cw / ((Game.s.W + 1) * TILE), this.ch / ((Game.s.H + STREET_ROWS + 2) * TILE));
     const f = Math.max(0, Math.min(1, (this.cam.z - zTown * 1.15) / Math.max(0.01, zShop * 0.9 - zTown * 1.15)));
     const ease = f * f * (3 - 2 * f);
+    this.focus = ease;   // 1 = 가게 가까이, 0 = 마을 전체 (효과음·환경음 믹스에 씀)
     if (this.outsideBlur && 'filter' in v && ease > 0.02) {
       v.filter = `blur(${(ease * Math.max(1.5, z * 1.1)).toFixed(2)}px) brightness(${(1 - ease * 0.22).toFixed(3)}) saturate(${(1 - ease * 0.25).toFixed(3)})`;
       v.drawImage(this.world, dx, dy, dw, dh);

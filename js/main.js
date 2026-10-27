@@ -6,6 +6,7 @@ const App = {
   async boot() {
     Render.init($('#world'), $('#fx'));
     BGM.init();
+    SFX.init();
     UI.init();
     await Promise.all([
       Sprites.loadSheets(), 

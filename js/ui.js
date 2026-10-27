@@ -752,6 +752,7 @@ const UI = {
         h('button', { class: 'btn diff' + (Game.s && Game.s.difficulty === k ? ' on' : ''), onclick: () => { Game.setDifficulty(k); this.showSystemMenu(); } },
           h('b', {}, d.name), h('span', { class: 'dim' }, d.desc)))),
       h('button', { class: 'btn big', onclick: () => { Game.setAuto(!Game.s.auto); this.showSystemMenu(); } }, Game.s && Game.s.auto ? '🤖 자동 운영 끄기' : '🤖 자동 운영 켜기'),
+      h('button', { class: 'btn big', onclick: () => { SFX.toggle(); this.showSystemMenu(); } }, SFX.muted ? '🔇 효과음 켜기' : '🔊 효과음 끄기'),
       App.canFullscreen() && !App.isStandalone() ? h('button', { class: 'btn big', onclick: () => { App.toggleFullscreen(); this.closeModal(); } }, App.isFullscreen() ? '⛶ 전체화면 끄기' : '⛶ 전체화면') : null,
       App.isIOS() && !App.isStandalone() ? h('p', { class: 'dim fs-hint' }, '아이폰 전체화면: 사파리 공유 → [홈 화면에 추가]') : null,
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),

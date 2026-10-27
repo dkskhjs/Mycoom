@@ -18,6 +18,7 @@ const Game = {
   on(ev, fn) { (this.listeners[ev] ||= []).push(fn); },
   emit(ev, ...a) { (this.listeners[ev] || []).forEach(f => f(...a)); },
   toast(msg, kind = 'info') { this.emit('toast', msg, kind); },
+  sfx(name) { this.emit('sfx', name); },
 
   // ───────── 생성 / 저장 ─────────
   newGame(plotId, hero = 'hero_m') {
@@ -319,7 +320,7 @@ const Game = {
     if (s[layer][i] === id) return false;
     const table = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer];
     if (!this.spend(table[id].cost)) return false;
-    s[layer][i] = id; this.rt.dirty = true; return true;
+    s[layer][i] = id; this.rt.dirty = true; this.sfx('brush'); return true;
   },
   placePipe(type, x, y) {
     if (!this.isInterior(x, y) || this.s.pipe[type][this.idx(x, y)]) return false;
@@ -332,7 +333,7 @@ const Game = {
     if (!ok.length) return true;
     if (!this.spend(ok.length * DATA.pipes[type].cost)) return false;
     for (const i of ok) s.pipe[type][i] = 1;
-    this.rt.dirty = true; this.emit('built', type);
+    this.rt.dirty = true; this.emit('built', type); this.sfx('pipe');
     return true;
   },
   erasePipe(x, y, type) {
@@ -340,7 +341,7 @@ const Game = {
     const i = this.idx(x, y); let any = false;
     for (const t of type ? [type] : ['cold', 'hot', 'heat']) if (this.s.pipe[t][i]) { this.s.pipe[t][i] = 0; any = true; }
     this.s.leaks = this.s.leaks.filter(l => !(l.i === i && (!type || l.type === type)));
-    if (any) this.rt.dirty = true; return any;
+    if (any) { this.rt.dirty = true; this.sfx('remove'); } return any;
   },
   canPlace(id, x, y, ignoreUid = 0, rot = 0) {
     const d = DATA.objects[id], s = this.s, dm = this.dims(id, rot);
@@ -362,7 +363,7 @@ const Game = {
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
     if (!this.spend(DATA.objects[id].cost)) return false;
     this.s.objects.push({ uid: this.s.nextUid++, id, x, y, rot: rot & 1, cook: null });
-    this.recompute(); this.emit('built', id);
+    this.recompute(); this.emit('built', id); this.sfx(id === 'boiler' ? 'heavy' : 'place');
     return true;
   },
   nightLevel() { return Math.max(0, Math.min(1, (this.s.min - 16.5 * 60) / 150)); },
@@ -376,7 +377,7 @@ const Game = {
     if (o.x === x && o.y === y && (o.rot || 0) === (rot & 1)) return true;
     const c = this.canPlace(o.id, x, y, o.uid, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
-    o.x = x; o.y = y; o.rot = rot & 1;
+    o.x = x; o.y = y; o.rot = rot & 1; this.sfx('place');
     this.recompute(); this.save();
     this.toast(`${this.objDef(o).name} 이동`);
     return true;
@@ -421,7 +422,7 @@ const Game = {
     const refund = Math.floor(this.objDef(o).cost / 2);
     this.s.money += refund;
     this.toast(`${this.objDef(o).name} 철거 (+${refund} 환급)`);
-    this.recompute();
+    this.recompute(); this.sfx('remove');
   },
 
 
@@ -651,7 +652,7 @@ const Game = {
   wipeStain(st) {
     this.s.stains = this.s.stains.filter(q => q !== st);
     for (let i = 0; i < 6; i++) this.rt.particles.push({ x: st.x * 16 + st.ox + (Math.random() - 0.5) * 8, y: st.y * 16 + st.oy, vx: (Math.random() - 0.5) * 10, vy: -8 - Math.random() * 8, life: 0.7, max: 1, color: i % 2 ? '#ffffff' : '#bfe6ff', size: 1 });
-    this.float(st.x + 0.5, st.y, '반짝!', '#bfe6ff');
+    this.float(st.x + 0.5, st.y, '반짝!', '#bfe6ff'); this.sfx('wipe');
     this.addXp(1);
     this.rt.dirty = true;
   },
@@ -676,6 +677,7 @@ const Game = {
     const r = DATA.recipes[rid];
     for (const [k, n] of Object.entries(r.use)) this.s.stock[k] -= n;
     o.cook = { rid, t: 0, total: r.time, done: false };
+    this.sfx('cook_' + r.eq);
     return true;
   },
   collect(o) {
@@ -683,7 +685,7 @@ const Game = {
     if (!this.s.objects.some(q => q.id === 'counter')) { this.toast('서빙 카운터가 필요합니다', 'bad'); return false; }
     const r = DATA.recipes[o.cook.rid];
     this.s.counter[o.cook.rid] = (this.s.counter[o.cook.rid] || 0) + r.yield;
-    this.float(o.x + 0.5, o.y, `+${r.yield} ${r.name}`, '#ffe9a8');
+    this.float(o.x + 0.5, o.y, `+${r.yield} ${r.name}`, '#ffe9a8'); this.sfx('clink');
     o.cook = null;
     return true;
   },
@@ -693,11 +695,11 @@ const Game = {
     if (kind === 'coal') {
       if (this.hasEvent('coalStrike')) { this.toast('석탄 배달부 파업 중!', 'bad'); return; }
       const p = this.coalPrice();
-      if (this.spend(p)) { this.s.coal += DATA.coal.pack; }
+      if (this.spend(p)) { this.s.coal += DATA.coal.pack; this.sfx('coal'); }
       return;
     }
     const ing = DATA.ingredients[kind];
-    if (this.spend(ing.price)) this.s.stock[kind] += ing.pack;
+    if (this.spend(ing.price)) { this.s.stock[kind] += ing.pack; this.sfx('buy'); }
   },
 
   // ───────── 영업 ─────────
@@ -723,7 +725,7 @@ const Game = {
     if (!this.canOpen()) { this.toast('영업 준비가 덜 됐어요 (운영 탭 체크리스트 확인)', 'bad'); return; }
     this.s.open = true; this.s.tutorialDone = true;
     this.rt.lastHour = Math.floor(this.s.min / 60);
-    this.toast(`☕ ${this.s.day}일차 영업 시작! 날씨: ${this.weather().name}`);
+    this.toast(`☕ ${this.s.day}일차 영업 시작! 날씨: ${this.weather().name}`); this.sfx('open');
     this.emit('opened');
   },
   closeCafe() {
@@ -743,7 +745,7 @@ const Game = {
     this.resetToday();
     this.recompute();
     this.save();
-    this.emit('dayEnd', summary);
+    this.sfx('close'); this.emit('dayEnd', summary);
   },
 
   reachableSeats() {
@@ -808,7 +810,7 @@ const Game = {
     if (seats.length) {
       const st = seats[Math.floor(Math.random() * seats.length)];
       const p = this.findPath(c.x, c.y, st.x, st.y);
-      if (p) { c.seat = st; c.path = p; c.state = 'toSeat'; }
+      if (p) { c.seat = st; c.path = p; c.state = 'toSeat'; this.sfx('bell'); }
     }
     if (c.state === 'pass') c.path = this.findPath(c.x, c.y, this.sideX(1 - side, true), c.y) || [];
     this.rt.customers.push(c);
@@ -859,6 +861,7 @@ const Game = {
     const line = sat >= 55 || Math.random() < 0.6 ? DATA.happyLines[Math.floor(Math.random() * DATA.happyLines.length)] : '';
     this.float(c.x + 0.5, c.y - 0.6, `+${base + tipAmt}${tipAmt ? ' (팁)' : ''} ${line}`, '#ffd76a');
     this.rt.reacts.push({ x: c.x, y: c.y, kind: sat >= 55 ? 'heart' : 'heartHalf', life: 1.6 });
+    this.sfx(tipAmt ? 'coinTip' : 'coin');
   },
   addXp(n) {
     const s = this.s; s.xp += n;
@@ -872,7 +875,7 @@ const Game = {
         ...Object.values(DATA.ceilings).filter(d => d.lv === s.level).map(d => d.name),
       ];
       this.toast(`⬆ 레벨 ${s.level}! 해금: ${unlocks.join(', ') || '없음'}`, 'good');
-      this.emit('levelUp');
+      this.emit('levelUp'); this.sfx('levelup');
     }
   },
 
@@ -917,7 +920,7 @@ const Game = {
     if (!ev) return;
     if (!ev.instant) this.s.events.push({ id, until: ev.dur ? this.s.min + ev.dur : Infinity });
     ev.start(this);
-    this.emit('event', id);
+    this.emit('event', id); this.sfx('whistle');
   },
   rollEvent() {
     const cands = Object.entries(this.EVENTS).filter(([, e]) => e.can(this));
@@ -929,7 +932,7 @@ const Game = {
 
   ventValve() {
     const b = this.s.boiler;
-    b.pressure = Math.max(0, b.pressure - 22);
+    b.pressure = Math.max(0, b.pressure - 22); this.sfx('vent');
     const boiler = this.s.objects.find(o => o.id === 'boiler');
     if (boiler) this.puff(boiler.x * 16 + 24, boiler.y * 16 - 2, 'rgba(255,255,255,0.9)', 14, 8);
     if (b.pressure < 60) this.s.events = this.s.events.filter(e => e.id !== 'pressure');
@@ -938,13 +941,13 @@ const Game = {
     if (!this.s.boiler.broken) return;
     if (!this.spend(800)) return;
     this.s.boiler.broken = false; this.s.boiler.pressure = 40;
-    this.toast('🔧 보일러 수리 완료 (-800)', 'good');
+    this.toast('🔧 보일러 수리 완료 (-800)', 'good'); this.sfx('repair');
   },
   repairLeak(type, i) {
     if (!this.spend(40)) return;
     this.s.leaks = this.s.leaks.filter(l => !(l.type === type && l.i === i));
     this.recompute();
-    this.toast('🔧 누수 수리 완료');
+    this.toast('🔧 누수 수리 완료'); this.sfx('repair');
   },
 
   // ───────── 메인 틱 ─────────
@@ -1005,7 +1008,7 @@ const Game = {
       if (this.hasEvent('pressure')) b.pressure += 0.9 * gm;
       else b.pressure += (52 - b.pressure) * Math.min(1, 0.05 * gm);
       if (b.pressure >= 100) {
-        b.broken = true; b.pressure = 0;
+        b.broken = true; b.pressure = 0; this.sfx('boom');
         s.events = s.events.filter(e => e.id !== 'pressure');
         this.changeRep(-4);
         if (boiler) for (let i = 0; i < 30; i++) this.puff(boiler.x * 16 + 16, boiler.y * 16 + 10, i % 3 ? 'rgba(255,255,255,0.9)' : '#ff8a2a', 1, 24);
@@ -1020,7 +1023,7 @@ const Game = {
       if (this.working(o)) {
         o.cook.t += gm;
         if (Math.random() < dt * 2) this.puff(o.x * 16 + 8 + (Math.random() - 0.5) * 6, o.y * 16 - 4, 'rgba(240,240,240,0.7)');
-        if (o.cook.t >= o.cook.total) { o.cook.done = true; if (hasAuto) this.collect(o); }
+        if (o.cook.t >= o.cook.total) { o.cook.done = true; this.sfx('ding'); if (hasAuto) this.collect(o); }
       }
     }
 
@@ -1126,7 +1129,7 @@ const Game = {
   },
   serve(c) {
     if (c.state !== 'waiting') return;
-    c.state = 'eating'; c.timer = 30 + Math.random() * 20;
+    c.state = 'eating'; c.timer = 30 + Math.random() * 20; this.sfx('serve');
   },
   updateStaff(gm) {
     const st = this.rt.staff; if (!st) return;
