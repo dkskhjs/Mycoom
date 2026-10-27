@@ -753,15 +753,15 @@ const UI = {
   },
 
   modal(content) {
-    const m = $('#modal'); m.replaceChildren(h('div', { class: 'mbox' }, content)); m.hidden = false;
+    const m = $('#modal'); m.replaceChildren(h('div', { class: 'mbox' }, content)); m.hidden = false; this._view = null;
   },
-  closeModal() { $('#modal').hidden = true; },
+  closeModal() { $('#modal').hidden = true; this._view = null; },
   // 단순 확인창
-  confirm(title, text, okLabel, onOk) {
+  confirm(title, text, okLabel, onOk, onCancel) {
     this.modal(h('div', { class: 'buybox' }, h('h2', {}, title), h('p', {}, text),
       h('div', { class: 'buybtns' },
-        h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '취소'),
-        h('button', { class: 'btn big', onclick: () => { this.closeModal(); onOk(); this.refreshLive(); } }, okLabel))));
+        h('button', { class: 'btn ghost', onclick: () => { this.closeModal(); if (onCancel) onCancel(); } }, '취소'),
+        h('button', { class: 'btn big', onclick: () => { this.closeModal(); onOk(); if (Game.s && App.started) this.refreshLive(); } }, okLabel))));
   },
   // 재료·석탄 구매 확인창: 개수(묶음) 조절
   showBuy(kind) {
@@ -803,18 +803,114 @@ const UI = {
     sync();
   },
 
+  // ───────── 타이틀 · 계정 ─────────
+  // 클라우드 상태가 바뀌면(로그인·로그아웃·세이브 읽음) 타이틀을 다시 그리거나, 게임 중이면 어느 진행을 쓸지 묻는다
+  cloud() { return typeof Cloud !== 'undefined' && Cloud.ok ? Cloud : null; },
+  hookCloud() {
+    const C = this.cloud(); if (!C || this._cloudHooked) return;
+    this._cloudHooked = true;
+    C.on(() => {
+      if (this._view === 'title') this.showTitle();
+      else if (this._view === 'login') return;
+      else if (App.started && !App.onTitle && C.user() && C.state === 'done' && !C.ready) this.resolveCloud();
+      if (this._view === 'menu') this.showSystemMenu();
+    });
+  },
+  saveLine(sm) {
+    if (!sm) return '';
+    const t = sm.savedAt ? new Date(sm.savedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    return `${sm.day}일차 · 🪙${fmt(sm.money)} · Lv.${sm.level}${sm.plot ? ' · ' + sm.plot : ''}${t ? ' · ' + t + ' 저장' : ''}`;
+  },
+  contBtn(label, sm, onclick, disabled) {
+    return h('button', { class: 'btn big cont', disabled: !!disabled, onclick }, h('span', {}, label), sm ? h('small', {}, this.saveLine(sm)) : null);
+  },
+  startLocal() { App.autoFullscreen(); if (Game.load()) { this.closeModal(); App.start(); } },
   showTitle() {
-    App.onTitle = true;
+    App.onTitle = true; this.hookCloud();
+    // 클라우드 진행을 내려받고 새로고침한 직후면 바로 이어서 시작
+    try { if (sessionStorage.getItem('steamcafe_autostart')) { sessionStorage.removeItem('steamcafe_autostart'); this._trustLocal = true; if (Game.load()) { this.closeModal(); App.start(); return; } } } catch (e) {}
+    const C = this.cloud(), user = C && C.user(), local = Game.hasSave() ? Game.peekSave() : null;
+    const loading = !!user && C.state === 'loading', cloud = user && C.state === 'done' ? C.save : null;
     const box = h('div', { class: 'title' },
-      h('h1', {}, '⚙ 스팀 & 빈즈 ⚙'), h('p', { class: 'dim' }, '증기 도시 한복판, 빈 땅 한 필지에서 시작하는 카페 타이쿤'),
-      Game.hasSave() ? h('button', { class: 'btn big', onclick: () => { App.autoFullscreen(); if (Game.load()) { this.closeModal(); App.start(); } } }, '이어하기') : null,
-      h('button', { class: 'btn big', onclick: () => { App.autoFullscreen(); this.showPlots(); } }, '새 게임'),
-      App.isMobile() && !App.isStandalone() && App.isIOS() ? h('p', { class: 'dim fs-hint' }, '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요') : null,
-      App.isMobile() && !App.isStandalone() && !App.isIOS() ? h('p', { class: 'dim fs-hint' }, '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행') : null);
-    this.modal(box);
+      h('h1', {}, '⚙ 스팀 & 빈즈 ⚙'), h('p', { class: 'dim' }, '증기 도시 한복판, 빈 땅 한 필지에서 시작하는 카페 타이쿤'));
+    // 계정 줄
+    if (C) {
+      if (!user) box.append(h('div', { class: 'acct' + (local ? '' : ' hi') },
+        h('p', {}, local ? '☁️ 로그인하면 진행이 클라우드에 저장돼요' : '☁️ 다른 기기에서 하던 게임이 있나요? 같은 계정으로 로그인하면 이어할 수 있어요'),
+        h('button', { class: 'btn' + (local ? ' ghost' : ''), onclick: () => this.showLogin() }, '🔒 로그인 / 회원가입')));
+      else box.append(h('div', { class: 'acct' },
+        h('p', {}, `☁️ ${user.email}`, loading ? h('span', { class: 'dim' }, ' · 클라우드 세이브 확인 중…') : C.state === 'error' ? h('span', { class: 'bad' }, ' · 클라우드를 읽지 못했어요') : null),
+        h('button', { class: 'btn ghost', onclick: () => C.logout() }, '로그아웃')));
+    }
+    // 이어하기
+    if (cloud && local && C.sameAsLocal()) {
+      box.append(this.contBtn('이어하기', local, () => { C.syncedAt = C.save.savedAt; C.ready = true; this.startLocal(); }));
+    } else {
+      const newer = cloud && local ? (cloud.savedAt >= local.savedAt ? 'cloud' : 'local') : null;
+      if (cloud) box.append(this.contBtn(`☁️ 클라우드에서 이어하기${newer === 'cloud' ? ' (더 최근)' : ''}`, cloud.summary, () => { App.autoFullscreen(); if (C.useCloud() && Game.load()) { this.closeModal(); App.start(); this.toast('☁️ 클라우드 진행을 불러왔어요', 'good'); } }));
+      if (local) box.append(this.contBtn(cloud ? `💻 이 기기 진행으로 이어하기${newer === 'local' ? ' (더 최근)' : ''}` : '이어하기', local, () => {
+        if (cloud) return this.confirm('💻 이 기기 진행으로 이어하기', `이 기기 진행(${local.day}일차)으로 이어하면 클라우드에 있던 진행(${cloud.summary.day}일차)은 이 기기 진행으로 바뀌어요.`, '이 기기 진행으로 이어하기', () => { this.startLocal(); C.useLocal(); }, () => this.showTitle());
+        this.startLocal(); if (user && !loading) C.useLocal();
+      }, loading));
+    }
+    // 새 게임
+    box.append(h('button', { class: 'btn big' + (cloud || local ? ' ghost' : ''), disabled: loading, onclick: () => {
+      const go = () => { if (user) { C.syncedAt = cloud ? cloud.savedAt : null; C.ready = true; } App.autoFullscreen(); this.showPlots(); };
+      if (cloud) return this.confirm('새 게임', `새 게임을 시작하면 클라우드에 있던 진행(${cloud.summary.day}일차)이 새 게임으로 덮어써져요.`, '덮어쓰고 새 게임', go, () => this.showTitle());
+      if (local) return this.confirm('새 게임', `이 기기의 진행(${local.day}일차)이 지워져요.`, '지우고 새 게임', go, () => this.showTitle());
+      go();
+    } }, user || !C ? '새 게임' : '새 게임 (로그인 없이)'));
+    if (App.isMobile() && !App.isStandalone()) box.append(h('p', { class: 'dim fs-hint' }, App.isIOS() ? '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요' : '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행'));
+    this.modal(box); this._view = 'title';
+  },
+  // 로그인 · 회원가입 창 (게임 화면 스타일)
+  showLogin() {
+    const C = this.cloud(); if (!C) return;
+    const back = () => { if (App.onTitle) this.showTitle(); else this.closeModal(); };
+    const email = h('input', { type: 'email', class: 'tin', placeholder: '이메일', autocomplete: 'email' });
+    const pass = h('input', { type: 'password', class: 'tin', placeholder: '비밀번호 (6자 이상)', autocomplete: 'current-password' });
+    const msg = h('p', { class: 'lmsg' });
+    let box;
+    const run = async (fn, okText) => {
+      msg.className = 'lmsg'; msg.textContent = '확인 중…';
+      box.querySelectorAll('button, input').forEach(b => b.disabled = true);
+      const r = await fn(email.value.trim(), pass.value);
+      box.querySelectorAll('button, input').forEach(b => b.disabled = false);
+      if (!r.ok) { msg.className = 'lmsg bad'; msg.textContent = r.msg; return; }
+      if (okText) { msg.className = 'lmsg good'; msg.textContent = okText; return; }
+      this.toast('로그인했어요 — 클라우드 세이브를 확인하는 중…', 'good');
+      this._view = null; back();
+    };
+    pass.addEventListener('keydown', e => { if (e.key === 'Enter') run((a, b) => C.login(a, b)); });
+    box = h('div', { class: 'login' },
+      h('div', { class: 'mhead' }, h('h2', {}, '🔒 계정'), h('button', { class: 'btn mclose', onclick: back }, '✕ 닫기')),
+      h('p', { class: 'dim' }, '로그인하면 진행이 클라우드에 저장되고, 다른 기기·브라우저에서 같은 계정으로 로그인해 이어할 수 있어요.'),
+      email, pass, msg,
+      h('div', { class: 'buybtns' },
+        h('button', { class: 'btn big', onclick: () => run((a, b) => C.login(a, b)) }, '로그인'),
+        h('button', { class: 'btn ghost', onclick: () => run((a, b) => C.register(a, b)) }, '회원가입')),
+      h('button', { class: 'linkbtn', onclick: () => { if (!email.value.trim()) { msg.className = 'lmsg bad'; msg.textContent = '비밀번호를 재설정할 이메일을 먼저 적어 주세요'; return; } run(a => C.resetPassword(a), '비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.'); } }, '비밀번호를 잊었어요'));
+    this.modal(box); this._view = 'login';
+    setTimeout(() => email.focus(), 50);
+  },
+  // 게임 중 로그인했을 때: 클라우드와 이 기기 진행 중 무엇을 쓸지
+  resolveCloud() {
+    const C = this.cloud(); if (!C || !C.user() || C.state !== 'done' || C.ready) return;
+    if (!C.save) { C.useLocal(); this.toast('☁️ 클라우드 저장을 시작했어요 — 이제 다른 기기에서도 이어할 수 있어요', 'good'); return; }
+    if (!C.conflict && (this._trustLocal || C.sameAsLocal())) { this._trustLocal = false; C.useLocal(); this.toast('☁️ 클라우드와 연결됐어요', 'good'); return; }
+    const cur = { day: Game.s.day, money: Math.floor(Game.s.money), level: Game.s.level, plot: Game.plot ? Game.plot.name : '', savedAt: Game.s.savedAt };
+    this.modal(h('div', { class: 'cloudpick' },
+      h('h2', {}, '☁️ 어느 진행을 쓸까요?'),
+      h('p', { class: 'dim' }, C.conflict ? `다른 기기에서 ${C.user().email} 계정으로 더 최근에 저장했어요. 덮어쓰지 않도록 클라우드 저장을 잠깐 멈췄어요.` : `${C.user().email} 계정의 클라우드에 다른 진행이 있어요.`),
+      this.contBtn('☁️ 클라우드 진행 불러오기', C.save.summary, () => {
+        if (C.useCloud()) { try { sessionStorage.setItem('steamcafe_autostart', '1'); } catch (e) {} location.reload(); }
+      }),
+      this.contBtn('💻 지금 이 기기 진행 유지', cur, () => this.confirm('💻 이 기기 진행 유지', `클라우드에 있던 진행(${C.save.summary.day}일차)이 지금 진행(${cur.day}일차)으로 바뀌어요.`, '이 기기 진행으로 덮어쓰기', () => { C.useLocal(); this.toast('☁️ 이 기기 진행을 클라우드에 저장했어요', 'good'); })),
+      h('button', { class: 'btn ghost', onclick: () => { this.closeModal(); this.toast('클라우드 저장은 꺼둔 상태예요 — 메뉴(☰) › 계정에서 다시 고를 수 있어요'); } }, '나중에 정하기')));
+    this._view = 'cloudpick';
   },
   showPlots() {
-    App.onTitle = true;
+    App.onTitle = true; this._view = 'plots';
     const box = h('div', {}, h('h2', {}, '어느 땅을 살까요?'), h('p', { class: 'dim' }, `시작 자금 🪙${fmt(DATA.startMoney)}`));
     for (const p of DATA.plots) {
       box.append(h('button', { class: 'plot', onclick: () => this.showHeroes(p.id) },
@@ -858,13 +954,16 @@ const UI = {
   },
   // 계정(클라우드 저장) — 상단바 대신 메뉴에서만 보여 준다
   accountSection() {
-    if (typeof FB_OK === 'undefined' || !FB_OK) return null;
-    const user = typeof currentUser !== 'undefined' ? currentUser : null;
-    return h('div', { class: 'account' },
-      h('h3', {}, '☁️ 계정'),
-      user ? h('p', { class: 'dim' }, `${user.email} · 진행이 클라우드에 저장돼요`) : h('p', { class: 'dim' }, '로그인하면 진행이 클라우드에 저장되고 다른 기기에서 이어할 수 있어요'),
-      user ? h('button', { class: 'btn big', onclick: () => { this.closeModal(); logoutAccount(); } }, '로그아웃')
-        : h('button', { class: 'btn big', onclick: () => { this.closeModal(); openAuthModal(); } }, '🔒 로그인 / 회원가입'));
+    const C = this.cloud(); if (!C) return null;
+    const user = C.user();
+    if (!user) return h('div', { class: 'account' }, h('h3', {}, '☁️ 계정'),
+      h('p', { class: 'dim' }, '로그인하면 진행이 클라우드에 저장되고 다른 기기에서 이어할 수 있어요'),
+      h('button', { class: 'btn big', onclick: () => this.showLogin() }, '🔒 로그인 / 회원가입'));
+    const status = C.state === 'loading' ? '클라우드 확인 중…' : C.ready ? '진행이 클라우드에 저장되고 있어요' : '클라우드 저장 꺼짐 (어느 진행을 쓸지 아직 안 골랐어요)';
+    return h('div', { class: 'account' }, h('h3', {}, '☁️ 계정'),
+      h('p', { class: 'dim' }, `${user.email} · ${status}`),
+      !C.ready && C.state === 'done' ? h('button', { class: 'btn big', onclick: () => this.resolveCloud() }, '☁️ 클라우드와 연결하기') : null,
+      h('button', { class: 'btn big', onclick: async () => { await C.logout(); this.closeModal(); this.toast('로그아웃했어요 — 이제 이 기기에만 저장돼요'); } }, '로그아웃'));
   },
   // 볼륨 슬라이더 한 줄
   volRow(label, value, onInput) {
@@ -883,6 +982,7 @@ const UI = {
       h('button', { class: 'btn big', onclick: () => { Game.save(); this.toast('저장했습니다'); this.closeModal(); } }, '저장'),
       h('button', { class: 'btn big', onclick: () => this.modal(h('div', {},
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),
+        this.cloud() && this.cloud().ready ? h('p', { class: 'bad' }, '로그인 중이라 클라우드 저장도 새 게임으로 바뀌어요.') : null,
         h('button', { class: 'btn big danger', onclick: () => { Game.wipe(); this.showPlots(); } }, '지우고 새로 시작'),
         h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'))) }, '처음부터'),
       this.accountSection(),
@@ -897,5 +997,6 @@ const UI = {
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
       h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
+    this._view = 'menu';
   },
 };

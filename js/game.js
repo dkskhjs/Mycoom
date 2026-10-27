@@ -108,29 +108,15 @@ const Game = {
     } catch (e) { return false; }
   },
 
-  // 클라우드 세이브 적용: 로컬보다 새것이면 로컬에 덮어쓰고, 진행 중이면 다시 그리고, 타이틀이면 "이어하기"가 보이게
-  applyCloudSave(cloud) {
-    if (!cloud) return false;
-    try {
-      const data = typeof cloud === 'string' ? JSON.parse(cloud) : cloud;
-      if (!data || !data.W || !data.floor) return false;
-      const local = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; } })();
-      if (local && (local.savedAt || 0) > (data.savedAt || 0)) return false;   // 로컬이 더 새것
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) {}
-      if (typeof App !== 'undefined' && App.started) {
-        this.load();
-        Render.resize(document.getElementById('canvasWrap'));
-        UI.refresh();
-        this.toast('☁️ 클라우드 세이브를 불러왔습니다', 'good');
-      } else if (typeof UI !== 'undefined' && App.onTitle) UI.showTitle();
-      return true;
-    } catch (e) {
-      console.error('클라우드 세이브 적용 중 오류:', e);
-      return false;
-    }
-  },
-
   wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} },
+  // 로컬 세이브 요약 (타이틀 화면용)
+  peekSave() {
+    try {
+      const d = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!d) return null;
+      const plot = DATA.plots.find(p => p.id === d.plotId);
+      return { day: d.day, money: Math.floor(d.money), level: d.level, plot: plot ? plot.name : '', savedAt: d.savedAt || 0 };
+    } catch (e) { return null; }
+  },
 
   // ───────── 격자 ─────────
   get plot() { return DATA.plots.find(p => p.id === this.s.plotId); },

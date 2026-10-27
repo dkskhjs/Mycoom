@@ -75,19 +75,7 @@
   <div id="modal" hidden></div>
 </div>
 
-<!-- 계정 인증 전용 모달 (독립형 id: authModal 사용) -->
-<div id="authModal" hidden style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: #222; color: #fff; padding: 20px; border-radius: 12px; width: 260px; text-align: center; border: 1px solid #555; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
-  <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">계정 로그인</h3>
-  <div style="margin-bottom: 12px;">
-    <input type="email" id="authEmail" placeholder="이메일" style="width: 100%; padding: 8px; margin-bottom: 6px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #111; color: #fff;">
-    <input type="password" id="authPassword" placeholder="비밀번호" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #444; background: #111; color: #fff;">
-  </div>
-  <div style="display: flex; justify-content: space-between; gap: 6px;">
-    <button id="btnLoginSubmit" class="btn" style="flex: 1;" onclick="handleLogin()">로그인</button>
-    <button id="btnRegisterSubmit" class="btn ghost" style="flex: 1;" onclick="handleRegister()">회원가입</button>
-    <button id="btnCloseModal" class="btn ghost" style="flex: 1;" onclick="closeAuthModal()">닫기</button>
-  </div>
-</div>
+
 
 <!-- 기존 게임 엔진 스크립트 먼저 실행 -->
 <script src="assets/manifest.js"></script>

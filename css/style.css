@@ -277,3 +277,16 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 .expand .subhead { margin: 10px 0 2px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--brass-hi); font-size: 12px; }
 .srow.robot b { display: inline-flex; align-items: center; gap: 4px; }
 #openBtn.open { border-color: var(--brass); background: linear-gradient(#5a3a20, #3a2414); }
+/* 타이틀: 계정 줄 · 이어하기 버튼 · 로그인 창 */
+.title .acct { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 10px 0; padding: 8px 10px; background: var(--bg2); border: 2px solid var(--line); text-align: left; }
+.title .acct p { margin: 0; flex: 1 1 200px; font-size: 12px; }
+.title .acct.hi { border-color: var(--brass); }
+.title .acct .bad, .cloudpick .bad { color: #ff8a7a; }
+.btn.cont { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.btn.cont small { font-size: 11px; opacity: .8; }
+.login .tin { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px; font: inherit; font-size: 14px; background: #120c0a; color: var(--ink); border: 2px solid var(--line); }
+.login .tin:focus { outline: none; border-color: var(--brass); }
+.lmsg { min-height: 1.4em; margin: 6px 0; font-size: 12px; }
+.lmsg.bad { color: #ff8a7a; } .lmsg.good { color: #9fe08a; }
+.linkbtn { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--dim); text-decoration: underline; font: inherit; font-size: 12px; cursor: pointer; }
+.cloudpick .btn.cont { margin-top: 8px; width: 100%; }
