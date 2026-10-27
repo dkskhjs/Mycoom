@@ -86,12 +86,15 @@ async function loadFromCloud() {
       console.log("☁️ 클라우드 데이터 로드 성공:", saveData);
       
       // 기존 게임 데이터 적용 함수가 있다면 여기에 연결합니다
-      if (typeof applySaveData === "function") {
-        applySaveData(saveData);
+     if (typeof Game !== "undefined" && typeof Game.applyCloudSave === "function") {
+        Game.applyCloudSave(saveData);
+      } else if (typeof applyCloudSave === "function") {
+        applyCloudSave(saveData);
       }
+      
       return saveData;
     } else {
-      console.log("새로운 계정입니다. 저장된 데이터가 없습니다.");
+      console.log("새로운 계정입니다. 저장된 클라우드 데이터가 없습니다.");
     }
   } catch (err) {
     console.error("클라우드 데이터 불러오기 실패:", err);
