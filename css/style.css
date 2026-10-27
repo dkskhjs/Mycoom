@@ -208,3 +208,6 @@ body.panel-hidden #stage { flex: 1; height: auto; }
 #camctl { flex-wrap: wrap; justify-content: flex-end; }
 #okTool { background: #3f7a3a; border-color: #8fdc7a; color: #fff; font-weight: bold; }
 #okTool.bad { background: #5a3530; border-color: #b0584a; opacity: .8; }
+/* 전체화면·홈 화면 앱: 노치/홈 표시줄 영역 피하기 */
+#app { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; }
+.fs-hint { font-size: 11px; margin-top: 10px; line-height: 1.5; }

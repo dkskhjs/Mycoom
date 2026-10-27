@@ -690,8 +690,10 @@ const UI = {
     App.onTitle = true;
     const box = h('div', { class: 'title' },
       h('h1', {}, '⚙ 스팀 & 빈즈 ⚙'), h('p', { class: 'dim' }, '증기 도시 한복판, 빈 땅 한 필지에서 시작하는 카페 타이쿤'),
-      Game.hasSave() ? h('button', { class: 'btn big', onclick: () => { if (Game.load()) { this.closeModal(); App.start(); } } }, '이어하기') : null,
-      h('button', { class: 'btn big', onclick: () => this.showPlots() }, '새 게임'));
+      Game.hasSave() ? h('button', { class: 'btn big', onclick: () => { App.autoFullscreen(); if (Game.load()) { this.closeModal(); App.start(); } } }, '이어하기') : null,
+      h('button', { class: 'btn big', onclick: () => { App.autoFullscreen(); this.showPlots(); } }, '새 게임'),
+      App.isMobile() && !App.isStandalone() && App.isIOS() ? h('p', { class: 'dim fs-hint' }, '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요') : null,
+      App.isMobile() && !App.isStandalone() && !App.isIOS() ? h('p', { class: 'dim fs-hint' }, '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행') : null);
     this.modal(box);
   },
   showPlots() {
@@ -750,6 +752,8 @@ const UI = {
         h('button', { class: 'btn diff' + (Game.s && Game.s.difficulty === k ? ' on' : ''), onclick: () => { Game.setDifficulty(k); this.showSystemMenu(); } },
           h('b', {}, d.name), h('span', { class: 'dim' }, d.desc)))),
       h('button', { class: 'btn big', onclick: () => { Game.setAuto(!Game.s.auto); this.showSystemMenu(); } }, Game.s && Game.s.auto ? '🤖 자동 운영 끄기' : '🤖 자동 운영 켜기'),
+      App.canFullscreen() && !App.isStandalone() ? h('button', { class: 'btn big', onclick: () => { App.toggleFullscreen(); this.closeModal(); } }, App.isFullscreen() ? '⛶ 전체화면 끄기' : '⛶ 전체화면') : null,
+      App.isIOS() && !App.isStandalone() ? h('p', { class: 'dim fs-hint' }, '아이폰 전체화면: 사파리 공유 → [홈 화면에 추가]') : null,
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
       h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));

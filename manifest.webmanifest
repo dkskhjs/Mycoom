@@ -1,0 +1,16 @@
+{
+  "name": "스팀 & 빈즈",
+  "short_name": "스팀&빈즈",
+  "description": "증기 도시의 카페 타이쿤",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "background_color": "#2b1c12",
+  "theme_color": "#2b1c12",
+  "lang": "ko",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

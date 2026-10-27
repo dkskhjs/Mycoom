@@ -18,6 +18,7 @@ const App = {
     document.addEventListener('keydown', e => { if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input')) this.syncMusic(BGM.toggle()); });
     this.syncMusic(!BGM.muted);
     window.addEventListener('resize', () => this.started && Render.resize($('#canvasWrap')));
+    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => setTimeout(() => this.started && Render.resize($('#canvasWrap')), 60));
     setInterval(() => { if (this.started && !Game.s.open) Game.save(); }, 20000);
     this.loadBackdrops();
     UI.showTitle();
@@ -61,6 +62,23 @@ const App = {
     UI.setMode('utility');
     UI.syncSpeed();
   },
+
+  // ───────── 전체화면 ─────────
+  // 안드로이드 크롬 등은 Fullscreen API, 아이폰 사파리는 미지원 → 홈 화면에 추가(PWA)하면 전체화면으로 열림
+  isMobile() { return matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); },
+  isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); },
+  isStandalone() { return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true; },
+  canFullscreen() { const d = document.documentElement; return !!(d.requestFullscreen || d.webkitRequestFullscreen) && (document.fullscreenEnabled ?? document.webkitFullscreenEnabled ?? true); },
+  isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+  enterFullscreen() {
+    if (this.isFullscreen() || this.isStandalone() || !this.canFullscreen()) return;
+    const d = document.documentElement, req = d.requestFullscreen || d.webkitRequestFullscreen;
+    try { const r = req.call(d, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+  },
+  exitFullscreen() { const f = document.exitFullscreen || document.webkitExitFullscreen; if (f && this.isFullscreen()) { const r = f.call(document); if (r && r.catch) r.catch(() => {}); } },
+  toggleFullscreen() { this.isFullscreen() ? this.exitFullscreen() : this.enterFullscreen(); },
+  // 모바일에서 게임 시작 버튼을 누를 때 자동으로 (사용자 터치가 있어야 허용됨)
+  autoFullscreen() { if (this.isMobile()) this.enterFullscreen(); },
 
   syncMusic(on) { const b = $('#musicBtn'); b.textContent = on ? '♪' : '♪̸'; b.classList.toggle('off', !on); },
 };
