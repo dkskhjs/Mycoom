@@ -124,8 +124,22 @@ const DATA = {
     gears:      { name: '톱니바퀴 오브제', cat: 'decor', w: 2, h: 1, cost: 900,  appeal: 8, lv: 3, naple: 'i_gears' },
     brazier:    { name: '푸른 증기 화로',  cat: 'decor', w: 1, h: 1, cost: 1200, appeal: 9, lv: 4, naple: 'i_brazier', light: 2.5 },
 
+    // 바닥에 두는 조명 (light: 비추는 반경, 칸)
+    floorlamp:  { name: '스탠드 가스등',   cat: 'decor', w: 1, h: 1, cost: 220,  appeal: 3, lv: 1, light: 2.6 },
+    tablelamp:  { name: '황동 테이블 램프', cat: 'decor', w: 1, h: 1, cost: 140,  appeal: 2, lv: 1, light: 1.8 },
+    // 새 오브제
+    tubeman:    { name: '증기 춤추는 풍선인형', cat: 'decor', w: 1, h: 1, cost: 900, appeal: 8, lv: 2, needs: ['hot'],
+                  desc: '증기를 불어넣으면 흐느적흐느적 춤을 춘다. 급탕(증기)관 연결 필요.' },
+    monstera:   { name: '몬스테라 화분',   cat: 'decor', w: 1, h: 1, cost: 180,  appeal: 3, lv: 1 },
+    snakeplant: { name: '산세베리아',      cat: 'decor', w: 1, h: 1, cost: 130,  appeal: 2, lv: 1 },
+    ficus:      { name: '고무나무',        cat: 'decor', w: 1, h: 1, cost: 320,  appeal: 4, lv: 2 },
+    celadon:    { name: '청자 매병',       cat: 'decor', w: 1, h: 1, cost: 650,  appeal: 6, lv: 3 },
+    moonjar:    { name: '백자 달항아리',   cat: 'decor', w: 1, h: 1, cost: 800,  appeal: 7, lv: 4 },
+    onggi:      { name: '옹기 항아리',     cat: 'decor', w: 1, h: 1, cost: 160,  appeal: 2, lv: 1 },
+
     gaslamp:    { name: '가스 램프',      cat: 'ceilitem', layer: 'ceil', w: 1, h: 1, cost: 120, appeal: 2, lv: 1, light: 2.2 },
     chandelier: { name: '황동 샹들리에',   cat: 'ceilitem', layer: 'ceil', w: 1, h: 1, cost: 700, appeal: 6, lv: 3, light: 3.5 },
+    arclamp:    { name: '증기 아크등 줄',   cat: 'ceilitem', layer: 'ceil', w: 1, h: 1, cost: 380, appeal: 4, lv: 2, light: 3.0 },
     fan:        { name: '증기 실링팬',     cat: 'ceilitem', layer: 'ceil', w: 1, h: 1, cost: 400, appeal: 3, lv: 2 },
     pipedeco:   { name: '노출 배관 장식',   cat: 'ceilitem', layer: 'ceil', w: 1, h: 1, cost: 90,  appeal: 1, lv: 1 },
   },
@@ -195,7 +209,9 @@ const DATA = {
     cooking: { espresso: [80, 220], kettle: [100, 260], oven: [320, 40] }, // 조리 중 [현열, 잠열]
     steamLeak: { sens: 150, lat: 450 },
   },
-  plantObjects: ['plant', 'bush', 'flowerbed', 'flower_p', 'flower_r', 'flower_y'],
+  plantObjects: ['plant', 'bush', 'flowerbed', 'flower_p', 'flower_r', 'flower_y', 'monstera', 'snakeplant', 'ficus'],
+  // 밤에 조명이 안 닿는 자리에 앉은 손님 만족도 감점
+  darkSeatPenalty: 8,
 
   // 고양이: 몸무게에 비례한 실제 수준의 발열 (4kg ≈ 20W)
   cats: [

@@ -587,6 +587,64 @@ const OBJ_ART = {
     for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4; P.r(Math.round(16 + Math.cos(ang) * 7) - 1, Math.round(7 + Math.sin(ang) * 7) - 1, 2, 2, PAL.b1); }
     P.disc(16, 7, 6, PAL.b2); P.disc(16, 7, 2, PAL.b0); P.r(13, 3, 3, 1, PAL.b4);
   }},
+  floorlamp: { tall: 14, draw(P) {
+    P.ellipse(8, 29, 4, 1, PAL.shadow);
+    P.r(5, 27, 6, 2, PAL.k); P.r(6, 27, 4, 1, PAL.b1);
+    P.r(7, 8, 2, 20, PAL.k); P.r(7, 8, 1, 19, PAL.b2);
+    P.box(4, 2, 8, 8, PAL.b1); P.r(5, 3, 6, 6, PAL.glow2); P.r(6, 4, 2, 3, PAL.glow3);
+    P.r(3, 1, 10, 2, PAL.k); P.r(4, 1, 8, 1, PAL.b2); P.p(8, 0, PAL.b3);
+  }},
+  tablelamp: { tall: 4, draw(P) {
+    P.ellipse(8, 19, 5, 1, PAL.shadow);
+    P.box(3, 13, 10, 7, PAL.w2); P.r(4, 14, 8, 1, PAL.w4);
+    P.r(7, 6, 2, 7, PAL.b1);
+    P.ellipse(8, 5, 5, 3, PAL.k); P.ellipse(8, 5, 4, 2, PAL.glow2); P.r(6, 4, 3, 1, PAL.glow3);
+  }},
+  tubeman: { tall: 4, draw(P) {
+    // 받침 송풍기 (몸통은 렌더러가 매 프레임 흔들며 그린다)
+    P.ellipse(8, 19, 6, 1, PAL.shadow);
+    P.box(2, 12, 12, 8, PAL.b1); P.r(3, 13, 10, 1, PAL.b3); P.r(3, 17, 10, 1, PAL.b0);
+    P.disc(8, 16, 2, PAL.i1); P.p(8, 16, PAL.b4); P.r(12, 8, 2, 5, PAL.c2);
+  }},
+  monstera: { tall: 12, draw(P) {
+    P.ellipse(8, 27, 5, 1, PAL.shadow);
+    P.box(4, 20, 8, 8, PAL.cr1); P.r(5, 21, 6, 1, PAL.wh);
+    const leaf = (cx, cy, r) => { P.disc(cx, cy, r, PAL.g0); P.disc(cx, cy, r - 1, PAL.g2); P.p(cx - 1, cy, PAL.g0); P.p(cx + 1, cy - 1, PAL.g0); P.p(cx, cy - r + 1, PAL.g3); };
+    P.line(8, 20, 4, 8, PAL.g1); P.line(8, 20, 12, 7, PAL.g1); P.line(8, 20, 8, 4, PAL.g1);
+    leaf(4, 9, 4); leaf(12, 8, 4); leaf(8, 4, 4); leaf(9, 14, 3);
+  }},
+  snakeplant: { tall: 10, draw(P) {
+    P.ellipse(8, 25, 4, 1, PAL.shadow);
+    P.box(4, 19, 8, 7, PAL.i2); P.r(5, 20, 6, 1, PAL.i3);
+    [[5, 6], [7, 2], [9, 4], [11, 7], [6, 10]].forEach(([x, t]) => { P.r(x, t, 2, 19 - t, PAL.g0); P.r(x, t + 1, 1, 18 - t, PAL.g2); P.p(x + 1, t + 4, PAL.g4); P.p(x, t + 9, PAL.g4); });
+  }},
+  ficus: { tall: 20, draw(P) {
+    P.ellipse(8, 35, 5, 1, PAL.shadow);
+    P.box(4, 28, 8, 8, PAL.c1); P.r(5, 29, 6, 1, PAL.c3);
+    P.r(7, 14, 2, 14, PAL.w1);
+    for (const [x, y] of [[4, 6], [11, 5], [8, 2], [5, 12], [11, 11], [8, 9]]) { P.ellipse(x, y, 3, 2, PAL.g0); P.ellipse(x, y, 2, 1, PAL.g1); P.p(x - 1, y - 1, PAL.g3); }
+  }},
+  celadon: { tall: 8, draw(P) {
+    P.ellipse(8, 23, 4, 1, PAL.shadow);
+    P.r(6, 1, 4, 2, PAL.k); P.r(7, 2, 2, 2, '#7fb39b');
+    P.ellipse(8, 9, 5, 5, PAL.k); P.ellipse(8, 9, 4, 4, '#8ec2a8');
+    P.r(5, 13, 6, 9, PAL.k); P.r(6, 13, 4, 9, '#8ec2a8'); P.r(6, 21, 4, 2, '#6a9a82');
+    P.p(6, 7, '#c8e8d6'); P.p(9, 9, '#5f8f78'); P.p(7, 11, '#5f8f78'); P.p(8, 15, '#5f8f78');
+  }},
+  moonjar: { tall: 6, draw(P) {
+    P.ellipse(8, 21, 6, 1, PAL.shadow);
+    P.r(6, 2, 4, 2, PAL.k); P.r(7, 3, 2, 1, PAL.wh);
+    P.disc(8, 12, 7, PAL.k); P.disc(8, 12, 6, '#f2eee2'); P.ellipse(6, 9, 2, 2, '#ffffff'); P.r(3, 15, 10, 1, '#d8d2c2');
+  }},
+  onggi: { tall: 4, draw(P) {
+    P.ellipse(8, 19, 6, 1, PAL.shadow);
+    P.r(5, 3, 6, 2, PAL.k); P.r(6, 4, 4, 1, '#5a3420');
+    P.ellipse(8, 11, 6, 7, PAL.k); P.ellipse(8, 11, 5, 6, '#6e3e22'); P.r(4, 8, 8, 1, '#8a5432'); P.p(6, 7, '#a0663c');
+  }},
+  arclamp: { tall: 0, draw(P) {
+    P.line(0, 4, 15, 6, PAL.i1);
+    [[3, 4], [8, 5], [13, 6]].forEach(([x, y]) => { P.r(x, y + 1, 1, 2, PAL.i1); P.disc(x, y + 5, 2, PAL.glow1); P.p(x, y + 5, PAL.glow3); });
+  }},
   // 천장 오브젝트 (tall 0)
   gaslamp: { tall: 0, draw(P) { P.ring(8, 8, 5, PAL.b1); P.disc(8, 8, 3, PAL.glow2); P.disc(8, 8, 1, PAL.glow3); P.r(8, 0, 1, 3, PAL.i2); } },
   chandelier: { tall: 0, draw(P) {

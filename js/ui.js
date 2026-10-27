@@ -68,6 +68,7 @@ const UI = {
     if (t.kind === 'pipe') return DATA.pipes[t.type].name + ' 깔기';
     if (t.kind === 'erase') return '배관 철거';
     if (t.kind === 'remove') return '오브젝트 철거';
+    if (t.kind === 'move') return `${DATA.objects[t.id].name} 옮기기 — 놓을 곳을 클릭`;
     const tbl = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[t.kind];
     return tbl[t.id].name + ' 바르기';
   },
@@ -114,7 +115,7 @@ const UI = {
 
   renderInterior() {
     const B = this.body, sub = this.state.sub;
-    const subs = [['floor', '바닥'], ['wall', '벽'], ['ceil', '천장'], ['kitchen', '주방'], ['furniture', '가구'], ['decor', '장식']];
+    const subs = [['floor', '바닥'], ['wall', '벽'], ['ceil', '천장'], ['light', '💡조명'], ['kitchen', '주방'], ['furniture', '가구'], ['decor', '장식']];
     const nav = h('div', { class: 'subtabs' }, subs.map(([k, n]) => h('button', { class: k === sub ? 'on' : '', onclick: () => { this.state.sub = k; this.setTool(null); this.refresh(); } }, n)));
     B.append(nav);
     const grid = h('div', { class: 'grid' });
@@ -126,11 +127,12 @@ const UI = {
     }
     const cat = sub === 'ceil' ? 'ceilitem' : sub;
     for (const [id, d] of Object.entries(DATA.objects)) {
-      if (d.cat !== cat) continue;
-      grid.append(this.card({ key: 'object:' + id, thumb: Sprites.thumb('obj', id, 40), name: d.name, cost: d.cost, lv: d.lv, lines: [`분위기 +${d.appeal}`, this.needsText(d)].filter(Boolean), onClick: () => this.setTool({ kind: 'object', id }) }));
+      if (sub === 'light' ? !d.light : d.cat !== cat) continue;
+      grid.append(this.card({ key: 'object:' + id, thumb: Sprites.thumb('obj', id, 40), name: d.name, cost: d.cost, lv: d.lv, lines: [`분위기 +${d.appeal}`, d.light ? `💡 조명 ${d.light}칸` : '', this.needsText(d)].filter(Boolean), onClick: () => this.setTool({ kind: 'object', id }) }));
     }
-    if (!matTable || sub === 'ceil') grid.append(this.card({ key: 'remove:', thumb: this.textThumb('⚒', '#ffb070'), name: '철거', cost: 0, lines: ['50% 환급'], onClick: () => this.setTool({ kind: 'remove' }) }));
+    if (!matTable || sub === 'ceil' || sub === 'light') grid.append(this.card({ key: 'remove:', thumb: this.textThumb('⚒', '#ffb070'), name: '철거', cost: 0, lines: ['50% 환급'], onClick: () => this.setTool({ kind: 'remove' }) }));
     B.append(grid);
+    if (matTable) B.append(h('div', { id: 'live-bulk', class: 'bulk' }));
     const tips = {
       floor: '바닥재 위에만 가구를 놓을 수 있어요. 드래그해서 칠하세요.',
       wall: '바깥 테두리 벽에 칠합니다. 스테인드글라스 창은 분위기가 높아요.',
@@ -138,6 +140,7 @@ const UI = {
       kitchen: '조리 설비는 증기 배관이 연결돼야 작동합니다. 카운터에 완성품이 진열됩니다.',
       furniture: '의자는 테이블과 상하좌우로 붙어 있어야 좌석이 됩니다.',
       decor: '장식은 분위기 점수를 올려 손님과 팁을 늘려줍니다.',
+      light: '해가 지면 조명이 닿지 않는 자리의 손님은 만족도가 떨어져요. 놓을 때 노란 원이 비추는 범위입니다. 천장 조명은 천장 보기에서, 스탠드·테이블 램프는 바닥에 놓습니다.',
     };
     B.append(h('p', { class: 'tip' }, tips[sub]));
     B.append(h('div', { id: 'live-appeal', class: 'live' }));
@@ -225,6 +228,7 @@ const UI = {
 
     // 이벤트 배너
     this.renderBanner();
+    if (typeof Tutorial !== 'undefined') Tutorial.tick();
 
     // 카드 가격
     document.querySelectorAll('.card[data-cost]').forEach(c => c.classList.toggle('poor', +c.dataset.cost > s.money));
@@ -260,7 +264,20 @@ const UI = {
       lu.replaceChildren(...rows);
     }
     const la = $('#live-appeal');
-    if (la) la.replaceChildren(h('div', {}, `분위기 점수 ${n.density.toFixed(1)}  (총 ${Math.round(n.appeal)} / ${n.interior}칸)`), h('div', { class: 'dim' }, `좌석 ${n.seats.length}개`));
+    if (la) la.replaceChildren(h('div', {}, `분위기 점수 ${n.density.toFixed(1)}  (총 ${Math.round(n.appeal)} / ${n.interior}칸)`), h('div', { class: 'dim' }, `좌석 ${n.seats.length}개 · 💡 조명 커버 ${Math.round(Game.lightCoverage() * 100)}% (좌석 ${Math.round(Game.litSeats() * 100)}%)`));
+    const lbk = $('#live-bulk'), tl = this.state.tool;
+    if (lbk) {
+      const sub = this.state.sub, sig = JSON.stringify([tl, s.money >= 0 && Math.floor(s.money / 50), s.W, s.H]);
+      if (lbk.dataset.sig !== sig) {
+        lbk.dataset.sig = sig;
+        if (tl && tl.kind === sub) {
+          const tbl = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[sub], inf = Game.paintAllInfo(sub, tl.id);
+          const where = sub === 'wall' ? '바깥 벽 전체' : sub === 'ceil' ? '천장 전체' : '바닥 전체';
+          lbk.replaceChildren(h('button', { class: 'btn big', disabled: !inf.n || s.money < inf.cost, onclick: () => Game.paintAll(sub, tl.id) },
+            inf.n ? `🖌 ${tbl[tl.id].name} → ${where} 일괄 적용 (${inf.n}칸 · 🪙${fmt(inf.cost)})` : '이미 전부 이 재질'));
+        } else lbk.replaceChildren(h('div', { class: 'dim' }, '재질 카드를 고르면 전체 일괄 적용 버튼이 나옵니다.'));
+      }
+    }
     const lo = $('#live-ops');
     if (lo) {
       const kids = [];
@@ -283,6 +300,7 @@ const UI = {
       const t = s.today;
       kids.push(h('h3', {}, '오늘'), h('div', {}, `손님 ${t.served}명 · 화난 손님 ${t.angry}명 · 매출 ${fmt(t.revenue)} · 팁 ${fmt(t.tips)}`));
       if (s.stains.length) kids.push(h('div', { class: 'bad' }, `☕ 커피 얼룩 ${s.stains.length}개 — 클릭해서 닦기 (분위기 −${s.stains.length * DATA.stain.appeal})`));
+      kids.push(h('div', { class: Game.litSeats() < 0.8 ? 'bad' : 'dim' }, `💡 밤 조명이 닿는 좌석 ${Math.round(Game.litSeats() * 100)}% (인테리어 › 💡조명)`));
       kids.push(h('div', { class: 'dim' }, `현재 손님 ${Game.rt.customers.filter(c => c.state !== 'pass').length} · 분위기 ${n.density.toFixed(1)} · 평판 ${s.rep.toFixed(0)}`));
       lo.replaceChildren(...kids);
     }
@@ -445,6 +463,10 @@ const UI = {
     else if (k === 'pipe') Game.placePipe(t.type, x, y);
     else if (k === 'erase') Game.erasePipe(x, y);
     else if (k === 'object' && !dragging) { if (Game.placeObject(t.id, x, y)) { Game.save(); if (DATA.objects[t.id].unique) this.setTool(null); } }
+    else if (k === 'move' && !dragging) {
+      const o = Game.s.objects.find(q => q.uid === t.uid);
+      if (o && Game.moveObject(o, x, y)) this.setTool(null);
+    }
     else if (k === 'remove' && !dragging) {
       const o = Game.objAt(x, y, this.state.sub === 'ceil' && this.state.mode === 'interior' ? 'ceil' : 'floor') || Game.objAt(x, y, 'ceil');
       if (o) { Game.removeObject(o); Game.save(); }
@@ -507,7 +529,12 @@ const UI = {
       }
     }
     box.append(h('div', { class: 'dim' }, `분위기 +${d.appeal}`));
-    box.append(h('button', { class: 'btn ghost', onclick: () => { Game.removeObject(o); Game.save(); this.closePopup(); } }, `철거 (+${fmt(d.cost / 2)})`));
+    if (d.light) box.append(h('div', { class: 'dim' }, `💡 조명 반경 ${d.light}칸`));
+    // 편집: 옮기기 · 좌우 뒤집기 · 철거
+    box.append(h('div', { class: 'editrow' },
+      h('button', { class: 'btn', onclick: () => { this.closePopup(); this.setTool({ kind: 'move', id: o.id, uid: o.uid }); } }, '✥ 옮기기'),
+      h('button', { class: 'btn', onclick: () => { Game.flipObject(o); } }, '⇋ 뒤집기'),
+      h('button', { class: 'btn ghost', onclick: () => { Game.removeObject(o); Game.save(); this.closePopup(); } }, `철거 (+${fmt(d.cost / 2)})`)));
     this.popup(e, box);
   },
 
@@ -574,7 +601,7 @@ const UI = {
         h('li', {}, '🎨 인테리어 탭: 바닥재를 깔고(가구는 바닥재 위에만) 카운터·싱크대·머신·테이블·의자를 배치합니다.'),
         h('li', {}, '☕ 운영 탭 체크리스트를 다 채우면 영업 시작! 설비를 클릭해 메뉴를 만드세요.'),
         h('li', {}, '❄ 눈보라, 보일러 과압, 배관 누수 같은 사고에 대비하세요.')),
-      h('button', { class: 'btn big', onclick: () => this.closeModal() }, '시작하기')));
+      h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '시작하기')));
   },
   showDayEnd(sum) {
     const profit = sum.endMoney - sum.startMoney;
@@ -594,6 +621,7 @@ const UI = {
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),
         h('button', { class: 'btn big danger', onclick: () => { Game.wipe(); this.showPlots(); } }, '지우고 새로 시작'),
         h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'))) }, '처음부터'),
+      h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
       h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
   },
