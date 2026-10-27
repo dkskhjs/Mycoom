@@ -139,7 +139,7 @@ def extract(src, out, grid=None):
     print(f'{len(frames)} frames →', out)
 
 
-def downscale(im, scale):
+def downscale(im, scale, dark_frac=0.22):
     """도트 느낌을 살리는 축소: 블록마다 가장 많은 색(최빈값)을 고른다."""
     a = np.asarray(im)
     H, W = a.shape[:2]
@@ -156,7 +156,7 @@ def downscale(im, scale):
             # 눈·입·외곽선 같은 어두운 디테일은 블록의 22%만 넘어도 살린다
             lum = vis[:, :3].astype(int).sum(1) / 3
             dark = vis[lum < 70]
-            if len(dark) >= len(vis) * 0.22:
+            if len(dark) >= len(vis) * dark_frac:
                 out[j, i, :3] = np.median(dark[:, :3], axis=0)
                 out[j, i, 3] = 255
                 continue
@@ -186,6 +186,7 @@ def crisp(im, colors=28):
 
 def build(mapping_path):
     """매핑의 각 항목: work(작업폴더), down/up/side (8칸: 대기2·걷기4·앉기·동작).
+    dark: 어두운 디테일 우선 비율(기본 0.22). 그을음·어두운 옷이 많아 뭉개지면 올린다.
     프레임 번호 뒤에 f 를 붙이면 좌우 반전 (예: "24f"). size 로 키 보정 (모자·깃털 등)."""
     mapping = json.load(open(mapping_path))
     for cid, m in mapping.items():
@@ -206,7 +207,7 @@ def build(mapping_path):
                         im = im.transpose(Image.FLIP_LEFT_RIGHT)
                     if sit:
                         im = im.crop((0, 0, im.width, int(im.height * 0.72)))
-                    cache[(idx, flip, sit)] = downscale(im, scale)
+                    cache[(idx, flip, sit)] = downscale(im, scale, m.get('dark', 0.22))
                 sp = cache[(idx, flip, sit)]
                 if sp.height > FRAME:
                     sp = sp.crop((0, sp.height - FRAME, sp.width, sp.height))

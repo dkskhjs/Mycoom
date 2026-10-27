@@ -95,10 +95,10 @@ python3 tools/import_chars.py build tools/char_map.json
 축소할 때 블록마다 가장 많은 색을 고르되 눈·입 같은 어두운 디테일은 우선 살리고, 팔레트를 28색으로 줄인 뒤
 실루엣 가장자리를 어둡게 해 외곽선을 만듭니다. 생성 이미지 특성상 얼굴은 손으로 1~2px 다듬으면 훨씬 좋아집니다.
 
-들어간 시트: `adult_m`, `adult_f`, `aviator_m`, `aviator_f`, `noble_m`, `noble_f`
+들어간 시트: `hero_m`, `hero_f`, `adult_m`, `adult_f`, `aviator_m`, `aviator_f`, `noble_m`, `noble_f`, `plumber_m`, `plumber_f`, `miner_m`, `miner_f`, `smith_m`, `smith_f`
 (시민 남은 원본에 앉기·마시기 프레임이 없어 서 있는 프레임 아래를 잘라 앉은 자세를 합성)
 
-배경: `assets/bg/town_clear.webp` (워터마크는 `tools/remove_watermark.py` 로 지움). 눈 버전 `town_snow.*` 대기 중.
+배경: `assets/bg/town_clear.webp` (워터마크는 `tools/remove_watermark.py` 로 지움). 눈 버전 `assets/bg/town_snow.webp` (워터마크가 흰 눈 위라 아래 띠를 잘라냄).
 
 ## 2. 오브젝트·타일 교체 (`assets/sprites/<키>.png`)
 

@@ -4,4 +4,8 @@ window.ASSET_MANIFEST = [];
 
 // 캐릭터 시트: assets/chars/<id>.png 를 넣고 id 를 적는다 (256x96, 규격은 assets/README.md)
 // 예: ['hero_m', 'hero_f', 'elder_m', 'elder_f', 'miner_m', ...]
-window.CHAR_MANIFEST = ['adult_m', 'adult_f', 'aviator_m', 'aviator_f', 'noble_m', 'noble_f'];
+window.CHAR_MANIFEST = [
+  'hero_m', 'hero_f',
+  'adult_m', 'adult_f', 'aviator_m', 'aviator_f', 'noble_m', 'noble_f',
+  'plumber_m', 'plumber_f', 'miner_m', 'miner_f', 'smith_m', 'smith_f',
+];
