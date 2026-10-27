@@ -31,14 +31,14 @@ auth.onAuthStateChanged(async (user) => {
   const userEmail = document.getElementById("userEmail");
   const logoutBtn = document.getElementById("logoutBtn");
 
+  // 🔴 1. 접속 시 무조건 모달 창을 숨김 처리 (로그인 모달 방지)
+  if (modal) modal.hidden = true;
+
   if (user) {
     currentUser = user;
     console.log("🟢 기존 로그인 세션 유지됨:", user.email);
 
-    // 1. 로그인 팝업 창은 즉시 닫고/숨김 유지
-    if (modal) modal.hidden = true;
-
-    // 2. 상단 버튼 상태를 '로그인됨' 상태로 전환
+    // 로그인 상태 UI
     if (authBtn) authBtn.style.display = "none";
     if (userEmail) {
       userEmail.textContent = user.email;
@@ -46,14 +46,14 @@ auth.onAuthStateChanged(async (user) => {
     }
     if (logoutBtn) logoutBtn.style.display = "inline-flex";
 
-    // 3. 🟢 자동 로그인 완료 후 클라우드 세이브 불러와 게임에 주입
+    // 🟢 기존 세이브 데이터 자동 로드
     await loadFromCloud();
 
   } else {
     currentUser = null;
-    console.log("⚪ 비로그인 상태 (로컬 스토리지 데이터 사용)");
+    console.log("⚪ 로그인되지 않은 상태 (로컬 스토리지 데이터 사용)");
 
-    // 비로그인 상태 UI 처리
+    // 비로그인 상태 UI
     if (authBtn) authBtn.style.display = "inline-flex";
     if (userEmail) userEmail.style.display = "none";
     if (logoutBtn) logoutBtn.style.display = "none";
