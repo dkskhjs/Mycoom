@@ -7,12 +7,13 @@ const STREET_ROWS = 3;          // 가게 앞 거리: 보도 1줄 + 차도 2줄
 const DATA = {
   startMoney: 16000,
 
+  // maxW/maxH: 확장 한계(벽 포함), expandBase: 첫 확장 공사비
   plots: [
-    { id: 'alley',   name: '톱니골목 끝 빈터',   w: 12, h: 10, price: 3000, traffic: 0.8,
+    { id: 'alley',   name: '톱니골목 끝 빈터',   w: 12, h: 10, price: 3000, traffic: 0.8, maxW: 18, maxH: 14, expandBase: 2000,
       desc: '좁고 싸다. 유동인구가 적은 뒷골목.' },
-    { id: 'canal',   name: '증기운하 옆 공터',   w: 14, h: 11, price: 5500, traffic: 1.0,
+    { id: 'canal',   name: '증기운하 옆 공터',   w: 14, h: 11, price: 5500, traffic: 1.0, maxW: 20, maxH: 15, expandBase: 2600,
       desc: '적당한 크기. 운하 노동자들이 지나다닌다.' },
-    { id: 'airship', name: '비행선 정류장 앞',   w: 16, h: 12, price: 9000, traffic: 1.35,
+    { id: 'airship', name: '비행선 정류장 앞',   w: 16, h: 12, price: 9000, traffic: 1.35, maxW: 24, maxH: 16, expandBase: 3200,
       desc: '넓고 비싸다. 여행객이 끊이지 않는다.' },
   ],
 
@@ -161,6 +162,34 @@ const DATA = {
     { id: 'hero_m', name: '주인공 (남)' },
     { id: 'hero_f', name: '주인공 (여)' },
   ],
+
+  // 열 모델 (W). 실내 1칸 ≈ 1㎡ 로 본다.
+  thermal: {
+    target: 22,        // 보일러 온도조절 목표 °C
+    uaPerTile: 4,      // 외피 열손실계수 W/K (칸당)
+    heatPerTile: 150,  // 난방이 닿는 칸 1칸의 최대 공급 W
+    // 내부 발열: sens = 현열(공기 온도를 올림), lat = 잠열(수증기 → 습도)
+    person: { sens: 70, lat: 45 },     // 앉아 있는 손님
+    barista: { sens: 75, lat: 70 },    // 서서 일하는 바리스타
+    plant: { sens: -8, lat: 8 },       // 증산작용: 현열을 잠열로 바꾼다
+    cooking: { espresso: [80, 220], kettle: [100, 260], oven: [320, 40] }, // 조리 중 [현열, 잠열]
+    steamLeak: { sens: 150, lat: 450 },
+  },
+  plantObjects: ['plant', 'bush', 'flowerbed', 'flower_p', 'flower_r', 'flower_y'],
+
+  // 고양이: 몸무게에 비례한 실제 수준의 발열 (4kg ≈ 20W)
+  cats: [
+    { id: 'cheese',   name: '치즈냥',     fur: ['#e8973a', '#b8641e', '#fff0d0'], sens: 16, lat: 5,  cost: 600,  lv: 1, kg: 4.5 },
+    { id: 'mackerel', name: '고등어냥',   fur: ['#8a8f94', '#4a4f55', '#e8e8e0'], sens: 14, lat: 5,  cost: 600,  lv: 1, kg: 4 },
+    { id: 'tuxedo',   name: '턱시도냥',   fur: ['#2a2a2e', '#141416', '#f4f4f0'], sens: 15, lat: 5,  cost: 700,  lv: 2, kg: 4.2 },
+    { id: 'coon',     name: '증기 메인쿤', fur: ['#8a5a32', '#4a2e18', '#e8d0a8'], sens: 28, lat: 9,  cost: 1500, lv: 3, kg: 8, big: true },
+  ],
+  catMax: 3,
+  catFoodPerDay: 15,
+  catAppeal: 5,
+
+  // 공간 확장: 한 번에 2칸씩. n번째(0부터) 확장은 Lv.(2+n) 필요, 공사비 = expandBase × (1 + 0.75n)
+  expandStep: 2,
 
   levels: [0, 60, 160, 320, 560, 900, 1350, 1950, 2700, 3600, 5000],
 };

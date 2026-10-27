@@ -540,6 +540,39 @@ function drawCustomerArt(P, t, sitting, frame) {
 //   행: 0 정면(아래), 1 뒷면(위), 2 옆(오른쪽 — 왼쪽은 좌우 반전)
 const CHAR_FRAME = 32, CHAR_ROWS = { down: 0, up: 1, side: 2 };
 
+// 고양이 (16 x 12, 옆모습 — 왼쪽은 반전). pose: walk | sit | nap
+function drawCatArt(P, k, pose, frame) {
+  const [f0, f1, f2] = k.fur, big = k.big ? 1 : 0;
+  P.ellipse(8, 11, 5 + big, 1, PAL.shadow);
+  if (pose === 'nap') {
+    // 웅크린 식빵 자세
+    P.ellipse(8, 8, 6 + big, 3, PAL.k); P.ellipse(8, 8, 5 + big, 2, f0);
+    P.r(4, 7, 1, 2, f1); P.r(7, 6, 1, 2, f1); P.r(10, 7, 1, 2, f1);
+    P.disc(12 + big, 7, 2, PAL.k); P.disc(12 + big, 7, 1, f0); P.p(11 + big, 4, PAL.k); P.p(13 + big, 4, PAL.k); P.p(11 + big, 5, f0); P.p(13 + big, 5, f0);
+    P.r(11 + big, 7, 2, 1, PAL.k);           // 감은 눈
+    P.r(3, 10, 8, 1, PAL.k); P.r(3, 10, 7, 1, f1); // 감싼 꼬리
+    P.p(9, 9, f2);
+    return;
+  }
+  if (pose === 'sit') {
+    P.ellipse(7, 8, 3 + big, 3, PAL.k); P.ellipse(7, 8, 2 + big, 2, f0); P.r(6, 8, 2, 3, f2);
+    P.disc(8, 4, 3, PAL.k); P.disc(8, 4, 2, f0);
+    P.r(6, 0, 2, 2, PAL.k); P.r(9, 0, 2, 2, PAL.k); P.p(6, 1, f1); P.p(10, 1, f1);
+    P.p(7, 4, PAL.k); P.p(9, 4, PAL.k); P.p(8, 5, '#e88a9a'); P.r(7, 2, 3, 1, f1);
+    P.r(3, 9, 1, 2, PAL.k); P.r(3, 10, 4, 1, f1); P.r(2, 7, 1, 3, PAL.k); // 꼬리
+    return;
+  }
+  // 걷기
+  const f = frame % 2;
+  P.r(3, 4, 9 + big, 5, PAL.k); P.r(4, 5, 7 + big, 3, f0); P.r(4, 7, 7 + big, 1, f2);
+  P.r(5, 5, 1, 2, f1); P.r(8, 5, 1, 2, f1);
+  P.r(f ? 4 : 5, 9, 1, 2, PAL.k); P.r(f ? 10 : 9, 9, 1, 2, PAL.k); P.r(f ? 6 : 7, 9, 1, 1, PAL.k);
+  P.disc(12 + big, 4, 3, PAL.k); P.disc(12 + big, 4, 2, f0);
+  P.p(11 + big, 0, PAL.k); P.p(14 + big, 0, PAL.k); P.p(11 + big, 1, f1); P.p(14 + big, 1, f1);
+  P.p(13 + big, 4, PAL.k); P.p(14 + big, 5, '#e88a9a');
+  P.line(3, 5, 1, 1 + f, PAL.k); P.line(2, 5, 1, 2 + f, f1);
+}
+
 // NAPLE 저장소 이미지 시트
 const NAPLE_SHEETS = {
   props: 'assets/naple/props_atlas.png',
@@ -662,6 +695,11 @@ const Sprites = {
     return { canvas: this._build(key, 14, 24, P => drawCustomerArt(P, type, sitting, frame)).canvas, ax: 7, ay: 24 };
   },
 
+  cat(kind, pose, frame) {
+    const k = DATA.cats.find(c => c.id === kind);
+    return this._build(`cat_${kind}_${pose}_${pose === 'walk' ? frame % 2 : 0}`, 18, 12, P => drawCatArt(P, k, pose, frame)).canvas;
+  },
+
   // UI 썸네일용: 스프라이트를 정수배 확대해서 새 캔버스로
   thumb(kind, id, size = 40) {
     let src;
@@ -672,6 +710,7 @@ const Sprites = {
     else if (kind === 'kenney') src = this.kenney(id);
     else if (kind === 'char') src = this.charFrame(id, 'down', 0);
     else if (kind === 'player') src = this.playerFrame(id);
+    else if (kind === 'cat') src = this.cat(id, 'sit', 0);
     else src = this.object(id).canvas;
     const scale = Math.max(1, Math.floor(size / Math.max(src.width, src.height)));
     const [c, g] = makeCanvas(src.width * scale, src.height * scale);

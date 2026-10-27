@@ -161,3 +161,7 @@ details .chips { margin-top: 6px; }
 }
 .heroes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .plot.hero { align-items: center; text-align: center; }
+.expand .srow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 6px; padding: 6px 2px; border-bottom: 1px solid #2a1d17; }
+.thermo { margin: 6px 0; padding: 6px 8px; background: var(--bg2); border-left: 3px solid var(--copper); font-size: 12px; line-height: 1.6; }
+.gainrow { font-size: 11px; }
+.expand .mname { display: inline-flex; align-items: center; gap: 4px; }

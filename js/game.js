@@ -24,7 +24,7 @@ const Game = {
     const plot = DATA.plots.find(p => p.id === plotId);
     const W = plot.w, H = plot.h, N = W * H;
     this.s = {
-      v: 1, plotId, hero, W, H,
+      v: 1, plotId, hero, W, H, doorX: Math.floor(W / 2), inletY: 2, expansions: 0,
       money: DATA.startMoney - plot.price,
       coal: 60, rep: 20, xp: 0, level: 1,
       day: 1, min: OPEN_HOUR * 60, open: false,
@@ -36,6 +36,7 @@ const Game = {
       leaks: [],
       objects: [], nextUid: 1,
       stock: { beans: 10, milk: 10, tea: 10, flour: 0, cocoa: 0 },
+      cats: [],
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -50,7 +51,7 @@ const Game = {
   },
 
   initRuntime() {
-    this.rt = { customers: [], floats: [], particles: [], reacts: [], nets: null, dirty: true, lastHour: -1, cid: 1, passerT: 0, staff: null, serveQ: [] };
+    this.rt = { customers: [], floats: [], particles: [], reacts: [], nets: null, dirty: true, lastHour: -1, cid: 1, passerT: 0, staff: null, serveQ: [], cats: [] };
     this.recompute();
   },
 
@@ -76,6 +77,8 @@ const Game = {
       this.s = JSON.parse(raw);
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
+      const st = this.s;
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= [];
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -88,8 +91,8 @@ const Game = {
   inGrid(x, y) { return x >= 0 && y >= 0 && x < this.s.W && y < this.s.H; },
   isWall(x, y) { const { W, H } = this.s; return this.inGrid(x, y) && (x === 0 || y === 0 || x === W - 1 || y === H - 1); },
   isInterior(x, y) { const { W, H } = this.s; return x > 0 && y > 0 && x < W - 1 && y < H - 1; },
-  get door() { return { x: Math.floor(this.s.W / 2), y: this.s.H - 1 }; },
-  get inlet() { return { x: 0, y: 2 }; },
+  get door() { return { x: this.s.doorX ?? Math.floor(this.s.W / 2), y: this.s.H - 1 }; },
+  get inlet() { return { x: 0, y: this.s.inletY ?? 2 }; },
   isDoor(x, y) { const d = this.door; return x === d.x && y === d.y; },
   isEntrance(x, y) { const d = this.door; return x === d.x && y === d.y - 1; },
   isStreet(x, y) { return y >= this.s.H && y < this.s.H + STREET_ROWS && x >= 0 && x < this.s.W; },
@@ -186,6 +189,7 @@ const Game = {
       else if (!this.isDoor(x, y)) appeal += DATA.walls[s.wall[i]].appeal * 0.5;
     }
     for (const o of s.objects) appeal += this.objDef(o).appeal;
+    appeal += (s.cats || []).length * DATA.catAppeal;
     this.rt.nets = { floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
@@ -214,10 +218,40 @@ const Game = {
     return (d.needs || []).filter(n => !c[n]);
   },
   heatPower() { return this.boilerRunning() ? Math.min(1, this.rt.nets.heatCover.size / Math.max(1, this.rt.nets.interior)) : 0; },
-  indoorTemp() {
-    const out = this.outdoorTemp(), base = out + 4;
-    return base + (22 - base) * Math.min(1, this.heatPower() * 1.4);
+  // 내부 발열 합계 (W) — 사람, 바리스타, 고양이, 식물, 조리, 증기 누수
+  internalGains() {
+    const T = DATA.thermal, s = this.s, rt = this.rt;
+    const g = { sens: 0, lat: 0, people: 0, cats: 0, rows: [] };
+    const add = (label, n, sens, lat) => { if (!n) return; g.sens += sens * n; g.lat += lat * n; g.rows.push({ label, n, sens: sens * n, lat: lat * n }); };
+    const people = rt.customers.filter(c => c.state !== 'pass' && this.isInterior(Math.round(c.x), Math.round(c.y))).length;
+    g.people = people;
+    add('손님', people, T.person.sens, T.person.lat);
+    if (rt.staff && s.open) add('바리스타', 1, T.barista.sens, T.barista.lat);
+    for (const cat of s.cats) { const k = DATA.cats.find(c => c.id === cat.kind); add(`${cat.name}(${k.name})`, 1, k.sens, k.lat); g.cats++; }
+    add('식물 (증산)', s.objects.filter(o => DATA.plantObjects.includes(o.id)).length, T.plant.sens, T.plant.lat);
+    for (const o of s.objects) if (o.cook && !o.cook.done && this.working(o)) { const [a, b] = T.cooking[o.id] || [0, 0]; add(`${DATA.objects[o.id].name} 조리`, 1, a, b); }
+    add('증기 누수', s.leaks.filter(l => l.type !== 'cold').length, T.steamLeak.sens, T.steamLeak.lat);
+    return g;
   },
+  // 열평형: 손실 UA·(T실내 − T기준) = 보일러 공급 + 현열 발열
+  // 보일러는 목표온도까지만 공급(온도조절) → 내부 발열만큼 난방부하가 줄어든다
+  thermal() {
+    const T = DATA.thermal, n = this.rt.nets;
+    const base = this.outdoorTemp() + 4;          // 외피만 있을 때 실내
+    const UA = n.interior * T.uaPerTile;
+    const cap = this.boilerRunning() ? n.heatCover.size * T.heatPerTile : 0;
+    const gains = this.internalGains();
+    const demand = Math.max(0, UA * (T.target - base));   // 발열 없을 때 필요한 난방
+    const load = Math.max(0, demand - gains.sens);         // 실제 난방부하
+    const supply = Math.min(cap, load);
+    const temp = base + (supply + gains.sens) / UA;
+    // 상대습도: 날씨 기준 − 난방 건조 + 잠열 가습
+    const baseRH = { sunny: 40, cloudy: 50, rain: 68, snow: 45 }[this.s.weather] - (this.hasEvent('blizzard') ? 10 : 0);
+    const rh = Math.max(10, Math.min(95, baseRH - (temp - this.outdoorTemp()) * 0.8 + gains.lat / n.interior * 1.5));
+    return { base, UA, cap, gains, demand, load, supply, temp, rh, saved: Math.min(demand, gains.sens) };
+  },
+  indoorTemp() { return this.thermal().temp; },
+  humidity() { return this.thermal().rh; },
 
   // ───────── 건설 ─────────
   spend(n) {
@@ -274,6 +308,124 @@ const Game = {
     this.toast(`${this.objDef(o).name} 철거 (+${refund} 환급)`);
     this.recompute();
   },
+
+
+  // ───────── 공간 확장 ─────────
+  // dir: 'east' (오른쪽으로 2열) | 'north' (위로 2행 — 기존 것은 모두 아래로 밀린다)
+  expandInfo(dir) {
+    const s = this.s, plot = this.plot, n = s.expansions, step = DATA.expandStep;
+    const cost = Math.round(plot.expandBase * (1 + 0.75 * n) / 100) * 100;
+    const lv = 2 + n;
+    const room = dir === 'east' ? plot.maxW - s.W : plot.maxH - s.H;
+    let why = null;
+    if (room < step) why = '최대 크기';
+    else if (s.open) why = '영업 중에는 공사 불가';
+    else if (s.level < lv) why = `Lv.${lv} 필요`;
+    else if (s.money < cost) why = '돈 부족';
+    return { cost, lv, why, room, step, newW: s.W + (dir === 'east' ? step : 0), newH: s.H + (dir === 'north' ? step : 0) };
+  },
+  expand(dir) {
+    const info = this.expandInfo(dir);
+    if (info.why) { this.toast(info.why, 'bad'); return false; }
+    if (!this.spend(info.cost)) return false;
+    const s = this.s, oW = s.W, oH = s.H, W = info.newW, H = info.newH;
+    const dy = dir === 'north' ? info.step : 0;
+    const N = W * H, ni = (x, y) => y * W + x, oi = (x, y) => y * oW + x;
+    const nf = new Array(N).fill('dirt'), nw = new Array(N).fill('rawbrick'), nc = new Array(N).fill('beams');
+    const np = { cold: new Array(N).fill(0), hot: new Array(N).fill(0), heat: new Array(N).fill(0) };
+    for (let y = 0; y < oH; y++) for (let x = 0; x < oW; x++) {
+      const i = oi(x, y), j = ni(x, y + dy);
+      nf[j] = s.floor[i]; nw[j] = s.wall[i]; nc[j] = s.ceil[i];
+      for (const t of ['cold', 'hot', 'heat']) np[t][j] = s.pipe[t][i];
+    }
+    // 새 벽은 원래 그 자리에 있던 벽 마감을 이어받는다
+    if (dir === 'east') {
+      for (let y = 0; y < H; y++) {
+        const src = nw[ni(oW - 1, y)];
+        for (let x = oW; x < W; x++) nw[ni(x, y)] = (y === 0 || y === H - 1) ? nw[ni(oW - 2, y)] : src;
+        if (y > 0 && y < H - 1) { nf[ni(oW - 1, y)] = 'dirt'; nc[ni(oW - 1, y)] = 'beams'; }
+      }
+    } else {
+      for (let x = 0; x < W; x++) {
+        const src = nw[ni(x, dy)];
+        nw[ni(x, 0)] = src;
+        for (let y = 1; y <= dy; y++) nw[ni(x, y)] = (x === 0 || x === W - 1) ? nw[ni(x, dy + 1)] : src;
+        if (x > 0 && x < W - 1) { nf[ni(x, dy)] = 'dirt'; nc[ni(x, dy)] = 'beams'; }
+      }
+    }
+    s.leaks = s.leaks.map(l => ({ type: l.type, i: ni(l.i % oW, ((l.i / oW) | 0) + dy) }));
+    for (const o of s.objects) o.y += dy;
+    s.W = W; s.H = H; s.floor = nf; s.wall = nw; s.ceil = nc; s.pipe = np;
+    s.inletY = (s.inletY ?? 2) + dy;
+    s.expansions++;
+    // 거리 행인·바리스타 위치 초기화
+    this.rt.customers = []; this.rt.staff = null; this.rt.serveQ = []; this.rt.cats = [];
+    this.recompute(); this.save();
+    this.toast(`🏗 ${dir === 'east' ? '동쪽' : '북쪽'}으로 확장 완료! ${W - 2}×${H - 2}칸`, 'good');
+    this.emit('expanded');
+    return true;
+  },
+
+
+  // ───────── 고양이 ─────────
+  adoptCat(kind) {
+    const s = this.s, k = DATA.cats.find(c => c.id === kind);
+    if (s.cats.length >= DATA.catMax) { this.toast(`고양이는 ${DATA.catMax}마리까지`, 'bad'); return false; }
+    if (k.lv > s.level) { this.toast(`Lv.${k.lv} 필요`, 'bad'); return false; }
+    if (!this.spend(k.cost)) return false;
+    const names = ['보일러', '톱니', '구리', '석탄', '라떼', '스콘', '밸브', '증기', '모카', '나사'];
+    const used = new Set(s.cats.map(c => c.name));
+    const name = names.find(n => !used.has(n)) || '냥' + (s.cats.length + 1);
+    s.cats.push({ kind, name });
+    this.recompute(); this.save();
+    this.toast(`🐈 ${name}(${k.name})를 입양했어요! 따뜻한 바닥을 좋아합니다.`, 'good');
+    return true;
+  },
+  // 실내에서 걸을 수 있는 칸 (heat=true 면 난방 칸만)
+  catSpots(heat) {
+    const s = this.s, out = [], hc = this.rt.nets.heatCover, run = this.boilerRunning();
+    for (let y = 1; y < s.H - 1; y++) for (let x = 1; x < s.W - 1; x++) {
+      if (!this.walkable(x, y) || this.isEntrance(x, y)) continue;
+      if (heat && !(run && hc.has(this.idx(x, y)))) continue;
+      out.push([x, y]);
+    }
+    return out;
+  },
+  updateCats(gm) {
+    const s = this.s, rt = this.rt;
+    // 저장된 고양이와 화면 고양이 맞추기
+    while (rt.cats.length < s.cats.length) {
+      const spots = this.catSpots(false); if (!spots.length) break;
+      const [x, y] = spots[Math.floor(Math.random() * spots.length)];
+      rt.cats.push({ ref: s.cats[rt.cats.length], x, y, path: [], state: 'sit', timer: 5, dir: 1, step: 0 });
+    }
+    rt.cats.length = Math.min(rt.cats.length, s.cats.length);
+    for (const c of rt.cats) {
+      if (c.path.length) {
+        const [tx, ty] = c.path[0];
+        const dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy), step = 0.45 * gm;
+        if (Math.abs(dx) > 0.01) c.dir = dx > 0 ? 1 : -1;
+        if (d <= step) { c.x = tx; c.y = ty; c.path.shift(); } else { c.x += dx / d * step; c.y += dy / d * step; }
+        c.step += gm;
+        if (!c.path.length) { c.state = c.goal; c.timer = c.goal === 'nap' ? 60 + Math.random() * 90 : 10 + Math.random() * 25; }
+        continue;
+      }
+      // 서 있는 칸이 막혔으면(가구 설치) 옮긴다
+      if (!this.walkable(Math.round(c.x), Math.round(c.y))) { const sp = this.catSpots(false); if (sp.length) [c.x, c.y] = sp[Math.floor(Math.random() * sp.length)]; }
+      c.timer -= gm;
+      if (c.timer > 0) continue;
+      // 다음 행동: 난방 칸이 있으면 대체로 거기서 낮잠
+      const warm = this.catSpots(true), goNap = warm.length && Math.random() < 0.65;
+      const pool = goNap ? warm : this.catSpots(false);
+      if (!pool.length) { c.timer = 20; continue; }
+      const near = pool.filter(([x, y]) => Math.abs(x - c.x) + Math.abs(y - c.y) <= 8);
+      const [gx, gy] = (near.length ? near : pool)[Math.floor(Math.random() * (near.length || pool.length))];
+      const p = this.findPath(Math.round(c.x), Math.round(c.y), gx, gy);
+      if (!p || !p.length) { c.state = goNap ? 'nap' : 'sit'; c.timer = 30; continue; }
+      c.path = p; c.state = 'walk'; c.goal = goNap ? 'nap' : 'sit';
+    }
+  },
+  catAt(x, y) { return this.rt.cats.find(c => Math.round(c.x) === x && Math.round(c.y) === y); },
 
   // ───────── 요리 ─────────
   menuUnlocked() { return Object.entries(DATA.recipes).filter(([, r]) => r.lv <= this.s.level); },
@@ -352,7 +504,9 @@ const Game = {
     this.rt.customers = []; this.rt.serveQ = [];
     if (this.rt.staff) { this.rt.staff.path = []; this.rt.staff.carry = null; this.rt.staff.target = null; }
     for (const r of this.s.objects) if (r.cook && !r.cook.done) r.cook = null;
-    const summary = { ...s.today, day: s.day, endMoney: s.money };
+    const food = s.cats.length * DATA.catFoodPerDay;
+    if (food) { s.money -= food; s.today.spent += food; }
+    const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food };
     s.events = []; s.coalPriceMul = 1; s.boiler.pressure = Math.min(s.boiler.pressure, 50);
     s.day++; s.min = OPEN_HOUR * 60;
     this.rollWeather();
@@ -452,9 +606,11 @@ const Game = {
   },
 
   satisfaction(c) {
-    const n = this.rt.nets, t = this.indoorTemp();
+    const n = this.rt.nets, th = this.thermal(), t = th.temp, rh = th.rh;
     let sat = 55 + Math.min(30, n.density * 4) - c.type.picky;
-    sat += t >= 20 ? 12 : t >= 18 ? 5 : t >= 14 ? -8 : -25;
+    sat += t >= 27 ? -6 : t >= 20 ? 12 : t >= 18 ? 5 : t >= 14 ? -8 : -25;
+    sat += rh < 25 ? -5 : rh < 35 ? 0 : rh <= 60 ? 3 : rh <= 70 ? -2 : -6;
+    if (c.seat && this.rt.cats.some(k => Math.abs(k.x - c.seat.x) + Math.abs(k.y - c.seat.y) <= 2)) sat += 6;
     sat -= (c.wait / c.type.patience) * 25;
     return Math.max(0, Math.min(100, sat));
   },
@@ -587,6 +743,7 @@ const Game = {
       if (rt.passerT <= 0) { rt.passerT = 2 + Math.random() * 4; this.spawnPasser(); }
       this.updateCustomers(dt * MIN_PER_SEC);
       this.updateStaff(dt * MIN_PER_SEC);
+      this.updateCats(dt * MIN_PER_SEC);
       return;
     }
 
@@ -595,8 +752,8 @@ const Game = {
     // 석탄 소비
     if (running) {
       const cooking = s.objects.filter(o => o.cook && !o.cook.done).length;
-      let use = (0.03 + rt.nets.heatCover.size * 0.0015 + cooking * 0.01) * gm;
-      if (this.hasEvent('blizzard')) use *= 1.6;
+      const th = this.thermal();
+      let use = (0.03 + th.supply / DATA.thermal.heatPerTile * 0.0015 + cooking * 0.01) * gm;
       s.coal = Math.max(0, s.coal - use); s.today.coalUsed += use;
       if (s.coal <= 0) this.toast('⚫ 석탄이 떨어져 보일러가 꺼졌습니다! 상점에서 구매하세요.', 'bad');
     }
@@ -648,6 +805,7 @@ const Game = {
 
     this.updateCustomers(gm);
     this.updateStaff(gm);
+    this.updateCats(gm);
 
     if (s.min >= CLOSE_HOUR * 60) this.closeCafe();
   },

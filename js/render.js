@@ -74,6 +74,7 @@ const Render = {
     }
     for (const c of Game.rt.customers) items.push({ z: c.y + 1.02, kind: 'cust', c });
     if (Game.rt.staff) items.push({ z: Game.rt.staff.y + 1.03, kind: 'staff' });
+    for (const k of Game.rt.cats) items.push({ z: k.y + 1.01, kind: 'cat', k });
     for (const d of this.streetDecor()) items.push({ z: d.z, kind: 'img', d });
     items.sort((a, b) => a.z - b.z);
     g.globalAlpha = util ? 0.55 : 1;
@@ -81,6 +82,7 @@ const Render = {
       if (it.kind === 'obj') this.drawObject(P, it.o);
       else if (it.kind === 'cust') this.drawCustomer(P, it.c);
       else if (it.kind === 'staff') this.drawStaff(P);
+      else if (it.kind === 'cat') this.drawCat(P, it.k);
       else g.drawImage(it.d.img, Math.round(it.d.x - it.d.img.width / 2), it.d.y - it.d.img.height);
     }
     g.globalAlpha = 1;
@@ -227,6 +229,16 @@ const Render = {
     // 주인공 시트가 오기 전까지 NAPLE 마법사가 대신 일한다
     const fr = st.cast > 0 ? 6 + Math.min(2, Math.floor((3 - st.cast) * 1.2)) : st.path.length ? 2 + Math.floor(st.step / 1.2) % 4 : Math.floor(t * 2) % 2;
     this.blitChar(Sprites.playerFrame(fr), fx - 14, fy - 31, st.dir === -1);
+  },
+  drawCat(P, k) {
+    const pose = k.path.length ? 'walk' : k.state === 'nap' ? 'nap' : 'sit';
+    const img = Sprites.cat(k.ref.kind, pose, Math.floor(k.step / 1.2));
+    const x = Math.round(k.x * TILE) + 8 - 8, y = Math.round(k.y * TILE) + 16 - 12;
+    this.blitChar(img, x, y, k.dir === -1);
+    if (pose === 'nap') {   // Zz
+      const ph = (this.t * 0.8 + k.x) % 2;
+      if (ph < 1.4) { const zx = x + 13, zy = y - 2 - Math.floor(ph * 4); P.r(zx, zy, 3, 1, PAL.cr2); P.p(zx + 1, zy + 1, PAL.cr2); P.r(zx, zy + 2, 3, 1, PAL.cr2); }
+    }
   },
   drawStaffCarry(P) {
     const st = Game.rt.staff; if (!st || !st.carry) return;

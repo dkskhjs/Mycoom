@@ -36,6 +36,7 @@ const UI = {
     Game.on('levelUp', () => this.refresh());
     Game.on('dayEnd', s => { this.refresh(); this.showDayEnd(s); });
     Game.on('opened', () => this.refresh());
+    Game.on('expanded', () => { Render.flakes = []; Render.resize($('#canvasWrap')); this.refresh(); });
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') { this.setTool(null); this.closePopup(); }
       if (e.key === ' ' && e.target === document.body) { e.preventDefault(); Game.paused = !Game.paused; this.syncSpeed(); }
@@ -174,6 +175,10 @@ const UI = {
       h('span', { class: 'dim', 'data-stock': 'coal' }, ''),
       h('button', { class: 'btn', id: 'coalBtn', onclick: () => { Game.buy('coal'); this.refreshLive(); } }, '')));
     B.append(list);
+    B.append(h('h3', {}, '🐈 고양이 입양'), h('div', { id: 'live-cats', class: 'expand' }));
+    B.append(h('p', { class: 'tip' }, `고양이는 따뜻한 난방 칸에서 낮잠을 잡니다. 분위기 +${DATA.catAppeal}, 근처 손님 만족도 상승, 체온으로 현열·잠열을 조금 냅니다. 사료비 하루 🪙${DATA.catFoodPerDay}/마리.`));
+    B.append(h('h3', {}, '🏗 공간 확장'), h('div', { id: 'live-expand', class: 'expand' }));
+    B.append(h('p', { class: 'tip' }, '영업 전에만 공사할 수 있습니다. 넓어진 칸은 맨흙이라 바닥재를 새로 깔아야 하고, 북쪽 확장은 기존 가게가 통째로 아래로 밀립니다(배관·가구는 그대로 이어짐).'));
     B.append(h('p', { class: 'tip' }, '석탄은 보일러 연료입니다. 난방 칸이 많을수록, 눈보라일수록 빨리 탑니다. 떨어지면 모든 증기 설비가 멈춰요!'));
   },
 
@@ -208,7 +213,7 @@ const UI = {
     const w = Game.weather();
     $('#weather').textContent = `${Game.hasEvent('blizzard') ? '🌨 눈보라' : w.icon + ' ' + w.name} ${Math.round(Game.outdoorTemp())}°`;
     const it = Game.indoorTemp();
-    $('#indoor').textContent = `실내 ${Math.round(it)}°`;
+    $('#indoor').textContent = `실내 ${Math.round(it)}° 💧${Math.round(Game.humidity())}%`;
     $('#indoor').parentElement.className = 'stat ' + (it >= 20 ? 'good' : it >= 18 ? '' : 'warn');
     const ob = $('#openBtn');
     ob.textContent = s.open ? '영업 중…' : '☕ 영업 시작';
@@ -232,7 +237,12 @@ const UI = {
         rows.push(this.statusRow(!s.boiler.broken, s.boiler.broken ? '고장! 보일러를 클릭해 수리' : '정상'));
         rows.push(h('div', { class: 'gauge' }, h('span', {}, '압력'), h('div', { class: 'bar' }, h('i', { style: `width:${Math.min(100, s.boiler.pressure)}%;background:${s.boiler.pressure > 80 ? '#d1584f' : s.boiler.pressure > 65 ? '#efc760' : '#6aa84f'}` })), h('span', {}, Math.round(s.boiler.pressure))));
       }
-      rows.push(h('div', { class: 'srow2' }, `난방 커버 ${Math.round(Game.heatPower() * 100)}% · 실내 ${Math.round(it)}° / 실외 ${Math.round(Game.outdoorTemp())}°`));
+      const th = Game.thermal();
+      rows.push(h('div', { class: 'srow2' }, `난방 커버 ${Math.round(Game.heatPower() * 100)}% · 실내 ${Math.round(it)}° / 실외 ${Math.round(Game.outdoorTemp())}° · 습도 ${Math.round(th.rh)}%`));
+      rows.push(h('div', { class: 'thermo' },
+        h('div', {}, `필요 난방 ${fmt(th.demand)}W − 내부 발열 ${fmt(Math.max(0, th.gains.sens))}W = 난방부하 ${fmt(th.load)}W`),
+        h('div', { class: 'dim' }, `보일러 공급 ${fmt(th.supply)}W / 최대 ${fmt(th.cap)}W${th.saved > 0 ? ` · 발열로 ${Math.round(th.saved / Math.max(1, th.demand) * 100)}% 절약` : ''}`),
+        ...th.gains.rows.map(r => h('div', { class: 'dim gainrow' }, `· ${r.label}${r.n > 1 ? ' ×' + r.n : ''}: 현열 ${r.sens}W / 잠열 ${r.lat}W`))));
       const eq = s.objects.filter(o => DATA.objects[o.id].needs && DATA.objects[o.id].needs.length && o.id !== 'boiler');
       if (eq.length) {
         rows.push(h('div', { class: 'dim', style: 'margin-top:6px' }, '설비 연결'));
@@ -275,6 +285,38 @@ const UI = {
       const k = el.dataset.stock;
       el.textContent = k === 'coal' ? `보유 ${Math.floor(s.coal)}` : `보유 ${s.stock[k]}`;
     });
+    const lc = $('#live-cats');
+    if (lc) {
+      const sig = JSON.stringify([s.cats, s.level, s.money >= 400]);
+      if (lc.dataset.sig !== sig) {
+        lc.dataset.sig = sig;
+        const kids = [h('div', { class: 'dim' }, `우리 고양이 ${s.cats.length}/${DATA.catMax}: ${s.cats.map(c => c.name).join(', ') || '없음'}`)];
+        for (const k of DATA.cats) {
+          const locked = k.lv > s.level, full = s.cats.length >= DATA.catMax;
+          kids.push(h('div', { class: 'srow' }, h('span', { class: 'mname' }, Sprites.thumb('cat', k.id, 32), ' ', k.name),
+            h('span', { class: 'dim' }, `${k.kg}kg · 현열 ${k.sens}W · 잠열 ${k.lat}W`),
+            h('button', { class: 'btn', disabled: locked || full, onclick: () => Game.adoptCat(k.id) }, locked ? `Lv.${k.lv}` : full ? '가득' : `🪙${fmt(k.cost)}`)));
+        }
+        lc.replaceChildren(...kids);
+      }
+    }
+    const le = $('#live-expand');
+    if (le) {
+      const sig = JSON.stringify([s.W, s.H, s.level, s.open, s.money >= 0 && ['east', 'north'].map(d => Game.expandInfo(d).why)]);
+      if (le.dataset.sig !== sig) {
+        le.dataset.sig = sig;
+        const plot = Game.plot;
+        le.replaceChildren(h('div', { class: 'dim' }, `현재 ${s.W - 2}×${s.H - 2}칸 · 최대 ${plot.maxW - 2}×${plot.maxH - 2}칸`),
+          ...[['east', '➡ 동쪽 +2열'], ['north', '⬆ 북쪽 +2행']].map(([d, label]) => {
+            const inf = Game.expandInfo(d);
+            return h('div', { class: 'srow' }, h('span', { class: 'mname' }, label),
+              h('span', { class: 'dim' }, inf.room < inf.step ? '최대' : `→ ${inf.newW - 2}×${inf.newH - 2}`),
+              h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: () => {
+                if (confirm(`${label} 확장 공사 (🪙${fmt(inf.cost)})를 진행할까요?`)) Game.expand(d);
+              } }, inf.why && inf.why !== '돈 부족' ? inf.why : `🪙${fmt(inf.cost)}`));
+          }));
+      }
+    }
     const cb = $('#coalBtn');
     if (cb) { cb.textContent = `+${DATA.coal.pack} · 🪙${Math.round(DATA.coal.price * s.coalPriceMul)}`; cb.disabled = Game.hasEvent('coalStrike'); }
   },
@@ -341,6 +383,13 @@ const UI = {
     if (Game.inGrid(t.x, t.y)) {
       const i = Game.idx(t.x, t.y), leak = s.leaks.find(l => l.i === i);
       if (leak) return this.popup(e, h('div', {}, h('b', {}, `💧 ${DATA.pipes[leak.type].name} 누수`), h('p', {}, '새는 배관 때문에 이 칸 너머로 흐름이 끊겼습니다.'), h('button', { class: 'btn', onclick: () => { Game.repairLeak(leak.type, i); this.closePopup(); } }, '수리 🪙40')));
+    }
+    const cat = Game.catAt(t.x, t.y);
+    if (cat) {
+      const k = DATA.cats.find(c => c.id === cat.ref.kind);
+      const where = cat.path.length ? '어슬렁거리는 중' : cat.state === 'nap' ? (Game.rt.nets.heatCover.has(Game.idx(Math.round(cat.x), Math.round(cat.y))) ? '따뜻한 바닥에서 낮잠 중' : '낮잠 중') : '앉아서 구경 중';
+      return this.popup(e, h('div', {}, h('b', {}, `🐈 ${cat.ref.name}`), h('p', { class: 'dim' }, `${k.name} · ${k.kg}kg · ${where}`),
+        h('p', {}, `현열 ${k.sens}W · 잠열 ${k.lat}W`), h('p', { class: 'dim' }, `분위기 +${DATA.catAppeal} · 2칸 안의 손님 만족도 +6`)));
     }
     // 오브젝트 (키 큰 스프라이트는 윗칸 클릭도 인정)
     let o = Game.objAt(t.x, t.y);
@@ -457,7 +506,7 @@ const UI = {
     this.modal(h('div', {},
       h('h2', {}, `${sum.day}일차 영업 종료`),
       h('table', { class: 'sum' },
-        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
+        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
           .map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))),
       h('p', { class: 'dim' }, `내일 날씨: ${Game.weather().icon} ${Game.weather().name} (${Game.weather().temp}°)`),
       h('button', { class: 'btn big', onclick: () => this.closeModal() }, '다음 날 준비')));
