@@ -606,19 +606,32 @@ const UI = {
   },
 };
 
-// js/ui.js 파일 하단에 추가
+// js/ui.js 파일 내부
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 🔒 로그인 버튼 클릭 시 모달 열기
-  document.getElementById("authBtn")?.addEventListener("click", () => {
+  // 1. 모달 닫기 공통 처리 함수 (모달 닫고 입력 폼 초기화)
+  function closeModal() {
     const modal = document.getElementById("modal");
-    if (modal) modal.hidden = false;
+    if (modal) {
+      modal.hidden = true;
+    }
+    // 닫을 때 입력했던 이메일/비밀번호 값 초기화
+    const emailInput = document.getElementById("authEmail");
+    const passInput = document.getElementById("authPassword");
+    if (emailInput) emailInput.value = "";
+    if (passInput) passInput.value = "";
+  }
+
+  // 닫기 버튼(btnCloseModal) 클릭 이벤트
+  document.getElementById("btnCloseModal")?.addEventListener("click", (e) => {
+    e.preventDefault(); // 기본 폼 제출 동작 방지
+    closeModal();
   });
 
-  // 🔓 로그아웃 버튼 클릭 시 로그아웃 실행
-  document.getElementById("logoutBtn")?.addEventListener("click", () => {
-    if (confirm("로그아웃 하시겠습니까?")) {
-      logoutAccount();
+  // (선택) 모달 바깥 검은 배경 클릭 시에도 닫히게 설정
+  document.getElementById("modal")?.addEventListener("click", (e) => {
+    if (e.target.id === "modal") {
+      closeModal();
     }
   });
 });
