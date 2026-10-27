@@ -18,32 +18,35 @@ const db = firebase.firestore();
 let currentUser = null;
 
 // 3. 로그인 상태 감지 (페이지가 열릴 때 로그인 상태를 지속 확인)
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
   const modal = document.getElementById("modal");
   const authBtn = document.getElementById("authBtn");
   const userEmail = document.getElementById("userEmail");
   const logoutBtn = document.getElementById("logoutBtn");
+
   if (user) {
     currentUser = user;
-    console.log("🟢 클라우드 로그인 완료:", user.email);
-if (modal) modal.hidden = true;
+    console.log("🟢 기존 로그인 세션 유지됨:", user.email);
 
-    // 2. 상단 버튼 UI 로그인 상태로 변경
-    if (authBtn) authBtn.style.display = "none"; // 로그인 버튼 숨김
+    // 1. 로그인 팝업 창은 즉시 닫고/숨김 유지
+    if (modal) modal.hidden = true;
+
+    // 2. 상단 버튼 상태를 '로그인됨' 상태로 전환
+    if (authBtn) authBtn.style.display = "none";
     if (userEmail) {
-      userEmail.textContent = user.email; // 로그인된 이메일 표시
+      userEmail.textContent = user.email;
       userEmail.style.display = "inline";
     }
-    if (logoutBtn) logoutBtn.style.display = "inline-flex"; // 로그아웃 버튼 표시
+    if (logoutBtn) logoutBtn.style.display = "inline-flex";
 
-    // 3. 클라우드 데이터 로드
-    loadFromCloud();
+    // 3. 🟢 자동 로그인 완료 후 클라우드 세이브 불러와 게임에 주입
+    await loadFromCloud();
 
   } else {
     currentUser = null;
-    console.log("⚪ 로그아웃 상태");
+    console.log("⚪ 비로그인 상태 (로컬 스토리지 데이터 사용)");
 
-    // 로그아웃 상태 UI로 복구
+    // 비로그인 상태 UI 처리
     if (authBtn) authBtn.style.display = "inline-flex";
     if (userEmail) userEmail.style.display = "none";
     if (logoutBtn) logoutBtn.style.display = "none";
