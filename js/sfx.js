@@ -9,10 +9,12 @@ const SFX = {
 
   init() {
     try { this.muted = localStorage.getItem('steamcafe_sfx_mute') === '1'; } catch (e) {}
+    // iOS: 무음 스위치가 켜져 있어도 소리가 나게 (Safari 16.4+ 오디오 세션). 없으면 무시
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    // iOS 는 touchstart/pointerdown 이 아니라 touchend·click 에서만 오디오 잠금이 풀린다
     const unlock = () => this.unlock();
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
-    document.addEventListener('visibilitychange', () => { if (!this.ctx) return; document.hidden ? this.ctx.suspend() : this.ctx.resume(); });
+    for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(ev, unlock, true);
+    document.addEventListener('visibilitychange', () => { if (!this.ctx) return; document.hidden ? this.ctx.suspend() : this.ctx.resume().catch(() => {}); });
     Game.on('sfx', n => this.play(n));
     Game.on('toast', (m, k) => { if (k === 'bad') this.play('error'); });
     // 버튼·탭·카드를 누를 때마다 기계 조작음 (맵 캔버스는 제외)
@@ -39,7 +41,11 @@ const SFX = {
       this.noise = buf;
       this.startAmbientBed();
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    // 옛 iOS: 제스처 안에서 소리를 한 번 재생해야 완전히 풀린다 (무음 1샘플)
+    if (!this._primed) {
+      try { const b = this.ctx.createBuffer(1, 1, 22050), src = this.ctx.createBufferSource(); src.buffer = b; src.connect(this.ctx.destination); src.start(0); this._primed = true; } catch (e) {}
+    }
   },
 
   toggle() {
@@ -125,8 +131,10 @@ const SFX = {
   gap: { uiBtn: 0.06, uiTab: 0.08, uiCard: 0.05, brush: 0.07, coin: 0.09, coinTip: 0.09, bell: 0.8, pipe: 0.12, remove: 0.1, error: 0.4, ding: 0.15, clink: 0.1, serve: 0.15, place: 0.1 },
 
   play(name) {
-    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    if (!this.ctx || this.muted) return;
     const fn = this.sounds[name]; if (!fn) return;
+    // 아직 잠금이 풀리는 중(suspended/interrupted)이면 풀린 뒤에 재생
+    if (this.ctx.state !== 'running') { if (!this._retry) { this._retry = true; this.ctx.resume().then(() => { this._retry = false; if (this.ctx.state === 'running') this.play(name); }).catch(() => { this._retry = false; }); } return; }
     const now = this.ctx.currentTime;
     if (now - (this.last[name] || -9) < (this.gap[name] ?? 0.05)) return;
     this.last[name] = now;
