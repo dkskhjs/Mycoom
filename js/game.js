@@ -326,6 +326,15 @@ const Game = {
     if (!this.spend(DATA.pipes[type].cost)) return false;
     this.s.pipe[type][this.idx(x, y)] = 1; this.rt.dirty = true; return true;
   },
+  // 여러 칸을 한 번에 (✓ 확정): 돈이 모자라면 하나도 깔지 않는다
+  placePipes(type, cells) {
+    const s = this.s, ok = cells.filter(i => { const x = i % s.W, y = (i / s.W) | 0; return this.isInterior(x, y) && !s.pipe[type][i]; });
+    if (!ok.length) return true;
+    if (!this.spend(ok.length * DATA.pipes[type].cost)) return false;
+    for (const i of ok) s.pipe[type][i] = 1;
+    this.rt.dirty = true; this.emit('built', type);
+    return true;
+  },
   erasePipe(x, y, type) {
     if (!this.isInterior(x, y)) return false;
     const i = this.idx(x, y); let any = false;

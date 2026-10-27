@@ -4,14 +4,14 @@ const Tutorial = {
   steps: [
     {
       title: '중앙 보일러 놓기',
-      text: '🔧 설비 탭에서 [중앙 증기 보일러]를 고르고, 왼쪽 벽의 파란 밸브(수도 인입구) 가까운 바닥에 놓으세요. 모든 증기가 여기서 나옵니다.',
+      text: '🔧 설비 탭에서 [중앙 증기 보일러]를 고르고, 왼쪽 벽의 파란 밸브(수도 인입구) 가까운 바닥을 누르세요. 끌어서 자리를 맞춘 뒤 아래 [✓ 설치]를 눌러야 실제로 지어집니다. 모든 증기가 여기서 나옵니다.',
       tab: 'utility', card: 'object:boiler',
       done: g => g.s.objects.some(o => o.id === 'boiler'),
       targets: g => { const l = g.inlet; return [[l.x, l.y], [1, l.y], [2, l.y], [1, l.y + 1], [2, l.y + 1]].filter(([x, y]) => g.inGrid(x, y)); },
     },
     {
       title: '급수관: 인입구 → 보일러',
-      text: '[급수관]을 고르고 인입구 바로 오른쪽 칸에서 보일러 옆 칸까지 드래그하세요. 배관은 설비 밑이나 바로 옆 칸을 지나가야 연결됩니다.',
+      text: '[급수관]을 고르고 인입구 바로 오른쪽 칸에서 보일러 옆 칸까지 드래그한 뒤 [✓ 깔기]로 확정하세요. 배관은 설비 밑이나 바로 옆 칸을 지나가야 연결됩니다.',
       tab: 'utility', card: 'pipe:cold',
       done: g => g.rt.nets.boilerFed,
       targets: g => { const l = g.inlet, b = g.s.objects.find(o => o.id === 'boiler'); return [[l.x + 1, l.y], ...(b ? g.footprint(b) : [])]; },

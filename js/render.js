@@ -664,29 +664,58 @@ const Render = {
   },
 
   drawGhost(P, ui) {
-    const h = ui.hover; if (!h || !ui.tool) return;
-    const g = this.wg, t = ui.tool;
-    if (!Game.inGrid(h.x, h.y)) return;
+    const t = ui.tool; if (!t) return;
+    const g = this.wg, h = ui.hover;
     if (t.kind === 'object' || t.kind === 'move') {
+      // 미확정 자리가 있으면 거기, 없으면 마우스 위치에 미리보기
+      const pend = t.px != null, pos = pend ? { x: t.px, y: t.py } : h;
+      if (!pos || !Game.inGrid(pos.x, pos.y)) return;
       const d = DATA.objects[t.id], spr = Sprites.object(t.id);
-      const ok = Game.canPlace(t.id, h.x, h.y, t.uid || 0, t.rot || 0).ok;
+      const ok = Game.canPlace(t.id, pos.x, pos.y, t.uid || 0, t.rot || 0).ok;
       if (d.light) {   // 조명이 닿는 범위 미리보기
-        g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(h.x * TILE + 8, h.y * TILE + 8, d.light * TILE, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(pos.x * TILE + 8, pos.y * TILE + 8, d.light * TILE, 0, Math.PI * 2); g.fill();
         g.strokeStyle = 'rgba(255,214,120,0.6)'; g.lineWidth = 1; g.stroke();
       }
       const rot = t.rot || 0, dm = Game.dims(t.id, rot);
-      g.globalAlpha = 0.65;
-      if (rot && d.w !== d.h) { const c = Sprites.objectRot(t.id); g.drawImage(c, h.x * TILE + Math.round((dm.w * TILE - c.width) / 2), (h.y + dm.h) * TILE - c.height); }
-      else g.drawImage(spr.canvas, h.x * TILE + spr.xoff, (h.y + d.h) * TILE - spr.canvas.height);
-      g.globalAlpha = 0.35;
+      g.globalAlpha = pend ? 0.85 : 0.6;
+      if (rot && d.w !== d.h) { const c = Sprites.objectRot(t.id); g.drawImage(c, pos.x * TILE + Math.round((dm.w * TILE - c.width) / 2), (pos.y + dm.h) * TILE - c.height); }
+      else g.drawImage(spr.canvas, pos.x * TILE + spr.xoff, (pos.y + d.h) * TILE - spr.canvas.height);
+      g.globalAlpha = 0.3;
       g.fillStyle = ok ? '#6aff8a' : '#ff5a4a';
-      g.fillRect(h.x * TILE, h.y * TILE, dm.w * TILE, dm.h * TILE);
+      g.fillRect(pos.x * TILE, pos.y * TILE, dm.w * TILE, dm.h * TILE);
       g.globalAlpha = 1;
-    } else {
-      const c = t.kind === 'erase' || t.kind === 'remove' ? '#ff5a4a' : '#fff2a0';
-      P.r(h.x * TILE, h.y * TILE, 16, 1, c); P.r(h.x * TILE, h.y * TILE + 15, 16, 1, c);
-      P.r(h.x * TILE, h.y * TILE, 1, 16, c); P.r(h.x * TILE + 15, h.y * TILE, 1, 16, c);
+      if (pend) {   // 깜빡이는 테두리 = 아직 확정 안 됨
+        const c = ok ? (Math.floor(this.t * 3) % 2 ? '#c8ffb0' : '#6aff8a') : '#ff5a4a', x = pos.x * TILE, y = pos.y * TILE, w = dm.w * TILE, hh = dm.h * TILE;
+        P.r(x, y, w, 1, c); P.r(x, y + hh - 1, w, 1, c); P.r(x, y, 1, hh, c); P.r(x + w - 1, y, 1, hh, c);
+      }
+      return;
     }
+    if (t.cells && t.cells.size) {
+      const W = Game.s.W, blink = 0.55 + 0.25 * Math.sin(this.t * 6);
+      for (const i of t.cells) {
+        const x = (i % W) * TILE, y = ((i / W) | 0) * TILE;
+        if (t.kind === 'pipe') {
+          const col = DATA.pipes[t.type].color, L = t.type === 'cold' ? 4 : t.type === 'hot' ? 10 : 7;
+          const has = (dx, dy) => t.cells.has(i + dx + dy * W) && (dx === 0 || ((i % W) + dx >= 0 && (i % W) + dx < W));
+          g.globalAlpha = blink; g.fillStyle = col;
+          g.fillRect(x + L - 1, y + L - 1, 4, 4);
+          if (has(-1, 0)) g.fillRect(x, y + L - 1, L, 4);
+          if (has(1, 0)) g.fillRect(x + L, y + L - 1, 16 - L, 4);
+          if (has(0, -1)) g.fillRect(x + L - 1, y, 4, L);
+          if (has(0, 1)) g.fillRect(x + L - 1, y + L, 4, 16 - L);
+          g.globalAlpha = 0.18; g.fillRect(x, y, 16, 16);
+        } else {
+          g.globalAlpha = blink; g.fillStyle = '#ff5a4a';
+          for (let k = 2; k < 14; k++) { g.fillRect(x + k, y + k, 1, 1); g.fillRect(x + 15 - k, y + k, 1, 1); }
+          g.globalAlpha = 0.2; g.fillRect(x, y, 16, 16);
+        }
+      }
+      g.globalAlpha = 1;
+    }
+    if (!h || !Game.inGrid(h.x, h.y)) return;
+    const c = t.kind === 'erase' || t.kind === 'remove' ? '#ff5a4a' : '#fff2a0';
+    P.r(h.x * TILE, h.y * TILE, 16, 1, c); P.r(h.x * TILE, h.y * TILE + 15, 16, 1, c);
+    P.r(h.x * TILE, h.y * TILE, 1, 16, c); P.r(h.x * TILE + 15, h.y * TILE, 1, 16, c);
   },
 
   drawFx() {

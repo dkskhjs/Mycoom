@@ -206,3 +206,5 @@ details .chips { margin-top: 6px; }
 body.panel-hidden #panel { display: none; }
 body.panel-hidden #stage { flex: 1; height: auto; }
 #camctl { flex-wrap: wrap; justify-content: flex-end; }
+#okTool { background: #3f7a3a; border-color: #8fdc7a; color: #fff; font-weight: bold; }
+#okTool.bad { background: #5a3530; border-color: #b0584a; opacity: .8; }
