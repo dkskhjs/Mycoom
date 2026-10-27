@@ -106,6 +106,13 @@ const SFX = {
     open(t) { this.bell(1319, t, 0.1, 0.9); this.bell(1760, t + 0.18, 0.09, 1); this.steamWhistle(t + 0.4, 0.6, 0.15, this.cur); },
     close(t) { this.bell(1319, t, 0.08, 1); this.bell(988, t + 0.25, 0.08, 1.2); },
     levelup(t) { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + i * 0.09, 0.25, { type: 'triangle', vol: 0.13 })); this.bell(2093, t + 0.4, 0.06, 0.9); },
+    // 실내 증기 (가끔): 보일러·배관에서 나는 소리
+    in_hiss(t) { this.hiss(t, 1.2 + Math.random() * 1.2, { type: 'highpass', f: 2200 + Math.random() * 1200, q: 0.5, vol: 0.07, a: 0.35 }); },
+    in_puff(t) { this.hiss(t, 0.35, { f: 1500, q: 0.7, vol: 0.12, a: 0.01, to: 3500 }); this.tone(90, t, 0.18, { vol: 0.08, to: 50 }); },
+    in_knock(t) { const n = 2 + Math.floor(Math.random() * 3), f = 170 + Math.random() * 90; for (let i = 0; i < n; i++) this.clank(t + i * (0.14 + Math.random() * 0.12), f, 0.06 - i * 0.008); },
+    in_tick(t) { for (let i = 0; i < 4 + Math.floor(Math.random() * 4); i++) this.tone(1400 + Math.random() * 600, t + i * (0.18 + Math.random() * 0.25), 0.025, { type: 'square', vol: 0.05 }); },
+    in_chuff(t) { for (let i = 0; i < 3; i++) { this.hiss(t + i * 0.42, 0.22, { f: 800 + i * 150, q: 0.6, vol: 0.09, a: 0.02 }); this.tone(65, t + i * 0.42, 0.15, { vol: 0.08 }); } },
+    in_whistle(t) { this.steamWhistle(t, 0.5, 0.18, this.cur); },
     // UI 조작음: 묵직한 기계 스위치·레버·톱니
     uiBtn(t) {   // 황동 스위치 딸깍-쿵
       this.hiss(t, 0.018, { f: 2400, q: 1.2, vol: 0.32, a: 0.001 });
@@ -180,10 +187,26 @@ const SFX = {
     const far = 1 - (Render.focus ?? 1);
     return this.ambVol * (0.06 + 0.94 * far);   // 가게 안에서는 아주 작게, 마을 전체면 최대
   },
+  // 가게 안: 보일러가 돌 때 가끔 증기·배관 소리 (압력이 높으면 더 자주)
+  indoorTick() {
+    if (this.muted || typeof App === 'undefined' || !App.started || !Game.s) return;
+    const c = this.ctx, now = c.currentTime;
+    if (this.nextIndoor === undefined) this.nextIndoor = now + 4 + Math.random() * 6;
+    if (now < this.nextIndoor) return;
+    const near = Render.focus ?? 1, b = Game.s.boiler, running = Game.s.objects.some(o => o.id === 'boiler') && Game.boilerRunning();
+    const pressure = b ? b.pressure : 0;
+    this.nextIndoor = now + (pressure > 70 ? 4 : 8) + Math.random() * (pressure > 70 ? 5 : 12);
+    if (!running || near < 0.35 || Game.paused) return;
+    const pool = ['in_hiss', 'in_hiss', 'in_puff', 'in_knock', 'in_tick', 'in_chuff'];
+    if (pressure > 70) pool.push('in_puff', 'in_whistle');
+    if (Game.s.pipe.heat.some(Boolean)) pool.push('in_tick', 'in_knock');
+    this.play(pool[Math.floor(Math.random() * pool.length)]);
+  },
   ambTick() {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const c = this.ctx, lv = this.muted ? 0 : this.ambLevel();
     this.ambBus.gain.setTargetAtTime(lv, c.currentTime, 0.4);
+    this.indoorTick();
     if (lv < 0.05 || c.currentTime < this.nextAmb) return;
     // 가끔 들리는 마을 소리
     const t = c.currentTime + 0.05, r = Math.random(), bus = this.ambBus;
