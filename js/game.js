@@ -240,6 +240,7 @@ const Game = {
         if (this.isInterior(x, y) && (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r) lit.add(this.idx(x, y));
     }
     this.rt.nets = { lit, floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
+    this.rt.nets.env = this.envelope();
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
     this.placeStaff();
@@ -290,7 +291,7 @@ const Game = {
   thermal() {
     const T = DATA.thermal, n = this.rt.nets;
     const base = this.outdoorTemp() + 4;          // 외피만 있을 때 실내
-    const UA = n.interior * T.uaPerTile;
+    const env = n.env || this.envelope(), UA = env.total;
     const cap = this.boilerRunning() ? n.heatCover.size * T.heatPerTile : 0;
     const gains = this.internalGains();
     const demand = Math.max(0, UA * (T.target - base));   // 발열 없을 때 필요한 난방
@@ -300,7 +301,30 @@ const Game = {
     // 상대습도: 날씨 기준 − 난방 건조 + 잠열 가습
     const baseRH = { sunny: 40, cloudy: 50, rain: 68, snow: 45 }[this.s.weather] - (this.hasEvent('blizzard') ? 10 : 0);
     const rh = Math.max(10, Math.min(95, baseRH - (temp - this.outdoorTemp()) * 0.8 + gains.lat / n.interior * 1.5));
-    return { base, UA, cap, gains, demand, load, supply, temp, rh, saved: Math.min(demand, gains.sens) };
+    return { base, UA, env, cap, gains, demand, load, supply, temp, rh, saved: Math.min(demand, gains.sens) };
+  },
+  // 외피 열손실계수 UA (W/K): 벽(바깥 테두리)·바닥·천장 칸마다 U = 1/(1/U0 + 마감재 열저항)
+  uOf(u0, r) { return 1 / Math.max(0.05, 1 / u0 + (r || 0)); },
+  envelope() {
+    const s = this.s, E = DATA.thermal.envelope, out = { wall: 0, floor: 0, ceil: 0, bare: 0 };
+    for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) {
+      const i = this.idx(x, y);
+      if (this.isWall(x, y)) { out.wall += this.isDoor(x, y) ? E.wall : this.uOf(E.wall, (DATA.walls[s.wall[i]] || {}).r); out.bare += E.wall; }
+      else if (this.isInterior(x, y)) {
+        out.floor += this.uOf(E.floor, (DATA.floors[s.floor[i]] || {}).r);
+        out.ceil += this.uOf(E.ceil, (DATA.ceilings[s.ceil[i]] || {}).r);
+        out.bare += E.floor + E.ceil;
+      }
+    }
+    out.total = out.wall + out.floor + out.ceil;
+    out.saved = 1 - out.total / Math.max(1, out.bare);   // 마감재 덕분에 줄어든 열손실 비율
+    return out;
+  },
+  // 마감재 하나가 그 면의 열손실을 몇 % 줄이는지 (카드 표시용)
+  insulPct(layer, id) {
+    const E = DATA.thermal.envelope, u0 = { floor: E.floor, wall: E.wall, ceil: E.ceil }[layer];
+    const r = ({ floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer][id] || {}).r || 0;
+    return Math.round((1 - this.uOf(u0, r) / u0) * 100);
   },
   indoorTemp() { return this.thermal().temp; },
   humidity() { return this.thermal().rh; },

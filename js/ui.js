@@ -248,7 +248,7 @@ const UI = {
     const matTable = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[sub];
     if (matTable) {
       for (const [id, m] of Object.entries(matTable)) {
-        grid.append(this.card({ key: `${sub}:${id}`, thumb: Sprites.thumb(sub, id, 40), name: m.name, cost: m.cost, lv: m.lv, lines: [`분위기 +${m.appeal}`], onClick: () => this.setTool({ kind: sub, id }) }));
+        grid.append(this.card({ key: `${sub}:${id}`, thumb: Sprites.thumb(sub, id, 40), name: m.name, cost: m.cost, lv: m.lv, lines: [`분위기 +${m.appeal}`, (p => p > 0 ? `🧱 열손실 −${p}%` : p < 0 ? `🪟 열손실 +${-p}%` : '단열 없음')(Game.insulPct(sub, id))], onClick: () => this.setTool({ kind: sub, id }) }));
       }
     }
     const cat = sub === 'ceil' ? 'ceilitem' : sub;
@@ -261,8 +261,8 @@ const UI = {
     B.append(grid);
     if (matTable) B.append(h('div', { id: 'live-bulk', class: 'bulk' }));
     const tips = {
-      floor: '바닥재 위에만 가구를 놓을 수 있어요. 드래그해서 칠하세요.',
-      wall: '바깥 테두리 벽에 칠합니다. 스테인드글라스 창은 분위기가 높아요.',
+      floor: '바닥재 위에만 가구를 놓을 수 있어요. 드래그해서 칠하세요. 카펫·융단·원목은 열이 덜 빠져나가 난방부하가 줄어요.',
+      wall: '바깥 테두리 벽에 칠합니다. 서가 벽·마호가니 패널은 단열이 좋고, 스테인드글라스 창은 분위기는 높지만 열이 더 새요.',
       ceil: '천장 보기 상태입니다. 천장 마감과 조명은 저녁 분위기를 좌우해요.',
       kitchen: '조리 설비는 증기 배관이 연결돼야 작동합니다. 카운터에 완성품이 진열됩니다.',
       furniture: '의자는 테이블과 상하좌우로 붙어 있어야 좌석이 됩니다.',
@@ -379,6 +379,7 @@ const UI = {
       rows.push(h('div', { class: 'srow2' }, `난방 커버 ${Math.round(Game.heatPower() * 100)}% · 실내 ${Math.round(it)}° / 실외 ${Math.round(Game.outdoorTemp())}° · 습도 ${Math.round(th.rh)}%`));
       rows.push(h('div', { class: 'thermo' },
         h('div', {}, `필요 난방 ${fmt(th.demand)}W − 내부 발열 ${fmt(Math.max(0, th.gains.sens))}W = 난방부하 ${fmt(th.load)}W`),
+        h('div', { class: 'dim' }, `외피 열손실 ${th.UA.toFixed(0)}W/K = 벽 ${th.env.wall.toFixed(0)} + 바닥 ${th.env.floor.toFixed(0)} + 천장 ${th.env.ceil.toFixed(0)}${th.env.saved > 0.005 ? ` · 마감재 단열로 −${Math.round(th.env.saved * 100)}%` : th.env.saved < -0.005 ? ` · 유리 때문에 +${Math.round(-th.env.saved * 100)}%` : ' · 마감재를 깔면 줄어요'}`),
         h('div', { class: 'dim' }, `보일러 공급 ${fmt(th.supply)}W / 최대 ${fmt(th.cap)}W${th.saved > 0 ? ` · 발열로 ${Math.round(th.saved / Math.max(1, th.demand) * 100)}% 절약` : ''}`),
         ...th.gains.rows.map(r => h('div', { class: 'dim gainrow' }, `· ${r.label}${r.n > 1 ? ' ×' + r.n : ''}: 현열 ${r.sens}W / 잠열 ${r.lat}W`))));
       const eq = s.objects.filter(o => DATA.objects[o.id].needs && DATA.objects[o.id].needs.length && o.id !== 'boiler');
@@ -394,7 +395,7 @@ const UI = {
       lu.replaceChildren(...rows);
     }
     const la = $('#live-appeal');
-    if (la) la.replaceChildren(h('div', {}, `분위기 점수 ${n.density.toFixed(1)}  (총 ${Math.round(n.appeal)} / ${n.interior}칸)`), h('div', { class: 'dim' }, `좌석 ${n.seats.length}개 · 💡 조명 커버 ${Math.round(Game.lightCoverage() * 100)}% (좌석 ${Math.round(Game.litSeats() * 100)}%)`));
+    if (la) la.replaceChildren(h('div', {}, `분위기 점수 ${n.density.toFixed(1)}  (총 ${Math.round(n.appeal)} / ${n.interior}칸)`), n.env ? h('div', { class: 'dim' }, `🧱 외피 열손실 ${n.env.total.toFixed(0)}W/K (벽 ${n.env.wall.toFixed(0)} · 바닥 ${n.env.floor.toFixed(0)} · 천장 ${n.env.ceil.toFixed(0)})${n.env.saved > 0.005 ? ` — 마감재 단열 −${Math.round(n.env.saved * 100)}%` : ''}`) : null, h('div', { class: 'dim' }, `좌석 ${n.seats.length}개 · 💡 조명 커버 ${Math.round(Game.lightCoverage() * 100)}% (좌석 ${Math.round(Game.litSeats() * 100)}%)`));
     const lbk = $('#live-bulk'), tl = this.state.tool;
     if (lbk) {
       const sub = this.state.sub, sig = JSON.stringify([tl, s.money >= 0 && Math.floor(s.money / 50), s.W, s.H]);

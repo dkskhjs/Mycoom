@@ -17,53 +17,53 @@ const DATA = {
       desc: '넓고 비싸다. 여행객이 끊이지 않는다.' },
   ],
 
-  // 바닥재 (타일당)
+  // 바닥재 (타일당). r = 열저항 — 클수록 열이 덜 빠져나가 난방부하가 준다
   floors: {
-    dirt:       { name: '맨흙',          cost: 0,  appeal: 0, lv: 1 },
-    plank:      { name: '거친 판자',      cost: 15, appeal: 1, lv: 1 },
-    herring:    { name: '헤링본 원목',    cost: 35, appeal: 2, lv: 1 },
-    checker:    { name: '흑백 체크 타일', cost: 40, appeal: 2, lv: 2 },
-    brassgrid:  { name: '황동 격자 철판', cost: 55, appeal: 3, lv: 3 },
-    carpet:     { name: '진홍 카펫',      cost: 50, appeal: 3, lv: 3 },
-    marble:     { name: '대리석',         cost: 80, appeal: 4, lv: 5 },
-    cobble:     { name: '자갈 포석',      cost: 18, appeal: 1, lv: 1 },
-    brickfloor: { name: '헤링본 벽돌',    cost: 25, appeal: 1, lv: 1 },
-    parquet:    { name: '쪽모이 원목',    cost: 45, appeal: 3, lv: 2 },
-    hextile:    { name: '육각 타일',      cost: 50, appeal: 3, lv: 3 },
-    steamgrate: { name: '증기 그레이팅',   cost: 60, appeal: 3, lv: 3 },
-    rug:        { name: '페르시아 융단',   cost: 70, appeal: 4, lv: 4 },
-    mosaic:     { name: '황동 모자이크',   cost: 95, appeal: 5, lv: 6 },
+    dirt:       { name: '맨흙',          cost: 0,  appeal: 0, lv: 1, r: 0 },
+    plank:      { name: '거친 판자',      cost: 15, appeal: 1, lv: 1, r: 0.25 },
+    herring:    { name: '헤링본 원목',    cost: 35, appeal: 2, lv: 1, r: 0.3 },
+    checker:    { name: '흑백 체크 타일', cost: 40, appeal: 2, lv: 2, r: 0.1 },
+    brassgrid:  { name: '황동 격자 철판', cost: 55, appeal: 3, lv: 3, r: 0.04 },
+    carpet:     { name: '진홍 카펫',      cost: 50, appeal: 3, lv: 3, r: 0.45 },
+    marble:     { name: '대리석',         cost: 80, appeal: 4, lv: 5, r: 0.12 },
+    cobble:     { name: '자갈 포석',      cost: 18, appeal: 1, lv: 1, r: 0.08 },
+    brickfloor: { name: '헤링본 벽돌',    cost: 25, appeal: 1, lv: 1, r: 0.12 },
+    parquet:    { name: '쪽모이 원목',    cost: 45, appeal: 3, lv: 2, r: 0.32 },
+    hextile:    { name: '육각 타일',      cost: 50, appeal: 3, lv: 3, r: 0.12 },
+    steamgrate: { name: '증기 그레이팅',   cost: 60, appeal: 3, lv: 3, r: 0.02 },
+    rug:        { name: '페르시아 융단',   cost: 70, appeal: 4, lv: 4, r: 0.55 },
+    mosaic:     { name: '황동 모자이크',   cost: 95, appeal: 5, lv: 6, r: 0.1 },
   },
 
   // 벽 마감재 (외곽 벽 타일당)
   walls: {
-    rawbrick:   { name: '거친 벽돌',      cost: 0,  appeal: 0, lv: 1 },
-    redbrick:   { name: '붉은 벽돌',      cost: 20, appeal: 1, lv: 1 },
-    woodpanel:  { name: '마호가니 패널',   cost: 40, appeal: 2, lv: 1 },
-    damask:     { name: '다마스크 벽지',   cost: 45, appeal: 2, lv: 2 },
-    rivet:      { name: '리벳 철판',      cost: 50, appeal: 2, lv: 2 },
-    verdigris:  { name: '녹청 구리판',     cost: 70, appeal: 3, lv: 4 },
-    stained:    { name: '스테인드글라스 창', cost: 110, appeal: 4, lv: 5 },
-    rustplate:  { name: '녹슨 철판',      cost: 25, appeal: 1, lv: 1 },
-    stripe:     { name: '줄무늬 벽지',     cost: 35, appeal: 2, lv: 1 },
-    subway:     { name: '흰 지하철 타일',  cost: 40, appeal: 2, lv: 2 },
-    porthole:   { name: '현창 황동벽',     cost: 85, appeal: 3, lv: 3 },
-    bookwall:   { name: '서가 벽',        cost: 80, appeal: 4, lv: 4 },
-    gearwall:   { name: '톱니 장식 벽',    cost: 95, appeal: 4, lv: 5 },
+    rawbrick:   { name: '거친 벽돌',      cost: 0,  appeal: 0, lv: 1, r: 0 },
+    redbrick:   { name: '붉은 벽돌',      cost: 20, appeal: 1, lv: 1, r: 0.08 },
+    woodpanel:  { name: '마호가니 패널',   cost: 40, appeal: 2, lv: 1, r: 0.35 },
+    damask:     { name: '다마스크 벽지',   cost: 45, appeal: 2, lv: 2, r: 0.15 },
+    rivet:      { name: '리벳 철판',      cost: 50, appeal: 2, lv: 2, r: 0.03 },
+    verdigris:  { name: '녹청 구리판',     cost: 70, appeal: 3, lv: 4, r: 0.05 },
+    stained:    { name: '스테인드글라스 창', cost: 110, appeal: 4, lv: 5, r: -0.15 },
+    rustplate:  { name: '녹슨 철판',      cost: 25, appeal: 1, lv: 1, r: 0.02 },
+    stripe:     { name: '줄무늬 벽지',     cost: 35, appeal: 2, lv: 1, r: 0.12 },
+    subway:     { name: '흰 지하철 타일',  cost: 40, appeal: 2, lv: 2, r: 0.08 },
+    porthole:   { name: '현창 황동벽',     cost: 85, appeal: 3, lv: 3, r: 0 },
+    bookwall:   { name: '서가 벽',        cost: 80, appeal: 4, lv: 4, r: 0.5 },
+    gearwall:   { name: '톱니 장식 벽',    cost: 95, appeal: 4, lv: 5, r: 0.1 },
   },
 
   // 천장 마감재 (실내 타일당)
   ceilings: {
-    beams:      { name: '노출 서까래',     cost: 0,  appeal: 0, lv: 1 },
-    plaster:    { name: '석고 천장',       cost: 12, appeal: 1, lv: 1 },
-    tin:        { name: '주석 엠보 타일',  cost: 30, appeal: 2, lv: 2 },
-    copper:     { name: '구리 패널',       cost: 45, appeal: 2, lv: 4 },
-    glassdome:  { name: '유리 돔 채광창',  cost: 70, appeal: 3, lv: 5 },
-    duct:       { name: '노출 덕트',       cost: 20, appeal: 1, lv: 1 },
-    brassplate: { name: '황동 압착판',     cost: 50, appeal: 2, lv: 3 },
-    coffered:   { name: '격자 우물천장',   cost: 55, appeal: 3, lv: 3 },
-    gearceil:   { name: '톱니 천장',       cost: 65, appeal: 3, lv: 4 },
-    fresco:     { name: '하늘 프레스코',   cost: 90, appeal: 4, lv: 6 },
+    beams:      { name: '노출 서까래',     cost: 0,  appeal: 0, lv: 1, r: 0 },
+    plaster:    { name: '석고 천장',       cost: 12, appeal: 1, lv: 1, r: 0.2 },
+    tin:        { name: '주석 엠보 타일',  cost: 30, appeal: 2, lv: 2, r: 0.05 },
+    copper:     { name: '구리 패널',       cost: 45, appeal: 2, lv: 4, r: 0.05 },
+    glassdome:  { name: '유리 돔 채광창',  cost: 70, appeal: 3, lv: 5, r: -0.25 },
+    duct:       { name: '노출 덕트',       cost: 20, appeal: 1, lv: 1, r: 0.02 },
+    brassplate: { name: '황동 압착판',     cost: 50, appeal: 2, lv: 3, r: 0.06 },
+    coffered:   { name: '격자 우물천장',   cost: 55, appeal: 3, lv: 3, r: 0.3 },
+    gearceil:   { name: '톱니 천장',       cost: 65, appeal: 3, lv: 4, r: 0.1 },
+    fresco:     { name: '하늘 프레스코',   cost: 90, appeal: 4, lv: 6, r: 0.25 },
   },
 
   // 배관 (타일당)
@@ -225,7 +225,9 @@ const DATA = {
   // 열 모델 (W). 실내 1칸 ≈ 1㎡ 로 본다.
   thermal: {
     target: 22,        // 보일러 온도조절 목표 °C
-    uaPerTile: 4,      // 외피 열손실계수 W/K (칸당)
+    // 외피 열손실 (칸 하나당 열관류 U·A, W/K) — 맨 상태 기준. 마감재의 열저항 r(K/W·칸)이 직렬로 더해져
+    // U = 1 / (1/U0 + r) 로 줄어든다 (r 이 음수면 유리처럼 오히려 새 나감)
+    envelope: { wall: 2.4, floor: 1.3, ceil: 1.4 },
     heatPerTile: 150,  // 난방이 닿는 칸 1칸의 최대 공급 W
     // 내부 발열: sens = 현열(공기 온도를 올림), lat = 잠열(수증기 → 습도)
     person: { sens: 70, lat: 45 },     // 앉아 있는 손님
