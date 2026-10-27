@@ -37,6 +37,7 @@ const Game = {
       objects: [], nextUid: 1,
       stock: { beans: 10, milk: 10, tea: 10, flour: 0, cocoa: 0 },
       cats: [],
+      stains: [],
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -81,7 +82,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= [];
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= [];
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -198,6 +199,7 @@ const Game = {
     }
     for (const o of s.objects) appeal += this.objDef(o).appeal;
     appeal += (s.cats || []).length * DATA.catAppeal;
+    appeal -= (s.stains || []).length * DATA.stain.appeal;
     this.rt.nets = { floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
@@ -362,6 +364,7 @@ const Game = {
       }
     }
     s.leaks = s.leaks.map(l => ({ type: l.type, i: ni(l.i % oW, ((l.i / oW) | 0) + dy) }));
+    for (const st of s.stains) st.y += dy;
     for (const o of s.objects) o.y += dy;
     s.W = W; s.H = H; s.floor = nf; s.wall = nw; s.ceil = nc; s.pipe = np;
     s.inletY = (s.inletY ?? 2) + dy;
@@ -434,6 +437,28 @@ const Game = {
     }
   },
   catAt(x, y) { return this.rt.cats.find(c => Math.round(c.x) === x && Math.round(c.y) === y); },
+
+  // ───────── 커피 얼룩 ─────────
+  // 좌석 옆 바닥(걸을 수 있는 칸)에 쏟는다. 칸 안 위치·크기는 무작위.
+  spill(sx, sy) {
+    const s = this.s;
+    if (s.stains.length >= DATA.stain.max) return;
+    const cands = [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([dx, dy]) => [sx + dx, sy + dy])
+      .filter(([x, y]) => this.isInterior(x, y) && this.walkable(x, y) && !s.stains.some(st => st.x === x && st.y === y));
+    if (!cands.length) return;
+    const [x, y] = cands[Math.floor(Math.random() * cands.length)];
+    s.stains.push({ x, y, ox: 3 + Math.floor(Math.random() * 8), oy: 4 + Math.floor(Math.random() * 7), r: 2 + Math.floor(Math.random() * 2), seed: Math.floor(Math.random() * 999) });
+    this.rt.dirty = true;
+    if (!s.stainHint) { s.stainHint = true; this.toast('☕ 손님이 커피를 쏟았어요! 얼룩을 클릭해서 닦으세요 (분위기·만족도 감소)', 'warn'); }
+  },
+  stainAt(x, y) { return this.s.stains.find(st => st.x === x && st.y === y); },
+  wipeStain(st) {
+    this.s.stains = this.s.stains.filter(q => q !== st);
+    for (let i = 0; i < 6; i++) this.rt.particles.push({ x: st.x * 16 + st.ox + (Math.random() - 0.5) * 8, y: st.y * 16 + st.oy, vx: (Math.random() - 0.5) * 10, vy: -8 - Math.random() * 8, life: 0.7, max: 1, color: i % 2 ? '#ffffff' : '#bfe6ff', size: 1 });
+    this.float(st.x + 0.5, st.y, '반짝!', '#bfe6ff');
+    this.addXp(1);
+    this.rt.dirty = true;
+  },
 
   // ───────── 요리 ─────────
   menuUnlocked() { return Object.entries(DATA.recipes).filter(([, r]) => r.lv <= this.s.level); },
@@ -619,6 +644,7 @@ const Game = {
     sat += t >= 27 ? -6 : t >= 20 ? 12 : t >= 18 ? 5 : t >= 14 ? -8 : -25;
     sat += rh < 25 ? -5 : rh < 35 ? 0 : rh <= 60 ? 3 : rh <= 70 ? -2 : -6;
     if (c.seat && this.rt.cats.some(k => Math.abs(k.x - c.seat.x) + Math.abs(k.y - c.seat.y) <= 2)) sat += 6;
+    if (c.seat && this.s.stains.some(st => Math.abs(st.x - c.seat.x) + Math.abs(st.y - c.seat.y) <= 1)) sat -= DATA.stain.nearSat;
     sat -= (c.wait / c.type.patience) * 25;
     return Math.max(0, Math.min(100, sat));
   },
@@ -682,7 +708,7 @@ const Game = {
       start: g => { g.toast('🎩 귀족 일행이 방문합니다. 분위기 좋은 카페를 기대하고 있어요!', 'good'); g.spawnCustomer(true); g.spawnCustomer(true); }, instant: true },
     inspector: { name: '증기 안전 감독관', w: 1, can: g => g.s.day >= 2,
       start: g => {
-        const s = g.s, ok = s.boiler.pressure < 80 && !s.leaks.length && s.objects.some(o => o.id === 'sink' && g.working(o));
+        const s = g.s, ok = s.boiler.pressure < 80 && !s.leaks.length && s.stains.length <= 5 && s.objects.some(o => o.id === 'sink' && g.working(o));
         if (ok) { s.money += 300; s.rep = Math.min(100, s.rep + 3); g.toast('🔍 증기 안전 감독관 점검 통과! 포상금 300, 평판 상승', 'good'); }
         else { s.money -= 250; g.toast('🔍 감독관 점검 불합격 (압력/누수/위생 문제) — 벌금 250', 'bad'); }
       }, instant: true },
@@ -852,7 +878,11 @@ const Game = {
       }
       if (c.state === 'eating') {
         c.timer -= gm;
-        if (c.timer <= 0) { this.payCustomer(c); this.customerLeave(c, false); }
+        if (c.timer <= 0) {
+          this.payCustomer(c);
+          if (c.seat && Math.random() < DATA.stain.chance) this.spill(c.seat.x, c.seat.y);
+          this.customerLeave(c, false);
+        }
       }
     }
     rt.customers = rt.customers.filter(c => c.state !== 'gone');

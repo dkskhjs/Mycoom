@@ -1,7 +1,7 @@
 // 렌더러: world(저해상도 도트) + fx(고해상도 텍스트) 2장 캔버스
 const Render = {
   world: null, wg: null, fx: null, fg: null, light: null, lg: null,
-  scale: 3, t: 0, flakes: [],
+  scale: 3, t: 0, flakes: [], outsideBlur: true,
 
   // world = 화면 밖 장면 캔버스(마을 전체, 1px = 도트 1칸), view = 화면에 보이는 캔버스
   view: null, vg: null, cam: null, cw: 0, ch: 0, dpr: 1,
@@ -92,7 +92,9 @@ const Render = {
     // 연석
     P.r(0, H * TILE, W * TILE, 1, PAL.s3);
     Town.drawSnow(g); Town.drawFront(g);
+    this.drawWallCut(g);
     g.drawImage(this.toneOverlay(), 0, 0);   // 넓은 범위 색 얼룩
+    this.drawStains(P);
     this.drawDoor(P); this.drawInlet(P);
     P.r(0, (H + 1) * TILE, W * TILE, 1, PAL.s1); // 보도/차도 경계
 
@@ -172,7 +174,18 @@ const Render = {
     v.setTransform(1, 0, 0, 1, 0, 0);
     v.imageSmoothingEnabled = false;
     v.clearRect(0, 0, this.view.width, this.view.height);   // 장면 밖은 CSS 배경(마을 전경 그림)이 보인다
-    v.drawImage(this.world, Math.round(-this.viewLeft() * z), Math.round(-this.viewTop() * z), Math.round(this.world.width * z), Math.round(this.world.height * z));
+    const dx = Math.round(-this.viewLeft() * z), dy = Math.round(-this.viewTop() * z), dw = Math.round(this.world.width * z), dh = Math.round(this.world.height * z);
+    // 건물 밖은 살짝 흐리고 어둡게, 건물 안(외곽선 포함)은 선명하게 한 번 더 그린다
+    if (this.outsideBlur && 'filter' in v) {
+      v.filter = `blur(${Math.max(0.6, z * 0.35).toFixed(2)}px) brightness(0.9) saturate(0.9)`;
+      v.drawImage(this.world, dx, dy, dw, dh);
+      v.filter = 'none';
+      const bx = dx + Math.round((Town.ox() - 2) * z), by = dy + Math.round((Town.oy() - 2) * z);
+      const bw = Math.round((Game.s.W * TILE + 4) * z), bh = Math.round((Game.s.H * TILE + 4) * z);
+      v.save(); v.beginPath(); v.rect(bx, by, bw, bh); v.clip();
+      v.drawImage(this.world, dx, dy, dw, dh);
+      v.restore();
+    } else v.drawImage(this.world, dx, dy, dw, dh);
 
     // 10. fx: 텍스트
     this.drawFx();
@@ -211,6 +224,44 @@ const Render = {
         const ph = (t * 0.9 + j * 0.37 + k / 7) % 1, yy = Math.round(w.top - ph * 14), xx = Math.round(w.x - 6 + j * 6 + Math.sin(t * 4 + k + j * 2) * 1.5);
         g.fillStyle = `rgba(255,225,190,${0.38 * (1 - ph)})`; g.fillRect(xx, yy, 1, 2);
       }
+    }
+  },
+
+  // 건물 단면: 벽 바깥쪽 4px 를 진하게(잘린 벽 두께), 바깥 외곽선 2px, 안쪽 경계선 1px
+  drawWallCut(g) {
+    const s = Game.s, W = s.W * TILE, H = s.H * TILE, T = 4, d = Game.door;
+    g.fillStyle = 'rgba(22,11,5,0.78)';
+    g.fillRect(0, 0, W, T);                         // 북
+    g.fillRect(0, 0, T, H);                         // 서
+    g.fillRect(W - T, 0, T, H);                     // 동
+    g.fillRect(0, H - TILE, d.x * TILE, T);         // 남 (문 왼쪽)
+    g.fillRect((d.x + 1) * TILE, H - TILE, W - (d.x + 1) * TILE, T);
+    g.fillStyle = 'rgba(80,52,34,0.55)';            // 단면 윗면 하이라이트 한 줄
+    g.fillRect(T, T, W - T * 2, 1);
+    // 바깥 외곽선
+    g.fillStyle = '#0c0604';
+    g.fillRect(-2, -2, W + 4, 2); g.fillRect(-2, -2, 2, H + 2); g.fillRect(W, -2, 2, H + 2);
+    g.fillRect(-2, H - TILE, d.x * TILE + 2, 1); g.fillRect((d.x + 1) * TILE, H - TILE, W - (d.x + 1) * TILE + 2, 1);
+    g.fillRect(-2, H, d.x * TILE + 2, 2); g.fillRect((d.x + 1) * TILE, H, W - (d.x + 1) * TILE + 2, 2);
+    // 안쪽 경계(벽과 바닥이 만나는 선)
+    g.fillStyle = 'rgba(12,6,4,0.7)';
+    g.fillRect(TILE - 1, TILE - 1, W - TILE * 2 + 2, 1);
+    g.fillRect(TILE - 1, TILE - 1, 1, H - TILE * 2 + 2);
+    g.fillRect(W - TILE, TILE - 1, 1, H - TILE * 2 + 2);
+    g.fillRect(TILE - 1, H - TILE, d.x * TILE - TILE + 1, 1); g.fillRect((d.x + 1) * TILE, H - TILE, W - (d.x + 2) * TILE + 1, 1);
+  },
+
+  // 커피 얼룩: 진한 테두리 링 + 옅은 속 + 튄 방울
+  // 커피 얼룩: 진한 테두리 링 + 옅은 속 + 튄 방울 (어두운 바닥에서도 보이게 진하게)
+  drawStains(P) {
+    for (const st of Game.s.stains) {
+      const cx = st.x * TILE + st.ox, cy = st.y * TILE + st.oy, r = st.r + 1;
+      P.ellipse(cx, cy, r + 1, r, 'rgba(34,14,4,0.85)');
+      P.ellipse(cx, cy, r, Math.max(1, r - 1), 'rgba(110,58,24,0.9)');
+      P.ellipse(cx, cy, Math.max(1, r - 1), Math.max(1, r - 2), 'rgba(150,92,48,0.85)');
+      P.p(cx - 1, cy - 1, 'rgba(210,160,110,0.8)');
+      P.p(cx + r + 2, cy + (st.seed % 3) - 1, 'rgba(34,14,4,0.85)');
+      if (st.seed % 2) { P.p(cx - r - 2, cy + 1, 'rgba(34,14,4,0.8)'); P.p(cx - r - 1, cy + 2, 'rgba(110,58,24,0.8)'); }
     }
   },
 

@@ -278,6 +278,7 @@ const UI = {
       kids.push(chips2);
       const t = s.today;
       kids.push(h('h3', {}, '오늘'), h('div', {}, `손님 ${t.served}명 · 화난 손님 ${t.angry}명 · 매출 ${fmt(t.revenue)} · 팁 ${fmt(t.tips)}`));
+      if (s.stains.length) kids.push(h('div', { class: 'bad' }, `☕ 커피 얼룩 ${s.stains.length}개 — 클릭해서 닦기 (분위기 −${s.stains.length * DATA.stain.appeal})`));
       kids.push(h('div', { class: 'dim' }, `현재 손님 ${Game.rt.customers.filter(c => c.state !== 'pass').length} · 분위기 ${n.density.toFixed(1)} · 평판 ${s.rep.toFixed(0)}`));
       lo.replaceChildren(...kids);
     }
@@ -336,6 +337,7 @@ const UI = {
     if (Game.hasEvent('pressure') || s.boiler.pressure > 75) kids.push(h('button', { class: 'btn danger', onclick: () => Game.ventValve() }, `🔴 안전밸브 개방 (압력 ${Math.round(s.boiler.pressure)})`));
     if (s.boiler.broken) kids.push(h('button', { class: 'btn danger', onclick: () => Game.repairBoiler() }, '🔧 보일러 수리 800'));
     if (s.leaks.length) kids.push(h('span', { class: 'ev bad' }, `💧 누수 ${s.leaks.length}곳`));
+    if (s.stains.length >= 4) kids.push(h('span', { class: 'ev' }, `☕ 얼룩 ${s.stains.length}개`));
     if (!Game.boilerRunning() && s.objects.some(o => o.id === 'boiler') && s.coal <= 0) kids.push(h('span', { class: 'ev bad' }, '⚫ 석탄 없음'));
     const sig = kids.map(k => k.textContent).join('|');
     if (sig !== this._bannerSig) { el.replaceChildren(...kids); this._bannerSig = sig; }
@@ -428,6 +430,9 @@ const UI = {
   clickSelect(t, e) {
     this.closePopup();
     const s = Game.s;
+    // 커피 얼룩: 클릭하면 바로 닦는다
+    const stain = Game.inGrid(t.x, t.y) && Game.stainAt(t.x, t.y);
+    if (stain) { Game.wipeStain(stain); return; }
     // 누수 칸
     if (Game.inGrid(t.x, t.y)) {
       const i = Game.idx(t.x, t.y), leak = s.leaks.find(l => l.i === i);

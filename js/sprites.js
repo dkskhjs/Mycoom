@@ -744,8 +744,8 @@ function weatherTile(c, kind, id, v) {
   const fx = 2 + Math.floor(hash(v, 1, seed) * 11), fy = top + 2 + Math.floor(hash(v, 2, seed) * (11 - top));
   const kindOf = v % 3;
   if (v > 0) {
-    if (kindOf === 0) { // 얼룩(물·커피 자국)
-      for (let y = -1; y <= 1; y++) for (let x = -2; x <= 2; x++) if (Math.abs(x) + Math.abs(y) < 3 && hash(x, y, seed + 3) < 0.8) shade(((fy + y) * 16 + fx + x) * 4, 0.82);
+    if (kindOf === 0) { // 닳은 자국 (커피 얼룩은 지울 수 있는 별도 레이어 — Game.s.stains)
+      for (let y = 0; y <= 1; y++) for (let x = -1; x <= 1; x++) if (hash(x, y, seed + 3) < 0.6) shade(((fy + y) * 16 + fx + x) * 4, 1.08);
     } else if (kindOf === 1) { // 긁힘
       for (let k = 0; k < 4; k++) { const px = fx + k, py = fy + (k >> 1); if (px < 16 && py < 16) shade((py * 16 + px) * 4, 1.18); }
     } else { // 옹이·흠집

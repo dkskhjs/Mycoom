@@ -204,6 +204,8 @@ const DATA = {
     { id: 'tuxedo',   name: '턱시도냥',   fur: ['#2a2a2e', '#141416', '#f4f4f0'], sens: 15, lat: 5,  cost: 700,  lv: 2, kg: 4.2 },
     { id: 'coon',     name: '증기 메인쿤', fur: ['#8a5a32', '#4a2e18', '#e8d0a8'], sens: 28, lat: 9,  cost: 1500, lv: 3, kg: 8, big: true },
   ],
+  // 커피 얼룩: 손님이 다 마시고 일어날 때 쏟는 확률, 얼룩 하나당 분위기 감점, 근처 손님 만족도 감점
+  stain: { chance: 0.22, max: 30, appeal: 2, nearSat: 5 },
   catMax: 3,
   catFoodPerDay: 15,
   catAppeal: 5,
