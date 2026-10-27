@@ -3,8 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>스팀 & 빈즈</title>
+<title>스팀 &amp; 빈즈</title>
 <link rel="stylesheet" href="css/style.css">
+
+<!-- 1. Firebase 라이브러리 (기존 js 파일보다 먼저 로드되어야 함) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div id="app">
@@ -56,6 +61,11 @@
   <div id="toasts"></div>
   <div id="modal" hidden></div>
 </div>
+
+<!-- 2. Firebase 연동 초기화 파일 -->
+<script src="js/firebase-init.js"></script>
+
+<!-- 3. 기존 게임 스크립트 파일들 -->
 <script src="assets/manifest.js"></script>
 <script src="js/data.js"></script>
 <script src="js/naple_atlas.js"></script>
