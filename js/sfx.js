@@ -3,12 +3,16 @@
 // · 증기 환경음: 마을 쪽으로 줌아웃할수록 커진다 (쉭쉭 새는 증기, 기관차 칙칙폭폭, 멀리 기적, 쇳소리).
 const SFX = {
   ctx: null, out: null, sfxBus: null, ambBus: null, noise: null,
-  vol: 0.55, ambVol: 0.5,
+  vol: 0.55, envVol: 0.6,   // 효과음 / 증기·환경음 (설정 슬라이더)
   muted: false,
   last: {},
 
   init() {
-    try { this.muted = localStorage.getItem('steamcafe_sfx_mute') === '1'; } catch (e) {}
+    try {
+      this.muted = localStorage.getItem('steamcafe_sfx_mute') === '1';
+      const v = localStorage.getItem('steamcafe_vol_sfx'), e = localStorage.getItem('steamcafe_vol_env');
+      if (v !== null) this.vol = +v; if (e !== null) this.envVol = +e;
+    } catch (e) {}
     // iOS: 무음 스위치가 켜져 있어도 소리가 나게 (Safari 16.4+ 오디오 세션). 없으면 무시
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
     // iOS 는 touchstart/pointerdown 이 아니라 touchend·click 에서만 오디오 잠금이 풀린다
@@ -48,6 +52,8 @@ const SFX = {
     }
   },
 
+  setVol(v) { this.vol = v; if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05); try { localStorage.setItem('steamcafe_vol_sfx', v); } catch (e) {} },
+  setEnvVol(v) { this.envVol = v; try { localStorage.setItem('steamcafe_vol_env', v); } catch (e) {} this.ambTick(); },
   toggle() {
     this.muted = !this.muted;
     try { localStorage.setItem('steamcafe_sfx_mute', this.muted ? '1' : '0'); } catch (e) {}
@@ -149,7 +155,10 @@ const SFX = {
     const ui = ['uiBtn', 'uiTab', 'uiCard', 'error', 'buy', 'coal', 'levelup', 'place', 'heavy', 'pipe', 'remove', 'brush'].includes(name);
     const near = typeof Render !== 'undefined' && Render.focus != null ? Render.focus : 1;
     const g = this.cur = this.ctx.createGain();
-    g.gain.value = (ui ? 1 : 0.25 + 0.75 * near) * (this.mix[name] ?? 1); g.connect(this.sfxBus);
+    // 실내 증기 소리는 효과음이 아니라 환경음 슬라이더를 따른다 (기본값에서 예전의 약 1.8배)
+    const env = name.startsWith('in_');
+    g.gain.value = (ui ? 1 : 0.25 + 0.75 * near) * (this.mix[name] ?? 1) * (env ? this.envVol * 1.65 / Math.max(0.05, this.vol) : 1);
+    g.connect(this.sfxBus);
     try { fn.call(this, now + 0.01); } catch (e) {}
     this.cur = null;
     setTimeout(() => g.disconnect(), 4000);
@@ -185,7 +194,7 @@ const SFX = {
   ambLevel() {
     if (typeof App === 'undefined' || !App.started || !Game.s) return 0;
     const far = 1 - (Render.focus ?? 1);
-    return this.ambVol * (0.06 + 0.94 * far);   // 가게 안에서는 아주 작게, 마을 전체면 최대
+    return this.envVol * 0.85 * (0.06 + 0.94 * far);   // 가게 안에서는 아주 작게, 마을 전체면 최대
   },
   // 가게 안: 보일러가 돌 때 가끔 증기·배관 소리 (압력이 높으면 더 자주)
   indoorTick() {

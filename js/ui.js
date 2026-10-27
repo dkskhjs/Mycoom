@@ -823,9 +823,20 @@ const UI = {
       user ? h('button', { class: 'btn big', onclick: () => { this.closeModal(); logoutAccount(); } }, '로그아웃')
         : h('button', { class: 'btn big', onclick: () => { this.closeModal(); openAuthModal(); } }, '🔒 로그인 / 회원가입'));
   },
+  // 볼륨 슬라이더 한 줄
+  volRow(label, value, onInput) {
+    const out = h('span', { class: 'vval' }, Math.round(value * 100) + '');
+    const r = h('input', { type: 'range', min: 0, max: 100, step: 5, value: Math.round(value * 100) });
+    r.addEventListener('input', () => { out.textContent = r.value; onInput(r.value / 100); });
+    return h('label', { class: 'vrow' }, h('span', { class: 'vname' }, label), r, out);
+  },
   showSystemMenu() {
     this.modal(h('div', {},
-      h('h2', {}, '메뉴'),
+      h('div', { class: 'mhead' }, h('h2', {}, '메뉴'), h('button', { class: 'btn mclose', onclick: () => this.closeModal() }, '✕ 닫기')),
+      h('h3', {}, '🔊 소리'),
+      this.volRow('음악', BGM.vol, v => BGM.setVol(v)),
+      this.volRow('효과음', SFX.vol, v => SFX.setVol(v)),
+      this.volRow('증기·환경음', SFX.envVol, v => SFX.setEnvVol(v)),
       h('button', { class: 'btn big', onclick: () => { Game.save(); this.toast('저장했습니다'); this.closeModal(); } }, '저장'),
       h('button', { class: 'btn big', onclick: () => this.modal(h('div', {},
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),

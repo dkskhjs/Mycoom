@@ -18,6 +18,7 @@ const BGM = {
   unlocked: false,
 
   init() {
+    try { const v = localStorage.getItem('steamcafe_vol_bgm'); if (v !== null) this.vol = +v; } catch (e) {}
     try { this.muted = localStorage.getItem('steamcafe_mute') === '1'; } catch (e) {}
     const unlock = () => { this.unlocked = true; this.apply(); };
     window.addEventListener('pointerdown', unlock, { once: true });
@@ -86,6 +87,7 @@ const BGM = {
     for (const [k, b] of Object.entries(this.els)) if (k !== this.cur && !b.paused) b.pause();
   },
 
+  setVol(v) { this.vol = v; try { localStorage.setItem('steamcafe_vol_bgm', v); } catch (e) {} },
   toggle() {
     this.muted = !this.muted;
     try { localStorage.setItem('steamcafe_mute', this.muted ? '1' : '0'); } catch (e) {}
