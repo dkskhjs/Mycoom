@@ -19,14 +19,34 @@ let currentUser = null;
 
 // 3. 로그인 상태 감지 (페이지가 열릴 때 로그인 상태를 지속 확인)
 auth.onAuthStateChanged((user) => {
+  const modal = document.getElementById("modal");
+  const authBtn = document.getElementById("authBtn");
+  const userEmail = document.getElementById("userEmail");
+  const logoutBtn = document.getElementById("logoutBtn");
   if (user) {
     currentUser = user;
     console.log("🟢 클라우드 로그인 완료:", user.email);
-    // 로그인에 성공하면 저장되어 있던 클라우드 세이브 데이터를 로드
+if (modal) modal.hidden = true;
+
+    // 2. 상단 버튼 UI 로그인 상태로 변경
+    if (authBtn) authBtn.style.display = "none"; // 로그인 버튼 숨김
+    if (userEmail) {
+      userEmail.textContent = user.email; // 로그인된 이메일 표시
+      userEmail.style.display = "inline";
+    }
+    if (logoutBtn) logoutBtn.style.display = "inline-flex"; // 로그아웃 버튼 표시
+
+    // 3. 클라우드 데이터 로드
     loadFromCloud();
+
   } else {
     currentUser = null;
-    console.log("⚪ 로그인되지 않은 상태 (로컬 저장소 동작)");
+    console.log("⚪ 로그아웃 상태");
+
+    // 로그아웃 상태 UI로 복구
+    if (authBtn) authBtn.style.display = "inline-flex";
+    if (userEmail) userEmail.style.display = "none";
+    if (logoutBtn) logoutBtn.style.display = "none";
   }
 });
 
