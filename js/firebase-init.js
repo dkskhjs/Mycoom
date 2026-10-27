@@ -1,4 +1,11 @@
-
+// 파이어베이스 초기화 직후에 추가 (세션 무한 유지)
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .then(() => {
+    // 세션 유지 설정 완료
+  })
+  .catch((error) => {
+    console.error("세션 유지 설정 실패:", error);
+  });
 // 1. Firebase 콘솔에서 발급받은 본인의 설정 값으로 교체하세요
 const firebaseConfig = {
  apiKey: "AIzaSyBLhpQ15lUNgBGtEq3zvhxpCVdkopwEWao",
