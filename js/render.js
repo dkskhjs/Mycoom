@@ -542,9 +542,9 @@ const Render = {
 
   drawLighting(g) {
     const s = Game.s, m = s.min;
-    const dusk = Math.max(0, Math.min(1, (m - 16.5 * 60) / 210));
+    const dusk = Math.max(0, Math.min(1, (m - 16.5 * 60) / 150));
     this.dusk = dusk;
-    let dark = dusk * 0.5;
+    let dark = dusk * 0.62;
     if (s.weather === 'rain' || s.weather === 'cloudy') dark += 0.06;
     if (Game.hasEvent('blizzard')) dark += 0.12;
     if (dark <= 0.01) return;

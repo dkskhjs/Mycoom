@@ -174,10 +174,32 @@ const Town = {
     let haze = snowy ? '214,222,232' : '92,96,78', tone = snowy ? '176,186,200' : '120,104,84';
     try { haze = avg(g.getImageData(0, cropH - 6, VW, 6).data, 1); tone = avg(g.getImageData(0, 0, VW, cropH).data, 37); } catch (e) { /* 기본 색 사용 */ }
     this._vista = { canvas: c, haze, tone, w: VW, h: cropH, fullH, snowy: !!snowy && !!Sprites.sheets.vista_snow };
+    this._vista.night = this.makeNight(c, snowy);
     this.vfx = null;
     this._vistaKey = key;
     return this._vista;
   },
+
+  // 밤 원경: 그림을 아주 어둡고 푸르게, 창문·가로등·화로처럼 따뜻하고 밝은 픽셀만 빛나게
+  makeNight(src, snowy) {
+    const [c, g] = makeCanvas(src.width, src.height);
+    g.drawImage(src, 0, 0);
+    try {
+      const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], gg = d[i + 1], b = d[i + 2], lum = (r + gg + b) / 3;
+        // 등불·창문: 채도 높은 주황~노랑만 (노을 하늘처럼 옅은 베이지는 제외)
+        const warm = r > 190 && gg > 95 && b < 115 && r - b > 100 && lum > 115;
+        if (warm) { d[i] = Math.min(255, r * 1.1); d[i + 1] = Math.min(255, gg * 1.0); d[i + 2] = b * 0.7; }
+        else { const k = snowy ? 0.3 : 0.22; d[i] = r * k * 0.8; d[i + 1] = gg * k * 0.9; d[i + 2] = Math.min(255, b * k * 1.35 + 14); }
+      }
+      g.putImageData(img, 0, 0);
+    } catch (e) {   // file:// 로 열어 픽셀을 못 읽으면 어두운 덧칠만
+      g.fillStyle = 'rgba(8,10,30,0.72)'; g.fillRect(0, 0, c.width, c.height);
+    }
+    return c;
+  },
+  nightLevel() { const m = Game.s.min; return Math.max(0, Math.min(1, (m - 16.5 * 60) / 150)); },
 
   // 원경: 카메라가 움직이면 천천히 따라온다(시차). 바닥 줄은 땅이 시작하는 곳에 맞춘다.
   drawVista(g, cam) {
@@ -189,8 +211,11 @@ const Town = {
     g.clearRect(-this.ox(), -this.oy(), SW, this.oy() - VISTA_GROUND * TILE + 8);
     const x = -this.ox() - (v.w - SW) / 2 + px, y = -VISTA_GROUND * TILE + 6 - v.h + py;
     g.drawImage(v.canvas, Math.round(x), Math.round(y));
+    const nl = this.nightLevel();
+    if (nl > 0 && v.night) { g.globalAlpha = nl; g.drawImage(v.night, Math.round(x), Math.round(y)); g.globalAlpha = 1; }
     // 그림 위로 남는 하늘: 그림 맨 윗줄 색으로 채움
     if (y > -this.oy()) { g.drawImage(v.canvas, 0, 0, v.w, 1, Math.round(x), -this.oy(), v.w, Math.ceil(y + this.oy()) + 1); }
+    if (y > -this.oy() && nl > 0 && v.night) { g.globalAlpha = nl; g.drawImage(v.night, 0, 0, v.w, 1, Math.round(x), -this.oy(), v.w, Math.ceil(y + this.oy()) + 1); g.globalAlpha = 1; }
     this.drawVistaFx(g, Math.round(x), Math.round(y));
   },
 
