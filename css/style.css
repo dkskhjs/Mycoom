@@ -276,3 +276,4 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 .dim.small { font-size: 11px; line-height: 1.4; }
 .expand .subhead { margin: 10px 0 2px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--brass-hi); font-size: 12px; }
 .srow.robot b { display: inline-flex; align-items: center; gap: 4px; }
+#openBtn.open { border-color: var(--brass); background: linear-gradient(#5a3a20, #3a2414); }

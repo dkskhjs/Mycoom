@@ -34,7 +34,13 @@ const UI = {
       Game.paused = v === 0; if (v) Game.speed = v;
       this.syncSpeed();
     });
-    $('#openBtn').addEventListener('click', () => { Game.s.open ? null : Game.openCafe(); this.refresh(); });
+    $('#openBtn').addEventListener('click', () => {
+      if (!Game.s.open) { Game.openCafe(); this.refresh(); return; }
+      // 영업 중에 누르면: 확인 후 오늘 영업을 일찍 마감 (정산하고 다음 날로)
+      const eating = Game.rt.customers.filter(c => c.state === 'eating').length, waiting = Game.rt.customers.filter(c => c.state === 'waiting' || c.state === 'toSeat').length;
+      this.confirm('⏹ 영업 마감', `오늘 영업을 지금 마감할까요? (${Game.timeStr()})${eating ? ` 식사 중인 손님 ${eating}명은 계산하고 나가고,` : ''}${waiting ? ` 기다리던 손님 ${waiting}명은 다음에 오기로 해요.` : ''} 정산 후 다음 날로 넘어갑니다.`,
+        '마감하기', () => { Game.closeCafe(); this.refresh(); });
+    });
     $('#menuBtn').addEventListener('click', () => this.showSystemMenu());
     $('#autoBtn').addEventListener('click', () => { Game.setAuto(!Game.s.auto); this.refreshLive(); });
     // 패널 숨기기: 화면을 온전히 감상 (모바일에서 특히). 마지막 상태 기억
@@ -346,8 +352,9 @@ const UI = {
     $('#indoor').parentElement.className = 'stat ' + (it >= 20 ? 'good' : it >= 18 ? '' : 'warn');
     const ab = $('#autoBtn'); ab.classList.toggle('on', !!s.auto); ab.textContent = s.auto ? '🤖 자동 ON' : '🤖 자동';
     const ob = $('#openBtn');
-    ob.textContent = s.open ? '영업 중…' : '☕ 영업 시작';
-    ob.disabled = s.open; ob.classList.toggle('ready', !s.open && Game.canOpen());
+    ob.textContent = s.open ? '영업 중 ⏹' : '☕ 영업 시작';
+    ob.title = s.open ? '눌러서 오늘 영업 마감' : '영업 시작';
+    ob.classList.toggle('open', !!s.open); ob.classList.toggle('ready', !s.open && Game.canOpen());
 
     // 이벤트 배너
     this.renderBanner();
