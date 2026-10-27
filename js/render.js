@@ -183,8 +183,13 @@ const Render = {
     v.clearRect(0, 0, this.view.width, this.view.height);   // 장면 밖은 CSS 배경(마을 전경 그림)이 보인다
     const dx = Math.round(-this.viewLeft() * z), dy = Math.round(-this.viewTop() * z), dw = Math.round(this.world.width * z), dh = Math.round(this.world.height * z);
     // 건물 밖은 살짝 흐리고 어둡게, 건물 안(외곽선 포함)은 선명하게 한 번 더 그린다
-    if (this.outsideBlur && 'filter' in v) {
-      v.filter = `blur(${Math.max(0.6, z * 0.35).toFixed(2)}px) brightness(0.9) saturate(0.9)`;
+    // 아웃포커싱: 가게를 가까이 볼수록 바깥이 흐리고, 마을 전체 쪽으로 멀어지면 서서히 선명해진다
+    const zTown = Math.min(this.cw / Town.sceneW(), this.ch / Town.sceneH());
+    const zShop = Math.min(this.cw / ((Game.s.W + 1) * TILE), this.ch / ((Game.s.H + STREET_ROWS + 2) * TILE));
+    const f = Math.max(0, Math.min(1, (this.cam.z - zTown * 1.15) / Math.max(0.01, zShop * 0.9 - zTown * 1.15)));
+    const ease = f * f * (3 - 2 * f);
+    if (this.outsideBlur && 'filter' in v && ease > 0.02) {
+      v.filter = `blur(${(ease * Math.max(1.5, z * 1.1)).toFixed(2)}px) brightness(${(1 - ease * 0.22).toFixed(3)}) saturate(${(1 - ease * 0.25).toFixed(3)})`;
       v.drawImage(this.world, dx, dy, dw, dh);
       v.filter = 'none';
       const bx = dx + Math.round((Town.ox() - 2) * z), by = dy + Math.round((Town.oy() - 2) * z);
