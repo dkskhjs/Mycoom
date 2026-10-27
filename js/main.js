@@ -14,6 +14,7 @@ const App = {
     this.syncMusic(!BGM.muted);
     window.addEventListener('resize', () => this.started && Render.resize($('#canvasWrap')));
     setInterval(() => { if (this.started && !Game.s.open) Game.save(); }, 20000);
+    this.loadBackdrops();
     UI.showTitle();
     let last = performance.now();
     const loop = now => {
@@ -26,6 +27,26 @@ const App = {
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  },
+
+  // 마을 전경 그림 (assets/bg/town_clear.*, town_snow.*) — 있으면 타이틀과 장면 뒤에 깐다
+  loadBackdrops() {
+    this.backdrops = {};
+    const tryLoad = (key, names) => {
+      const [n, ...rest] = names; if (!n) return;
+      const img = new Image();
+      img.onload = () => { this.backdrops[key] = `url("${img.src}")`; this.syncBackdrop(); };
+      img.onerror = () => tryLoad(key, rest);
+      img.src = `assets/bg/${n}`;
+    };
+    tryLoad('clear', ['town_clear.webp', 'town_clear.png', 'town_clear.jpg']);
+    tryLoad('snow', ['town_snow.webp', 'town_snow.png', 'town_snow.jpg']);
+    setInterval(() => this.syncBackdrop(), 2000);
+  },
+  syncBackdrop() {
+    const snowy = Game.s && (Game.s.weather === 'snow' || Game.hasEvent('blizzard'));
+    const url = (snowy && this.backdrops.snow) || this.backdrops.clear || this.backdrops.snow || 'none';
+    document.documentElement.style.setProperty('--backdrop', url);
   },
 
   start() {

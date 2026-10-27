@@ -78,6 +78,24 @@ transparent background, evenly spaced grid, same character in every frame, consi
 > 팁: 같은 직업의 남/여를 한 번에 뽑으면 색감이 맞습니다 (`two characters side by side: ... and ...`).
 > 생성 모델이 시트 배치를 틀리게 하면, 정면 1장만 깔끔하게 뽑아서 Aseprite 등에서 나머지 프레임을 그리는 쪽이 빠릅니다.
 
+### AI 생성 시트 가져오기 (`tools/import_chars.py`)
+
+체크무늬가 그림에 박힌 생성 이미지를 게임 시트로 바꿉니다 (numpy, Pillow, scipy 필요).
+
+```sh
+# 1) 배경 제거 + 프레임 잘라 번호 붙이기 → <작업폴더>/_index.png 로 번호 확인
+python3 tools/import_chars.py extract 원본.webp 작업폴더
+#    프레임끼리 붙어 있으면(양산 등) 영역별 칸 수를 준다: x0:x1:칸수
+python3 tools/import_chars.py extract 원본.webp 작업폴더 0:990:6 1010:2000:6
+# 2) tools/char_map.json 에 방향별 프레임 번호 적고 시트 만들기 (번호 뒤 f = 좌우 반전)
+python3 tools/import_chars.py build tools/char_map.json
+```
+
+축소할 때 블록마다 가장 많은 색을 고르되 눈·입 같은 어두운 디테일은 우선 살리고, 팔레트를 28색으로 줄인 뒤
+실루엣 가장자리를 어둡게 해 외곽선을 만듭니다. 생성 이미지 특성상 얼굴은 손으로 1~2px 다듬으면 훨씬 좋아집니다.
+
+들어간 시트: `aviator_m`, `aviator_f`, `noble_m`, `noble_f`
+
 ## 2. 오브젝트·타일 교체 (`assets/sprites/<키>.png`)
 
 넣은 뒤 `assets/manifest.js`의 `ASSET_MANIFEST`에 키를 추가하세요.

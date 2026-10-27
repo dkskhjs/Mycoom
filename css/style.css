@@ -169,3 +169,13 @@ details .chips { margin-top: 6px; }
 #camctl .btn { background: rgba(26,17,12,.85); padding: 3px 8px; }
 #fx { cursor: grab; }
 #world, #fx { left: 0; top: 0; }
+/* 마을 전경 그림: 장면 바깥 여백과 타이틀 화면 뒤 */
+#canvasWrap::before, #modal::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--backdrop, none) center / cover no-repeat;
+  image-rendering: pixelated;
+}
+#canvasWrap::before { filter: brightness(.42) saturate(.9); }
+#modal::before { filter: brightness(.6); z-index: -1; }
+#world, #fx { z-index: 1; }
+#modal { isolation: isolate; }

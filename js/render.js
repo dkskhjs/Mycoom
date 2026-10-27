@@ -169,7 +169,7 @@ const Render = {
     const v = this.vg, z = this.cam.z * this.dpr;
     v.setTransform(1, 0, 0, 1, 0, 0);
     v.imageSmoothingEnabled = false;
-    v.fillStyle = '#0e0a08'; v.fillRect(0, 0, this.view.width, this.view.height);
+    v.clearRect(0, 0, this.view.width, this.view.height);   // 장면 밖은 CSS 배경(마을 전경 그림)이 보인다
     v.drawImage(this.world, Math.round(-this.viewLeft() * z), Math.round(-this.viewTop() * z), Math.round(this.world.width * z), Math.round(this.world.height * z));
 
     // 10. fx: 텍스트
