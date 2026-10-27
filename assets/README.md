@@ -28,6 +28,7 @@
 | `smith_m` | 대장장이 (남) | `smith_f` | 대장장이 (여) |
 | `engineer_m` | 기관사 (남) | `engineer_f` | 기관사 (여) |
 | `aviator_m` | 비행사 (남) | `aviator_f` | 비행사 (여) |
+| `plumber_m` | 배관공 (남) | `plumber_f` | 배관공 (여) |
 | `noble_m` | 귀족 (남, VIP) | `noble_f` | 귀족 (여, VIP) |
 
 ### 이미지 생성 프롬프트
@@ -94,7 +95,10 @@ python3 tools/import_chars.py build tools/char_map.json
 축소할 때 블록마다 가장 많은 색을 고르되 눈·입 같은 어두운 디테일은 우선 살리고, 팔레트를 28색으로 줄인 뒤
 실루엣 가장자리를 어둡게 해 외곽선을 만듭니다. 생성 이미지 특성상 얼굴은 손으로 1~2px 다듬으면 훨씬 좋아집니다.
 
-들어간 시트: `aviator_m`, `aviator_f`, `noble_m`, `noble_f`
+들어간 시트: `adult_m`, `adult_f`, `aviator_m`, `aviator_f`, `noble_m`, `noble_f`
+(시민 남은 원본에 앉기·마시기 프레임이 없어 서 있는 프레임 아래를 잘라 앉은 자세를 합성)
+
+배경: `assets/bg/town_clear.webp` (워터마크는 `tools/remove_watermark.py` 로 지움). 눈 버전 `town_snow.*` 대기 중.
 
 ## 2. 오브젝트·타일 교체 (`assets/sprites/<키>.png`)
 

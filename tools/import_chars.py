@@ -7,7 +7,7 @@
   2) 프레임 번호를 게임 규격(정면/뒷면/옆 × 대기2·걷기4·앉기·동작)에 배치:
        python3 tools/import_chars.py build tools/char_map.json
      매핑 예: {"aviator_m": {"work": "...", "down": [0,1, 0,2,1,3, 4,5], "up": [...], "side": ["24f","24f", 26,27,26,27, 28,29]}}
-     번호 뒤 f = 좌우 반전. 옆모습은 오른쪽을 보게 맞춘다.
+     번호 뒤 f = 좌우 반전, s = 앉은 자세 합성(앉기 프레임이 없을 때). 옆모습은 오른쪽을 보게 맞춘다.
 """
 import json, os, sys
 import numpy as np
@@ -61,14 +61,19 @@ def split_points(proj, lo, hi, n):
 
 
 def extract_grid(a, fg, regions):
-    """regions: [(x0, x1, cols)] — 각 영역을 줄(가로 빈 띠) × cols 칸으로 자른다."""
+    """regions: [(x0, x1, cols[, rows])] — 각 영역을 줄 × cols 칸으로 자른다.
+    rows 를 주면 줄도 균등 분할(위아래로 붙은 시트용), 아니면 가로 빈 띠로 줄을 찾는다."""
     boxes = []
-    for x0, x1, cols in regions:
+    for reg in regions:
+        x0, x1, cols = reg[:3]
         rp = fg[:, x0:x1].sum(1)
         on = rp > 3
-        # 줄 띠: 연속으로 켜진 구간 중 높이 150 이상
         bands, y = [], 0
-        while y < len(on):
+        if len(reg) > 3:
+            ys = np.where(on)[0]
+            rpts = split_points(rp.astype(float), int(ys.min()), int(ys.max()) + 1, reg[3])
+            bands = list(zip(rpts[:-1], rpts[1:]))
+        while not bands and y < len(on):
             if on[y]:
                 y2 = y
                 while y2 < len(on) and on[y2]:
@@ -87,6 +92,8 @@ def extract_grid(a, fg, regions):
                 if not n:
                     continue
                 sizes = ndimage.sum(m, lab, range(1, n + 1))
+                if sizes.max() < 1500:      # 빈 칸
+                    continue
                 keep = lab == (int(np.argmax(sizes)) + 1)
                 ys, xs = np.where(keep & m)
                 boxes.append((y0 + ys.min(), pts[c] + xs.min(), ys.max() - ys.min() + 1, xs.max() - xs.min() + 1,
@@ -184,20 +191,23 @@ def build(mapping_path):
     for cid, m in mapping.items():
         work = m['work']
         frames = json.load(open(f'{work}/frames.json'))
-        ids = lambda v: (int(str(v).rstrip('f')), str(v).endswith('f'))
+        # 접미사: f = 좌우 반전, s = 앉은 자세 합성(다리 아래 30%를 잘라 의자에 앉은 것처럼)
+        ids = lambda v: (int(str(v).rstrip('fs')), 'f' in str(v)[-2:].lstrip('0123456789'), str(v).endswith('s'))
         ref = [frames[ids(v)[0]]['h'] for v in m['down'][:2]]
         scale = BODY_H / float(np.median(ref)) * m.get('size', 1.0)
         sheet = Image.new('RGBA', (FRAME * 8, FRAME * 3), (0, 0, 0, 0))
         cache = {}
         for r, face in enumerate(['down', 'up', 'side']):
             for c, v in enumerate(m[face]):
-                idx, flip = ids(v)
-                if (idx, flip) not in cache:
+                idx, flip, sit = ids(v)
+                if (idx, flip, sit) not in cache:
                     im = Image.open(f'{work}/f{idx:02d}.png')
                     if flip:
                         im = im.transpose(Image.FLIP_LEFT_RIGHT)
-                    cache[(idx, flip)] = downscale(im, scale)
-                sp = cache[(idx, flip)]
+                    if sit:
+                        im = im.crop((0, 0, im.width, int(im.height * 0.72)))
+                    cache[(idx, flip, sit)] = downscale(im, scale)
+                sp = cache[(idx, flip, sit)]
                 if sp.height > FRAME:
                     sp = sp.crop((0, sp.height - FRAME, sp.width, sp.height))
                 # 발끝(아래) 정렬, 가로 가운데

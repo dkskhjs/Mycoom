@@ -149,6 +149,8 @@ const DATA = {
     { id: 'miner_f',    name: '광부 (여)',      weight: 6,  pay: 1.1, picky: 0,  patience: 55, coat: '#40382e', hat: '#c8952f', hair: '#3a2010', goggles: true, f: true },
     { id: 'smith_m',    name: '대장장이 (남)',   weight: 6,  pay: 1.15, picky: 0, patience: 60, coat: '#5a2e1e', hat: '#3a2a1e', hair: '#1a1a1a' },
     { id: 'smith_f',    name: '대장장이 (여)',   weight: 5,  pay: 1.15, picky: 0, patience: 60, coat: '#6a3420', hat: '#3a2a1e', hair: '#8a2a1a', f: true },
+    { id: 'plumber_m',  name: '배관공 (남)',    weight: 5,  pay: 1.1, picky: 0,  patience: 60, coat: '#2a3a6a', hat: '#4a2e1c', hair: '#4a2e1c', goggles: true },
+    { id: 'plumber_f',  name: '배관공 (여)',    weight: 5,  pay: 1.1, picky: 0,  patience: 60, coat: '#2e6a62', hat: '#4a2e1c', hair: '#5a3a1c', goggles: true, f: true },
     { id: 'engineer_m', name: '기관사 (남)',    weight: 6,  pay: 1.1, picky: 0,  patience: 55, coat: '#3e5560', hat: '#4a3a28', hair: '#4a2e1c', goggles: true },
     { id: 'engineer_f', name: '기관사 (여)',    weight: 5,  pay: 1.1, picky: 0,  patience: 55, coat: '#365a5a', hat: '#4a3a28', hair: '#2a1a10', goggles: true, f: true },
     { id: 'aviator_m',  name: '비행사 (남)',    weight: 4,  pay: 1.3, picky: 5,  patience: 60, coat: '#7a3b2e', hat: '#5a4030', hair: '#a8652a', goggles: true },
