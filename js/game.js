@@ -73,17 +73,11 @@ const Game = {
   save() {
     if (!this.s) return;
     
-    // 1. 기존 로컬 스토리지 저장 (유지)
-    try { 
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); 
-    } catch (e) { 
-      /* 저장 불가 환경 */ 
-    }
-
-    // 2. 🟢 파이어베이스 클라우드 저장 추가
-    if (typeof saveToCloud === "function") {
-      saveToCloud(this.s);
-    }
+    this.s.savedAt = Date.now();
+    // 1. 로컬 저장
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* 저장 불가 환경 */ }
+    // 2. 로그인했으면 클라우드에도 (firebase-init.js 가 몰아서 보냄)
+    if (typeof saveToCloud === 'function') saveToCloud(this.s);
   },
 
   hasSave() { 
@@ -104,32 +98,28 @@ const Game = {
     } catch (e) { return false; }
   },
 
-  // 3. 🟢 파이어베이스에서 클라우드 데이터(saveData)를 전달받았을 때 게임에 세이브를 주입하고 화면을 갱신하는 함수
-  applyCloudSave(cloudSaveData) {
-    if (!cloudSaveData) return;
+  // 클라우드 세이브 적용: 로컬보다 새것이면 로컬에 덮어쓰고, 진행 중이면 다시 그리고, 타이틀이면 "이어하기"가 보이게
+  applyCloudSave(cloud) {
+    if (!cloud) return false;
     try {
-      this.s = cloudSaveData;
-      
-      // 영업 중 데이터 복구 시 아침으로 리셋하는 예외 처리 동일하게 적용
-      if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
-      const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1;
-      
-      this.initRuntime();
-      
-      // UI나 렌더링 갱신 함수가 있다면 호출 (예: render(), updateUI() 등)
-      if (typeof render === "function") render();
-      if (typeof updateUI === "function") updateUI();
-
-      console.log("🟢 클라우드 데이터가 게임에 성공적으로 적용되었습니다!");
+      const data = typeof cloud === 'string' ? JSON.parse(cloud) : cloud;
+      if (!data || !data.W || !data.floor) return false;
+      const local = (() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return null; } })();
+      if (local && (local.savedAt || 0) > (data.savedAt || 0)) return false;   // 로컬이 더 새것
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) {}
+      if (typeof App !== 'undefined' && App.started) {
+        this.load();
+        Render.resize(document.getElementById('canvasWrap'));
+        UI.refresh();
+        this.toast('☁️ 클라우드 세이브를 불러왔습니다', 'good');
+      } else if (typeof UI !== 'undefined' && App.onTitle) UI.showTitle();
+      return true;
     } catch (e) {
-      console.error("클라우드 세이브 적용 중 오류 발생:", e);
+      console.error('클라우드 세이브 적용 중 오류:', e);
+      return false;
     }
   },
 
-  wipe() { 
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {} 
-  },
   wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} },
 
   // ───────── 격자 ─────────

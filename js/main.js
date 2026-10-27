@@ -1,4 +1,6 @@
+// 부트스트랩 & 메인 루프
 const App = {
+  started: false,
   onTitle: true,
 
   async boot() {
