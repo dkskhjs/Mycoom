@@ -148,9 +148,11 @@ const Game = {
 
   // ───────── 네트워크 / 캐시 재계산 ─────────
   objDef(o) { return DATA.objects[o.id]; },
+  // 회전(rot 1)한 직사각형 오브젝트는 가로·세로가 바뀐다
+  dims(id, rot = 0) { const d = DATA.objects[id]; return (rot & 1) && d.w !== d.h ? { w: d.h, h: d.w } : { w: d.w, h: d.h }; },
   footprint(o) {
-    const d = this.objDef(o), out = [];
-    for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) out.push([o.x + i, o.y + j]);
+    const { w, h } = this.dims(o.id, o.rot), out = [];
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) out.push([o.x + i, o.y + j]);
     return out;
   },
   objAt(x, y, layer = 'floor') {
@@ -330,11 +332,11 @@ const Game = {
     this.s.leaks = this.s.leaks.filter(l => !(l.i === i && (!type || l.type === type)));
     if (any) this.rt.dirty = true; return any;
   },
-  canPlace(id, x, y, ignoreUid = 0) {
-    const d = DATA.objects[id], s = this.s;
+  canPlace(id, x, y, ignoreUid = 0, rot = 0) {
+    const d = DATA.objects[id], s = this.s, dm = this.dims(id, rot);
     if (d.lv > s.level) return { ok: false, why: `Lv.${d.lv} 필요` };
     if (d.unique && s.objects.some(o => o.id === id && o.uid !== ignoreUid)) return { ok: false, why: '하나만 설치 가능' };
-    for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) {
+    for (let j = 0; j < dm.h; j++) for (let i = 0; i < dm.w; i++) {
       const tx = x + i, ty = y + j;
       if (!this.isInterior(tx, ty)) return { ok: false, why: '실내에만 설치' };
       if (d.layer !== 'ceil' && this.isEntrance(tx, ty)) return { ok: false, why: '입구를 막을 수 없음' };
@@ -345,11 +347,11 @@ const Game = {
     }
     return { ok: true };
   },
-  placeObject(id, x, y) {
-    const c = this.canPlace(id, x, y);
+  placeObject(id, x, y, rot = 0) {
+    const c = this.canPlace(id, x, y, 0, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
     if (!this.spend(DATA.objects[id].cost)) return false;
-    this.s.objects.push({ uid: this.s.nextUid++, id, x, y, cook: null });
+    this.s.objects.push({ uid: this.s.nextUid++, id, x, y, rot: rot & 1, cook: null });
     this.recompute(); this.emit('built', id);
     return true;
   },
@@ -360,16 +362,26 @@ const Game = {
   litSeats() { const n = this.rt.nets; if (!n.seats.length) return 1; return n.seats.filter(st => n.lit.has(this.idx(st.x, st.y))).length / n.seats.length; },
 
   // ───────── 편집: 이동·뒤집기·일괄 칠하기 ─────────
-  moveObject(o, x, y) {
-    if (o.x === x && o.y === y) return true;
-    const c = this.canPlace(o.id, x, y, o.uid);
+  moveObject(o, x, y, rot = o.rot || 0) {
+    if (o.x === x && o.y === y && (o.rot || 0) === (rot & 1)) return true;
+    const c = this.canPlace(o.id, x, y, o.uid, rot);
     if (!c.ok) { this.toast(c.why, 'bad'); return false; }
-    o.x = x; o.y = y;
+    o.x = x; o.y = y; o.rot = rot & 1;
     this.recompute(); this.save();
     this.toast(`${this.objDef(o).name} 이동`);
     return true;
   },
   flipObject(o) { o.flip = !o.flip; this.save(); },
+  // 제자리 회전: 정사각형은 좌우 뒤집기, 직사각형은 90° (자리가 안 되면 알려 줌)
+  rotateObject(o) {
+    const d = this.objDef(o);
+    if (d.w === d.h) { this.flipObject(o); return true; }
+    const r = (o.rot || 0) ^ 1, c = this.canPlace(o.id, o.x, o.y, o.uid, r);
+    if (!c.ok) { this.toast(`회전할 자리가 없어요 (${c.why}) — 옮기기로 들어서 R 로 돌려 보세요`, 'bad'); return false; }
+    o.rot = r; this.recompute(); this.save();
+    return true;
+  },
+  canRotate(id) { const d = DATA.objects[id]; return d.w !== d.h; },
   // 실내 바닥/천장 전체, 또는 바깥 벽 전체를 한 번에 칠한다 (같은 재질인 칸은 건너뜀)
   paintAllInfo(layer, id) {
     const s = this.s, table = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer];
