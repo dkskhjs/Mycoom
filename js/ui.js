@@ -780,6 +780,16 @@ const UI = {
     // 자동 운영 중이면 정산 화면을 잠깐 보여 주고 다음 날로
     if (Game.s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box) this.closeModal(); }, 6000); }
   },
+  // 계정(클라우드 저장) — 상단바 대신 메뉴에서만 보여 준다
+  accountSection() {
+    if (typeof FB_OK === 'undefined' || !FB_OK) return null;
+    const user = typeof currentUser !== 'undefined' ? currentUser : null;
+    return h('div', { class: 'account' },
+      h('h3', {}, '☁️ 계정'),
+      user ? h('p', { class: 'dim' }, `${user.email} · 진행이 클라우드에 저장돼요`) : h('p', { class: 'dim' }, '로그인하면 진행이 클라우드에 저장되고 다른 기기에서 이어할 수 있어요'),
+      user ? h('button', { class: 'btn big', onclick: () => { this.closeModal(); logoutAccount(); } }, '로그아웃')
+        : h('button', { class: 'btn big', onclick: () => { this.closeModal(); openAuthModal(); } }, '🔒 로그인 / 회원가입'));
+  },
   showSystemMenu() {
     this.modal(h('div', {},
       h('h2', {}, '메뉴'),
@@ -788,6 +798,7 @@ const UI = {
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),
         h('button', { class: 'btn big danger', onclick: () => { Game.wipe(); this.showPlots(); } }, '지우고 새로 시작'),
         h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'))) }, '처음부터'),
+      this.accountSection(),
       h('h3', {}, '난이도'),
       h('div', { class: 'diffs' }, Object.entries(DATA.difficulty).map(([k, d]) =>
         h('button', { class: 'btn diff' + (Game.s && Game.s.difficulty === k ? ' on' : ''), onclick: () => { Game.setDifficulty(k); this.showSystemMenu(); } },
