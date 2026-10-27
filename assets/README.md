@@ -104,7 +104,7 @@ python3 tools/import_chars.py build tools/char_map.json
 
 넣은 뒤 `assets/manifest.js`의 `ASSET_MANIFEST`에 키를 추가하세요.
 
-- **바닥/벽/천장**: 16×16. 키 `floor_<id>_0`, `floor_<id>_1`(변형 2종), `wall_<id>_0`, `wall_<id>_1`, `ceil_<id>`
+- **바닥/벽/천장**: 16×16. 키 `floor_<id>_0`, `floor_<id>_1`(변형 2종), `wall_<id>_0`, `wall_<id>_1`, `ceil_<id>_0`, `ceil_<id>_1`
   - 바닥 id: `dirt plank herring checker brassgrid carpet marble cobble brickfloor parquet hextile steamgrate rug mosaic`
   - 벽 id: `rawbrick redbrick woodpanel damask rivet verdigris stained rustplate stripe subway porthole bookwall gearwall`
   - 천장 id: `beams plaster tin copper glassdome duct brassplate coffered gearceil fresco` (천장도 변형 2종: `ceil_<id>_0`, `ceil_<id>_1`)
