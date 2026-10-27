@@ -4,6 +4,7 @@ const App = {
   onTitle: true,
 
   async boot() {
+    if (this.isStandalone()) document.documentElement.classList.add('standalone');
     Render.init($('#world'), $('#fx'));
     BGM.init();
     SFX.init();

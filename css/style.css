@@ -221,3 +221,9 @@ body.panel-hidden #stage { flex: 1; height: auto; }
 .buyinfo .bad, .buyinfo b.bad { color: #ff8a7a; }
 .buybtns { display: flex; gap: 8px; justify-content: center; }
 .buybtns .btn.big { flex: 1; margin: 0; }
+/* 홈 화면 앱(iOS 사파리): 100% 높이가 상태바+홈 표시줄만큼 짧게 잡히는 버그 → 화면 전체 높이로 */
+@media all and (display-mode: standalone), all and (display-mode: fullscreen) {
+  html, body, #app { height: 100vh; }
+}
+html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
+#app { background: var(--bg); }
