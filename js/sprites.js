@@ -674,6 +674,7 @@ const ICON_STYLE = {
   scone:      { kind: 'scone' },
   gearcookie: { kind: 'cookie' },
   brasscake:  { kind: 'cake' },
+  goguma:     { kind: 'potato' },
 };
 function drawIcon(P, id) {
   const s = ICON_STYLE[id] || { kind: 'cup', liquid: '#3a1f12' };
@@ -690,6 +691,10 @@ function drawIcon(P, id) {
     P.disc(4, 4, 4, PAL.k); P.disc(4, 4, 3, '#c98a4a');
     [[4, 0], [0, 4], [8, 4], [4, 8]].forEach(([x, y]) => P.p(x, y, '#c98a4a'));
     P.disc(4, 4, 1, '#6a3a1a');
+  } else if (s.kind === 'potato') {   // 반으로 가른 군고구마: 보랏빛 껍질 + 노란 속살 + 김
+    P.ellipse(4, 6, 4, 2, PAL.k); P.ellipse(4, 6, 3, 1, '#7a2e4a'); P.r(1, 5, 7, 1, '#9a4060');
+    P.r(2, 5, 5, 1, '#f2b640'); P.r(3, 4, 3, 1, '#ffd870'); P.p(4, 5, '#ffe9a0');
+    P.p(2, 1, PAL.cr1); P.p(3, 0, PAL.cr1); P.p(6, 2, PAL.cr1); P.p(5, 1, PAL.cr1);
   } else if (s.kind === 'cake') {
     P.r(0, 3, 9, 6, PAL.k); P.r(1, 4, 7, 4, '#6a3a1a'); P.r(1, 4, 7, 1, PAL.b3); P.r(1, 6, 7, 1, PAL.cr2);
     P.p(4, 1, PAL.red2); P.p(4, 2, PAL.g2);
@@ -887,6 +892,38 @@ const Sprites = {
     })));
   },
   hasChar(id) { return !!this.chars[id]; },
+  // 직원 유니폼: 목 아래 옷 픽셀만 지정 색으로 (얼굴·머리·손·외곽선은 그대로)
+  charTint(id, face, col, hue) {
+    const k = `cht_${id}_${face}_${col}_${hue}`;
+    if (this.cache.has(k)) return this.cache.get(k);
+    const src = this.charFrame(id, face, col), [c, g] = makeCanvas(CHAR_FRAME, CHAR_FRAME);
+    g.drawImage(src, 0, 0);
+    let im;
+    try { im = g.getImageData(0, 0, CHAR_FRAME, CHAR_FRAME); }
+    catch (e) {   // file:// 등 픽셀을 못 읽는 환경: 몸통 아래쪽을 '색상' 혼합으로 물들인다
+      g.globalCompositeOperation = 'color'; g.fillStyle = `hsl(${hue},60%,45%)`; g.fillRect(0, 18, CHAR_FRAME, 12);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(src, 0, 0); g.globalCompositeOperation = 'source-over';
+      this.cache.set(k, c); return c;
+    }
+    const d = im.data, W = CHAR_FRAME;
+    let top = W, bottom = 0;
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 0) { top = Math.min(top, y); bottom = Math.max(bottom, y); }
+    const neck = top + Math.round((bottom - top) * 0.44), feet = bottom - 2;
+    for (let y = neck; y < feet; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4; if (d[i + 3] < 128) continue;
+      const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2;
+      if (l < 0.11 || mx - mn < 0.04 && l > 0.8) continue;                     // 외곽선·흰 셔츠
+      let hh = 0; if (mx !== mn) { const dd = mx - mn; hh = mx === r ? ((gg - b) / dd) % 6 : mx === gg ? (b - r) / dd + 2 : (r - gg) / dd + 4; hh = (hh * 60 + 360) % 360; }
+      const sat = mx === mn ? 0 : (mx - mn) / (1 - Math.abs(2 * l - 1));
+      if (hh >= 8 && hh <= 42 && l > 0.58 && sat > 0.5) continue;                // 피부(손)
+      const L = Math.min(0.78, l * 1.05 + 0.04), S = 0.55, C = (1 - Math.abs(2 * L - 1)) * S, X = C * (1 - Math.abs((hue / 60) % 2 - 1)), m = L - C / 2;
+      const [r1, g1, b1] = hue < 60 ? [C, X, 0] : hue < 120 ? [X, C, 0] : hue < 180 ? [0, C, X] : hue < 240 ? [0, X, C] : hue < 300 ? [X, 0, C] : [C, 0, X];
+      d[i] = (r1 + m) * 255; d[i + 1] = (g1 + m) * 255; d[i + 2] = (b1 + m) * 255;
+    }
+    g.putImageData(im, 0, 0);
+    this.cache.set(k, c);
+    return c;
+  },
   charFrame(id, face, col) {
     const k = `ch_${id}_${face}_${col}`;
     if (!this.cache.has(k)) {
@@ -1030,6 +1067,7 @@ const Sprites = {
     else if (kind === 'player') src = this.playerFrame(id);
     else if (kind === 'cat') src = this.cat(id, 'sit', 0);
     else if (kind === 'robot') src = this.robot(id, 0);
+    else if (kind === 'uniform') { const [cid, hue] = id.split('|'); src = this.charTint(cid, 'down', 0, +hue); }
     else src = this.object(id).canvas;
     const scale = Math.max(1, Math.floor(size / Math.max(src.width, src.height)));
     const [c, g] = makeCanvas(src.width * scale, src.height * scale);

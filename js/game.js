@@ -36,7 +36,7 @@ const Game = {
       pipe: { cold: new Array(N).fill(0), hot: new Array(N).fill(0), heat: new Array(N).fill(0) },
       leaks: [],
       objects: [], nextUid: 1,
-      stock: { beans: 10, milk: 10, tea: 10, flour: 0, cocoa: 0 },
+      stock: { beans: 10, milk: 10, tea: 10, flour: 0, cocoa: 0, sweetpotato: 10 },
       cats: [],
       stains: [],
       loans: [], loanSeq: 1,
@@ -94,7 +94,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= []; st.stock.sweetpotato ??= 5;
       // 이자 인하 전 대출은 남은 원리금을 새 이자율(난이도 반영)로 다시 계산
       if (!st.loanV) {
         const old = { small: 0.08, mid: 0.12, big: 0.18 }, mul = (DATA.difficulty[st.difficulty] || DATA.difficulty.easy).loanRate;
@@ -729,7 +729,7 @@ const Game = {
       { ok: s.coal > 0 && !s.boiler.broken, text: '보일러 연료(석탄) 확보 / 정상 작동' },
       { ok: has('counter'), text: '서빙 카운터 설치' },
       { ok: sinkOk, text: '싱크대에 급수 + 급탕 연결 (위생)' },
-      { ok: cookOk, text: '조리 설비 1대 이상 증기 연결' },
+      { ok: cookOk, text: '조리 설비 1대 이상 증기 연결 (보일러만 있어도 군고구마 가능)' },
       { ok: reach > 0, text: '입구에서 갈 수 있는 테이블+의자 좌석' },
     ];
   },
@@ -1221,6 +1221,12 @@ const Game = {
     this.s.crew = this.s.crew.filter(q => q !== c);
     this.syncCrew(); this.save();
     this.toast(this.isRobot(c.kind) ? `🤖 ${c.name}의 증기를 빼고 창고로 보냈어요` : `${c.name}에게 작별 인사를 했어요`);
+  },
+  // 직원 외모: 주인공과 반대 성별 시트 (손님과 겹치지 않게 유니폼 색은 그림 쪽에서)
+  crewChar(c) {
+    if (!c.char) return null;
+    const base = c.char.replace(/_[mf]$/, ''), want = base + ((this.s.hero || 'hero_m').endsWith('_f') ? '_m' : '_f');
+    return typeof Sprites !== 'undefined' && Sprites.hasChar(want) ? want : c.char;
   },
   crewAt(x, y) { return this.rt.crew.find(e => Math.round(e.x) === x && Math.round(e.y) === y); },
   // 대기 자리: 카운터에서 가까운 빈 칸부터 (주인공 자리·좌석·입구 제외)

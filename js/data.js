@@ -77,7 +77,7 @@ const DATA = {
   // layer: 'floor'(바닥에 놓임) | 'ceil'(천장)
   // needs: 연결이 필요한 배관 종류
   objects: {
-    boiler:     { name: '중앙 증기 보일러', cat: 'utility', w: 2, h: 2, cost: 2500, appeal: 2, lv: 1, needs: ['cold'], unique: true,
+    boiler:     { name: '중앙 증기 보일러', cat: 'utility', w: 2, h: 2, cost: 2500, appeal: 2, lv: 1, needs: ['cold'], unique: true, cook: true,
                   desc: '모든 증기의 심장. 급수관으로 물을 받고 석탄을 태운다.' },
     radiator:   { name: '주철 라디에이터', cat: 'utility', w: 1, h: 1, cost: 300, appeal: 1, lv: 1, needs: ['heat'],
                   desc: '난방관에 연결하면 주변 2칸을 데운다.' },
@@ -150,6 +150,7 @@ const DATA = {
     tea:   { name: '찻잎',   icon: '🍃', pack: 10, price: 20 },
     flour: { name: '밀가루', icon: '🌾', pack: 10, price: 15 },
     cocoa: { name: '코코아', icon: '🍫', pack: 10, price: 40 },
+    sweetpotato: { name: '고구마', icon: '🍠', pack: 10, price: 12 },
   },
   coal: { pack: 50, price: 50 },
 
@@ -165,6 +166,7 @@ const DATA = {
     hotchoco:   { name: '핫초콜릿',       eq: 'kettle',   lv: 4, time: 20, yield: 5, price: 18, icon: '🍫', use: { cocoa: 1, milk: 1 } },
     scone:      { name: '버터 스콘',      eq: 'oven',     lv: 2, time: 40, yield: 8, price: 9,  icon: '🥐', use: { flour: 1, milk: 1 } },
     gearcookie: { name: '톱니바퀴 쿠키',   eq: 'oven',     lv: 3, time: 45, yield: 10, price: 8, icon: '🍪', use: { flour: 1, cocoa: 1 } },
+    goguma:     { name: '군고구마',       eq: 'boiler',   lv: 1, time: 25, yield: 5, price: 8,  icon: '🍠', use: { sweetpotato: 1 } },
     brasscake:  { name: '황동 케이크',     eq: 'oven',     lv: 6, time: 60, yield: 6, price: 28, icon: '🍰', use: { flour: 2, milk: 1, cocoa: 1 } },
   },
 
@@ -172,10 +174,10 @@ const DATA = {
   // f: 여성 버전 (임시 도트에서 긴 머리), small: 아이 체형
   // 직원: 고용비 + 일급(영업 마감 때 지급). 레벨이 오르면 더 많이 둘 수 있다
   staff: {
-    waiter:  { name: '서빙 직원',     icon: '🍽', hire: 600,  wage: 60, lv: 1, max: 4, chars: ['adult_f', 'adult_m'],     desc: '카운터의 메뉴를 손님 자리까지 나릅니다. 여럿이면 동시에 서빙해서 손님이 덜 기다려요' },
-    barista: { name: '보조 바리스타', icon: '☕', hire: 1200, wage: 90, lv: 2, max: 2, chars: ['smith_f', 'smith_m'],     desc: '쉬고 있는 조리 설비로 재고가 적은 메뉴를 만들고, 완성품을 카운터로 옮깁니다 (재료는 창고에서 씀)' },
-    cleaner: { name: '청소부',        icon: '🧹', hire: 500,  wage: 40, lv: 2, max: 2, chars: ['miner_f', 'miner_m'],     desc: '바닥의 커피 얼룩을 찾아가 닦습니다' },
-    stoker:  { name: '보일러공',      icon: '🔧', hire: 900,  wage: 70, lv: 3, max: 1, chars: ['plumber_m', 'plumber_f'], desc: '압력이 높으면 밸브를 열고, 새는 배관을 고치고(🪙40), 석탄이 떨어져 가면 주문합니다' },
+    waiter:  { name: '서빙 직원',     icon: '🍽', uniform: 220, hire: 600,  wage: 60, lv: 1, max: 4, chars: ['adult_f', 'adult_m'],     desc: '카운터의 메뉴를 손님 자리까지 나릅니다. 여럿이면 동시에 서빙해서 손님이 덜 기다려요' },
+    barista: { name: '보조 바리스타', icon: '☕', uniform: 140, hire: 1200, wage: 90, lv: 2, max: 2, chars: ['smith_f', 'smith_m'],     desc: '쉬고 있는 조리 설비로 재고가 적은 메뉴를 만들고, 완성품을 카운터로 옮깁니다 (재료는 창고에서 씀)' },
+    cleaner: { name: '청소부',        icon: '🧹', uniform: 280, hire: 500,  wage: 40, lv: 2, max: 2, chars: ['miner_f', 'miner_m'],     desc: '바닥의 커피 얼룩을 찾아가 닦습니다' },
+    stoker:  { name: '보일러공',      icon: '🔧', uniform: 2, hire: 900,  wage: 70, lv: 3, max: 1, chars: ['plumber_m', 'plumber_f'], desc: '압력이 높으면 밸브를 열고, 새는 배관을 고치고(🪙40), 석탄이 떨어져 가면 주문합니다' },
     // 증기 로봇: 일급 대신 매일 석탄을 먹고, 보일러가 멈추면 같이 멈춘다. 사람 직원 한도와 별도
     bot_serve:   { name: '황동 서빙봇',   icon: '🤖', robot: 'tray',   role: 'waiter',  hire: 2400, wage: 0, coal: 3, lv: 3, max: 2, speed: 0.95, desc: '지치지 않고 빠르게 서빙하는 황동 오토마톤. 일급 대신 석탄을 먹어요' },
     bot_clean:   { name: '구리 청소봇',   icon: '🤖', robot: 'brush',  role: 'cleaner', hire: 1500, wage: 0, coal: 2, lv: 2, max: 2, speed: 0.6,  desc: '바퀴로 굴러다니며 회전 솔로 얼룩을 닦는 증기 청소기' },
@@ -219,7 +221,7 @@ const DATA = {
     person: { sens: 70, lat: 45 },     // 앉아 있는 손님
     barista: { sens: 75, lat: 70 },    // 서서 일하는 바리스타
     plant: { sens: -8, lat: 8 },       // 증산작용: 현열을 잠열로 바꾼다
-    cooking: { espresso: [80, 220], kettle: [100, 260], oven: [320, 40] }, // 조리 중 [현열, 잠열]
+    cooking: { espresso: [80, 220], kettle: [100, 260], oven: [320, 40], boiler: [60, 40] }, // 조리 중 [현열, 잠열]
     steamLeak: { sens: 150, lat: 450 },
   },
   plantObjects: ['plant', 'bush', 'flowerbed', 'flower_p', 'flower_r', 'flower_y', 'monstera', 'snakeplant', 'ficus'],

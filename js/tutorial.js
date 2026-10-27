@@ -38,11 +38,11 @@ const Tutorial = {
     },
     {
       title: '조리 설비',
-      text: '주방 › [황동 에스프레소 머신](급수 + 급탕 필요) 또는 [구리 티 케틀](급탕만 필요)을 놓고 배관을 이으세요. 설비 탭의 "설비 상태"에서 무엇이 빠졌는지 볼 수 있어요.',
+      text: '주방 › [황동 에스프레소 머신](급수 + 급탕 필요) 또는 [구리 티 케틀](급탕만 필요)을 놓고 배관을 이으세요. 설비 탭의 "설비 상태"에서 무엇이 빠졌는지 볼 수 있어요.\n(보일러를 눌러 군고구마도 구울 수 있어요. 조리 설비는 [나중에] 놓아도 돼요.)',
       tab: 'interior', sub: 'kitchen', card: 'object:espresso',
-      done: g => g.s.objects.some(o => DATA.objects[o.id].cook && g.working(o)),
+      done: g => g.s.objects.some(o => o.id !== 'boiler' && DATA.objects[o.id].cook && g.working(o)), optional: true,
       targets: g => g.s.objects.filter(o => DATA.objects[o.id].cook || o.id === 'boiler').flatMap(o => g.footprint(o)),
-      after: g => g.s.objects.some(o => DATA.objects[o.id].cook) ? { tab: 'utility' } : null,
+      after: g => g.s.objects.some(o => o.id !== 'boiler' && DATA.objects[o.id].cook) ? { tab: 'utility' } : null,
     },
     {
       title: '테이블과 의자',

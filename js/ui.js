@@ -465,7 +465,7 @@ const UI = {
         for (const c of s.crew) {
           const d = DATA.staff[c.kind];
           kids.push(h('div', { class: 'srow' },
-            h('span', { class: 'mname' }, d.robot ? Sprites.thumb('robot', d.robot, 32) : Sprites.hasChar(c.char) ? Sprites.thumb('char', c.char, 32) : '', ` ${d.icon} ${c.name}`),
+            h('span', { class: 'mname' }, d.robot ? Sprites.thumb('robot', d.robot, 32) : Sprites.hasChar(Game.crewChar(c)) ? Sprites.thumb('uniform', `${Game.crewChar(c)}|${d.uniform}`, 32) : '', ` ${d.icon} ${c.name}`),
             h('span', { class: 'dim' }, d.robot ? `${d.name} · ⚫${d.coal}/일` : `${d.name} · 일급 ${d.wage}`),
             h('button', { class: 'btn ghost', onclick: () => this.confirm(`${c.name} 내보내기`, `${d.name} ${c.name}을(를) 내보낼까요? 고용비는 돌려받지 못해요.`, '내보내기', () => Game.fire(c.uid)) }, '해고')));
         }

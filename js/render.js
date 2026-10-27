@@ -457,9 +457,10 @@ const Render = {
       this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, e.face === 'side' && e.dir === -1);
       if (!on) { const k = Math.floor(this.t * 2) % 2; if (k) { P.r(fx + 4, fy - 27, 3, 3, PAL.k); P.r(fx + 5, fy - 26, 1, 1, '#ffd35a'); } }   // 증기 부족 표시
     } else {
-      const type = DATA.customerTypes.find(t => t.id === e.ref.char) || DATA.customerTypes[0];
-      const state = e.path.length ? 'walk' : 'idle', frame = e.path.length ? Math.floor(e.step / 1.2) : Math.floor(this.t * 2 + e.ref.uid);
-      spr = Sprites.customer(type, state, frame, e.face || 'down');
+      // 주인공과 반대 성별 + 역할별 유니폼 색
+      const cid = Game.crewChar(e.ref), moving = e.path.length, frame = moving ? Math.floor(e.step / 1.2) : Math.floor(this.t * 2 + e.ref.uid);
+      if (Sprites.hasChar(cid)) spr = { canvas: Sprites.charTint(cid, e.face || 'down', moving ? 2 + frame % 4 : frame % 2, def.uniform), ax: 16, ay: 32, sheet: true };
+      else { const base = DATA.customerTypes.find(t => t.id === cid) || DATA.customerTypes[0]; spr = Sprites.customer({ ...base, id: 'crew_' + e.ref.kind, coat: `hsl(${def.uniform},55%,40%)` }, moving ? 'walk' : 'idle', frame, e.face || 'down'); }
       this.blitChar(spr.canvas, fx - spr.ax, fy - spr.ay + 1, spr.sheet ? (e.face === 'side' && e.dir === -1) : e.dir === -1);
     }
     const col = { waiter: '#e8dcc0', barista: '#c8952f', cleaner: '#7fc8e8', stoker: '#d0503a' }[Game.role(e.ref.kind)] || '#fff';
