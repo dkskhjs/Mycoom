@@ -160,6 +160,15 @@ const Render = {
       g.globalAlpha = 1;
     }
 
+    // 튜토리얼: 놓을 곳·이을 곳 깜빡임
+    if (typeof Tutorial !== 'undefined' && Game.s.tut && !Game.s.tut.off) {
+      const a = 0.35 + Math.sin(this.t * 5) * 0.25;
+      for (const [x, y] of Tutorial.targets()) {
+        g.fillStyle = `rgba(255,214,90,${(a * 0.45).toFixed(2)})`; g.fillRect(x * TILE, y * TILE, TILE, TILE);
+        g.strokeStyle = `rgba(255,236,150,${a.toFixed(2)})`; g.lineWidth = 1; g.strokeRect(x * TILE + 0.5, y * TILE + 0.5, TILE - 1, TILE - 1);
+      }
+    }
+
     // 7. 파티클
     for (const p of Game.rt.particles) {
       g.globalAlpha = Math.max(0, Math.min(1, p.life / 1.2));
@@ -341,7 +350,9 @@ const Render = {
 
   drawObject(P, o) {
     const spr = Sprites.object(o.id), d = DATA.objects[o.id];
-    this.wg.drawImage(spr.canvas, o.x * TILE + spr.xoff, (o.y + d.h) * TILE - spr.canvas.height);
+    const dx = o.x * TILE + spr.xoff, dy = (o.y + d.h) * TILE - spr.canvas.height;
+    if (o.flip) { const g = this.wg; g.save(); g.translate(o.x * TILE * 2 + d.w * TILE, 0); g.scale(-1, 1); g.drawImage(spr.canvas, dx, dy); g.restore(); }
+    else this.wg.drawImage(spr.canvas, dx, dy);
     // 애니메이션
     const t = this.t, x = o.x * TILE, y = o.y * TILE;
     if (o.id === 'boiler') {
@@ -357,6 +368,20 @@ const Render = {
       const nx = Math.round(Math.cos(ang) * 2), ny = Math.round(Math.sin(ang) * 2);
       P.p(x + 9, oy + 25, PAL.k); P.p(x + 9 + nx, oy + 25 + ny, pr > 0.8 ? PAL.red2 : PAL.k);
       if (Game.s.boiler.broken) { P.r(x + 6, oy + 14, 20, 2, PAL.k); P.line(x + 8, oy + 12, x + 24, oy + 36, PAL.k); }
+    } else if (o.id === 'tubeman') {
+      // 증기로 부푼 몸통: 마디마다 위상이 밀린 사인파로 흔들린다. 증기가 안 오면 축 늘어짐
+      const on = Game.working(o), segs = 9, baseX = x + 8, baseY = y - 0;
+      let px = baseX, py = baseY;
+      for (let k = 0; k < segs; k++) {
+        const up = on ? 3 : 1.2, sway = on ? Math.sin(t * 6 - k * 0.7) * (1 + k * 0.45) : (k * 1.4);
+        const nx = baseX + Math.round(sway), ny = Math.round(baseY - (k + 1) * up - (on ? 0 : -k * 0.3));
+        P.r(Math.min(px, nx) - 2, Math.min(py, ny), Math.abs(nx - px) + 4, Math.abs(ny - py) + 1, PAL.k);
+        P.r(Math.min(px, nx) - 1, Math.min(py, ny), Math.abs(nx - px) + 2, Math.abs(ny - py) + 1, k % 3 === 2 ? PAL.b3 : PAL.red2);
+        if (on && k === 4) { const ax = Math.round(Math.sin(t * 9) * 5); P.line(nx - 1, ny, nx - 5, ny - 2 + ax, PAL.red2); P.line(nx + 1, ny, nx + 5, ny - 2 - ax, PAL.red2); }
+        px = nx; py = ny;
+      }
+      P.disc(px, py - 2, 2, PAL.k); P.disc(px, py - 2, 1, PAL.cr2); P.p(px - 1, py - 2, PAL.k); P.p(px + 1, py - 2, PAL.k);
+      if (on && Math.random() < 0.05) Game.puff(px, py - 4, 'rgba(240,240,240,0.7)');
     } else if (o.id === 'gramophone' && Game.s.open) {
       const k = Math.floor(t * 2) % 4; P.p(x + 13 + (k % 2), y - 10 - k * 2, PAL.cr2); P.p(x + 14 + (k % 2), y - 11 - k * 2, PAL.cr2);
     } else if (o.id === 'fountain') {
@@ -636,9 +661,13 @@ const Render = {
     const h = ui.hover; if (!h || !ui.tool) return;
     const g = this.wg, t = ui.tool;
     if (!Game.inGrid(h.x, h.y)) return;
-    if (t.kind === 'object') {
+    if (t.kind === 'object' || t.kind === 'move') {
       const d = DATA.objects[t.id], spr = Sprites.object(t.id);
-      const ok = Game.canPlace(t.id, h.x, h.y).ok;
+      const ok = Game.canPlace(t.id, h.x, h.y, t.uid || 0).ok;
+      if (d.light) {   // 조명이 닿는 범위 미리보기
+        g.fillStyle = 'rgba(255,214,120,0.16)'; g.beginPath(); g.arc(h.x * TILE + 8, h.y * TILE + 8, d.light * TILE, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(255,214,120,0.6)'; g.lineWidth = 1; g.stroke();
+      }
       g.globalAlpha = 0.65;
       g.drawImage(spr.canvas, h.x * TILE + spr.xoff, (h.y + d.h) * TILE - spr.canvas.height);
       g.globalAlpha = 0.35;

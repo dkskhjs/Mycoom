@@ -233,7 +233,15 @@ const Game = {
     for (const o of s.objects) appeal += this.objDef(o).appeal;
     appeal += (s.cats || []).length * DATA.catAppeal;
     appeal -= (s.stains || []).length * DATA.stain.appeal;
-    this.rt.nets = { floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
+    // 조명이 닿는 실내 칸
+    const lit = new Set();
+    for (const o of s.objects) {
+      const r = this.objDef(o).light; if (!r) continue;
+      const cx = o.x + 0.5, cy = o.y + 0.5;
+      for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
+        if (this.isInterior(x, y) && (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r) lit.add(this.idx(x, y));
+    }
+    this.rt.nets = { lit, floorOcc, ceilOcc, cold, hot, heat, conn, boilerFed, heatCover, seats, appeal, interior, density: appeal / interior };
     // 사라진 좌석의 손님은 떠난다
     for (const c of this.rt.customers) if (c.seat && !seats.some(st => st.x === c.seat.x && st.y === c.seat.y) && c.state !== 'leaving') this.customerLeave(c, false);
     this.placeStaff();
@@ -322,15 +330,16 @@ const Game = {
     this.s.leaks = this.s.leaks.filter(l => !(l.i === i && (!type || l.type === type)));
     if (any) this.rt.dirty = true; return any;
   },
-  canPlace(id, x, y) {
+  canPlace(id, x, y, ignoreUid = 0) {
     const d = DATA.objects[id], s = this.s;
     if (d.lv > s.level) return { ok: false, why: `Lv.${d.lv} 필요` };
-    if (d.unique && s.objects.some(o => o.id === id)) return { ok: false, why: '하나만 설치 가능' };
+    if (d.unique && s.objects.some(o => o.id === id && o.uid !== ignoreUid)) return { ok: false, why: '하나만 설치 가능' };
     for (let j = 0; j < d.h; j++) for (let i = 0; i < d.w; i++) {
       const tx = x + i, ty = y + j;
       if (!this.isInterior(tx, ty)) return { ok: false, why: '실내에만 설치' };
       if (d.layer !== 'ceil' && this.isEntrance(tx, ty)) return { ok: false, why: '입구를 막을 수 없음' };
-      if (this.objAt(tx, ty, d.layer === 'ceil' ? 'ceil' : 'floor')) return { ok: false, why: '이미 무언가 있음' };
+      const there = this.objAt(tx, ty, d.layer === 'ceil' ? 'ceil' : 'floor');
+      if (there && there.uid !== ignoreUid) return { ok: false, why: '이미 무언가 있음' };
       if (d.layer !== 'ceil' && id !== 'boiler' && s.floor[this.idx(tx, ty)] === 'dirt') return { ok: false, why: '바닥재를 먼저 깔아야 함' };
       if (d.layer !== 'ceil' && this.rt.customers.some(c => Math.round(c.x) === tx && Math.round(c.y) === ty)) return { ok: false, why: '손님이 있음' };
     }
@@ -344,6 +353,47 @@ const Game = {
     this.recompute(); this.emit('built', id);
     return true;
   },
+  nightLevel() { return Math.max(0, Math.min(1, (this.s.min - 16.5 * 60) / 150)); },
+  // 실내에서 조명이 닿는 비율 (0~1)
+  lightCoverage() { const n = this.rt.nets; return n.lit.size / Math.max(1, n.interior); },
+  // 좌석 중 조명이 닿는 비율
+  litSeats() { const n = this.rt.nets; if (!n.seats.length) return 1; return n.seats.filter(st => n.lit.has(this.idx(st.x, st.y))).length / n.seats.length; },
+
+  // ───────── 편집: 이동·뒤집기·일괄 칠하기 ─────────
+  moveObject(o, x, y) {
+    if (o.x === x && o.y === y) return true;
+    const c = this.canPlace(o.id, x, y, o.uid);
+    if (!c.ok) { this.toast(c.why, 'bad'); return false; }
+    o.x = x; o.y = y;
+    this.recompute(); this.save();
+    this.toast(`${this.objDef(o).name} 이동`);
+    return true;
+  },
+  flipObject(o) { o.flip = !o.flip; this.save(); },
+  // 실내 바닥/천장 전체, 또는 바깥 벽 전체를 한 번에 칠한다 (같은 재질인 칸은 건너뜀)
+  paintAllInfo(layer, id) {
+    const s = this.s, table = { floor: DATA.floors, wall: DATA.walls, ceil: DATA.ceilings }[layer];
+    let n = 0;
+    for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) {
+      const ok = layer === 'wall' ? (this.isWall(x, y) && !this.isDoor(x, y)) : this.isInterior(x, y);
+      if (ok && s[layer][this.idx(x, y)] !== id) n++;
+    }
+    return { n, cost: n * table[id].cost };
+  },
+  paintAll(layer, id) {
+    const inf = this.paintAllInfo(layer, id);
+    if (!inf.n) { this.toast('이미 전부 이 재질입니다'); return false; }
+    if (!this.spend(inf.cost)) return false;
+    const s = this.s;
+    for (let y = 0; y < s.H; y++) for (let x = 0; x < s.W; x++) {
+      const ok = layer === 'wall' ? (this.isWall(x, y) && !this.isDoor(x, y)) : this.isInterior(x, y);
+      if (ok) s[layer][this.idx(x, y)] = id;
+    }
+    this.recompute(); this.save();
+    this.toast(`${inf.n}칸 일괄 적용 (−${inf.cost.toLocaleString()})`, 'good');
+    return true;
+  },
+
   removeObject(o) {
     this.s.objects = this.s.objects.filter(q => q !== o);
     const refund = Math.floor(this.objDef(o).cost / 2);
@@ -726,6 +776,7 @@ const Game = {
     sat += rh < 25 ? -5 : rh < 35 ? 0 : rh <= 60 ? 3 : rh <= 70 ? -2 : -6;
     if (c.seat && this.rt.cats.some(k => Math.abs(k.x - c.seat.x) + Math.abs(k.y - c.seat.y) <= 2)) sat += 6;
     if (c.seat && this.s.stains.some(st => Math.abs(st.x - c.seat.x) + Math.abs(st.y - c.seat.y) <= 1)) sat -= DATA.stain.nearSat;
+    if (c.seat && this.nightLevel() > 0.35 && !this.rt.nets.lit.has(this.idx(c.seat.x, c.seat.y))) sat -= DATA.darkSeatPenalty;
     sat -= (c.wait / c.type.patience) * 25;
     return Math.max(0, Math.min(100, sat));
   },
@@ -863,6 +914,12 @@ const Game = {
     }
 
     s.min += gm;
+    // 해 질 무렵 조명 안내 (하루 한 번)
+    if (s.min >= 16 * 60 && !s.today.lightHint) {
+      s.today.lightHint = true;
+      const cov = this.litSeats();
+      if (cov < 0.8) this.toast(`🌙 곧 해가 집니다. 조명이 안 닿는 좌석이 ${Math.round((1 - cov) * 100)}% 예요 — 인테리어 › 조명에서 가스등을 달면 밤 손님 만족도가 올라요`, 'warn');
+    }
     // 눈 쌓임: 눈 오는 날 천천히, 눈보라면 빠르게. 맑으면 녹는다
     const snowRate = this.hasEvent('blizzard') ? 0.5 : s.weather === 'snow' ? 0.12 : s.weather === 'sunny' ? -0.15 : s.weather === 'rain' ? -0.25 : -0.03;
     s.snow = Math.max(0, Math.min(1, (s.snow || 0) + snowRate * gm / 60));
