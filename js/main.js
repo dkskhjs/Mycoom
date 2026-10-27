@@ -1,13 +1,16 @@
-// 부트스트랩 & 메인 루프
 const App = {
-  started: false,
   onTitle: true,
 
   async boot() {
     Render.init($('#world'), $('#fx'));
     BGM.init();
     UI.init();
-    await Promise.all([Sprites.loadSheets(), Sprites.loadOverrides(window.ASSET_MANIFEST), Sprites.loadChars(window.CHAR_MANIFEST), document.fonts ? document.fonts.ready : null]);
+    await Promise.all([
+      Sprites.loadSheets(), 
+      Sprites.loadOverrides(window.ASSET_MANIFEST), 
+      Sprites.loadChars(window.CHAR_MANIFEST), 
+      document.fonts ? document.fonts.ready : null
+    ]);
     if (Sprites.sheets.kenney) $('#coinIcon').append(Sprites.thumb('kenney', 'coin', 18));
     $('#musicBtn').addEventListener('click', () => this.syncMusic(BGM.toggle()));
     document.addEventListener('keydown', e => { if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input')) this.syncMusic(BGM.toggle()); });
@@ -59,41 +62,5 @@ const App = {
 
   syncMusic(on) { const b = $('#musicBtn'); b.textContent = on ? '♪' : '♪̸'; b.classList.toggle('off', !on); },
 };
-// 상단 메뉴 버튼 클릭 시 로그인 모달 표시
-document.getElementById("menuBtn")?.addEventListener("click", () => {
-  const modal = document.getElementById("modal");
-  if (modal) modal.hidden = false;
-});
-
-// 닫기 버튼
-document.getElementById("btnCloseModal")?.addEventListener("click", () => {
-  document.getElementById("modal").hidden = true;
-});
-
-// 로그인 버튼 클릭
-document.getElementById("btnLoginSubmit")?.addEventListener("click", async () => {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  
-  if (!email || !pass) return alert("이메일과 비밀번호를 입력해주세요.");
-  
-  const user = await loginAccount(email, pass);
-  if (user) {
-    document.getElementById("modal").hidden = true;
-  }
-});
-
-// 회원가입 버튼 클릭
-document.getElementById("btnRegisterSubmit")?.addEventListener("click", async () => {
-  const email = document.getElementById("authEmail").value;
-  const pass = document.getElementById("authPassword").value;
-  
-  if (!email || !pass) return alert("이메일과 비밀번호를 입력해주세요.");
-  
-  const user = await registerAccount(email, pass);
-  if (user) {
-    document.getElementById("modal").hidden = true;
-  }
-});
 
 App.boot();
