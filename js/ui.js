@@ -341,7 +341,6 @@ const UI = {
             return h('div', { class: 'srow' }, h('span', { class: 'mname' }, label),
               h('span', { class: 'dim' }, inf.room < inf.step ? '최대' : `→ ${inf.newW - 2}×${inf.newH - 2}`),
               h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: ev => {
-                // 두 번 눌러 확정 (브라우저 확인창 대신)
                 const b = ev.currentTarget;
                 if (b.dataset.armed) { Game.expand(d); return; }
                 b.dataset.armed = '1'; b.textContent = `확정? 🪙${fmt(inf.cost)}`; b.classList.add('danger');
@@ -373,11 +372,9 @@ const UI = {
   },
 
   // ───────── 캔버스 입력 ─────────
-  // 입력: 도구가 있으면 칠하기/설치, 없으면 드래그=카메라 이동 · 클릭=선택
-  // 휠/핀치=확대축소, 우클릭·가운데 드래그=항상 이동
   bindCanvas() {
     const cv = $('#fx'), ptrs = new Map();
-    let gesture = null; // { kind: 'pan'|'maybe'|'paint'|'pinch', ... }
+    let gesture = null;
     cv.addEventListener('contextmenu', e => e.preventDefault());
     cv.addEventListener('wheel', e => {
       e.preventDefault();
@@ -390,7 +387,6 @@ const UI = {
       const t = Render.tileAt(e.clientX, e.clientY);
       this.state.hover = t;
       if (ptrs.size === 2) {
-        // 핀치 시작: 칠하던 건 멈춘다
         const [a, b] = [...ptrs.values()];
         gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
         this.painting = false;
@@ -434,7 +430,7 @@ const UI = {
     cv.addEventListener('pointerup', end);
     cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); gesture = null; this.painting = false; });
     cv.addEventListener('pointerleave', () => { this.state.hover = null; });
-    // 카메라 버튼
+    
     $('#camShop').addEventListener('click', () => Render.fitShop());
     $('#camTown').addEventListener('click', () => Render.fitTown());
     $('#zoomIn').addEventListener('click', () => Render.zoomAt(1.25));
@@ -458,10 +454,8 @@ const UI = {
   clickSelect(t, e) {
     this.closePopup();
     const s = Game.s;
-    // 커피 얼룩: 클릭하면 바로 닦는다
     const stain = Game.inGrid(t.x, t.y) && Game.stainAt(t.x, t.y);
     if (stain) { Game.wipeStain(stain); return; }
-    // 누수 칸
     if (Game.inGrid(t.x, t.y)) {
       const i = Game.idx(t.x, t.y), leak = s.leaks.find(l => l.i === i);
       if (leak) return this.popup(e, h('div', {}, h('b', {}, `💧 ${DATA.pipes[leak.type].name} 누수`), h('p', {}, '새는 배관 때문에 이 칸 너머로 흐름이 끊겼습니다.'), h('button', { class: 'btn', onclick: () => { Game.repairLeak(leak.type, i); this.closePopup(); } }, '수리 🪙40')));
@@ -473,7 +467,6 @@ const UI = {
       return this.popup(e, h('div', {}, h('b', {}, `🐈 ${cat.ref.name}`), h('p', { class: 'dim' }, `${k.name} · ${k.kg}kg · ${where}`),
         h('p', {}, `현열 ${k.sens}W · 잠열 ${k.lat}W`), h('p', { class: 'dim' }, `분위기 +${DATA.catAppeal} · 2칸 안의 손님 만족도 +6`)));
     }
-    // 오브젝트 (키 큰 스프라이트는 윗칸 클릭도 인정)
     let o = Game.objAt(t.x, t.y);
     if (!o && Game.inGrid(t.x, t.y + 1)) { const below = Game.objAt(t.x, t.y + 1); if (below && Sprites.object(below.id).tall >= 8) o = below; }
     if (!o) return;
@@ -605,33 +598,3 @@ const UI = {
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
   },
 };
-
-// js/ui.js 파일 내부
-
-document.addEventListener("DOMContentLoaded", () => {
-  // 1. 모달 닫기 공통 처리 함수 (모달 닫고 입력 폼 초기화)
-  function closeModal() {
-    const modal = document.getElementById("modal");
-    if (modal) {
-      modal.hidden = true;
-    }
-    // 닫을 때 입력했던 이메일/비밀번호 값 초기화
-    const emailInput = document.getElementById("authEmail");
-    const passInput = document.getElementById("authPassword");
-    if (emailInput) emailInput.value = "";
-    if (passInput) passInput.value = "";
-  }
-
-  // 닫기 버튼(btnCloseModal) 클릭 이벤트
-  document.getElementById("btnCloseModal")?.addEventListener("click", (e) => {
-    e.preventDefault(); // 기본 폼 제출 동작 방지
-    closeModal();
-  });
-
-  // (선택) 모달 바깥 검은 배경 클릭 시에도 닫히게 설정
-  document.getElementById("modal")?.addEventListener("click", (e) => {
-    if (e.target.id === "modal") {
-      closeModal();
-    }
-  });
-});
