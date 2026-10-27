@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>스팀 & 빈즈</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">⚙ 스팀 &amp; 빈즈</div>
+    <div class="stat" title="돈"><span id="coinIcon" class="ico"></span><b id="money">0</b></div>
+    <div class="stat" title="석탄"><span class="ico">⚫</span><b id="coal">0</b></div>
+    <div class="stat" title="평판"><b id="rep" class="stars">☆</b></div>
+    <div class="stat lv" title="레벨">Lv.<b id="lv">1</b><div class="xp"><i id="xpbar"></i></div></div>
+    <div class="stat"><b id="clock">1일차 08:00</b></div>
+    <div class="stat"><span id="weather">☀ 맑음</span></div>
+    <div class="stat"><span id="indoor">실내 0°</span></div>
+    <div id="speed" class="seg">
+      <button data-speed="0" title="일시정지 (Space)">⏸</button>
+      <button data-speed="1" class="on">▶</button>
+      <button data-speed="2">▶▶</button>
+      <button data-speed="3">▶▶▶</button>
+    </div>
+    <button id="openBtn" class="btn">☕ 영업 시작</button>
+    <button id="musicBtn" class="btn ghost" title="음악 켜기/끄기 (M)">♪</button>
+    <button id="menuBtn" class="btn ghost" title="메뉴">☰</button>
+  </header>
+  <main>
+    <section id="stage">
+      <div id="banner" hidden></div>
+      <div id="canvasWrap">
+        <canvas id="world"></canvas>
+        <canvas id="fx"></canvas>
+      </div>
+      <div id="toolbar"><span id="toolHint"></span><button id="cancelTool" class="btn ghost" hidden>선택 해제</button></div>
+      <div id="popup" hidden></div>
+    </section>
+    <aside id="panel">
+      <nav id="tabs">
+        <button data-tab="utility" class="on">🔧 설비</button>
+        <button data-tab="interior">🎨 인테리어</button>
+        <button data-tab="ops">☕ 운영</button>
+        <button data-tab="shop">🛒 상점</button>
+      </nav>
+      <div id="panelBody"></div>
+    </aside>
+  </main>
+  <div id="toasts"></div>
+  <div id="modal" hidden></div>
+</div>
+<script src="assets/manifest.js"></script>
+<script src="js/data.js"></script>
+<script src="js/naple_atlas.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
