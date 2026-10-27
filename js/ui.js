@@ -311,8 +311,12 @@ const UI = {
             const inf = Game.expandInfo(d);
             return h('div', { class: 'srow' }, h('span', { class: 'mname' }, label),
               h('span', { class: 'dim' }, inf.room < inf.step ? '최대' : `→ ${inf.newW - 2}×${inf.newH - 2}`),
-              h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: () => {
-                if (confirm(`${label} 확장 공사 (🪙${fmt(inf.cost)})를 진행할까요?`)) Game.expand(d);
+              h('button', { class: 'btn', disabled: !!inf.why, title: inf.why || '', onclick: ev => {
+                // 두 번 눌러 확정 (브라우저 확인창 대신)
+                const b = ev.currentTarget;
+                if (b.dataset.armed) { Game.expand(d); return; }
+                b.dataset.armed = '1'; b.textContent = `확정? 🪙${fmt(inf.cost)}`; b.classList.add('danger');
+                setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = `🪙${fmt(inf.cost)}`; b.classList.remove('danger'); } }, 3000);
               } }, inf.why && inf.why !== '돈 부족' ? inf.why : `🪙${fmt(inf.cost)}`));
           }));
       }
@@ -560,7 +564,10 @@ const UI = {
     this.modal(h('div', {},
       h('h2', {}, '메뉴'),
       h('button', { class: 'btn big', onclick: () => { Game.save(); this.toast('저장했습니다'); this.closeModal(); } }, '저장'),
-      h('button', { class: 'btn big', onclick: () => { if (confirm('진행 상황을 지우고 처음부터 시작할까요?')) { Game.wipe(); this.showPlots(); } } }, '처음부터'),
+      h('button', { class: 'btn big', onclick: () => this.modal(h('div', {},
+        h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),
+        h('button', { class: 'btn big danger', onclick: () => { Game.wipe(); this.showPlots(); } }, '지우고 새로 시작'),
+        h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'))) }, '처음부터'),
       h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
   },

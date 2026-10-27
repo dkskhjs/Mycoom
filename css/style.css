@@ -29,7 +29,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .dim { color: var(--dim); }
 .bad { color: var(--bad); }
 
-#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+#app { display: flex; flex-direction: column; height: 100%; }
 
 /* ── 상단 바 ── */
 #topbar {
