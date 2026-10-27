@@ -40,7 +40,7 @@ const Game = {
       cats: [],
       stains: [],
       loans: [], loanSeq: 1,
-      difficulty: 'easy', auto: false, crew: [],
+      difficulty: 'easy', auto: false, crew: [], loanV: 2,
       counter: {},
       boiler: { pressure: 0, broken: false },
       events: [],
@@ -95,6 +95,12 @@ const Game = {
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
       st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
+      // 이자 인하 전 대출은 남은 원리금을 새 이자율(난이도 반영)로 다시 계산
+      if (!st.loanV) {
+        const old = { small: 0.08, mid: 0.12, big: 0.18 }, mul = (DATA.difficulty[st.difficulty] || DATA.difficulty.easy).loanRate;
+        for (const l of st.loans) { const d = DATA.loans.find(q => q.id === l.id); if (!d || !old[l.id]) continue; const k = (1 + d.rate * mul) / (1 + old[l.id]); l.balance = Math.ceil(l.balance * k); l.perDay = Math.ceil(l.perDay * k); }
+        st.loanV = 2;
+      }
       this.initRuntime();
       return true;
     } catch (e) { return false; }
@@ -551,11 +557,12 @@ const Game = {
   loanLimit() { return Math.round((4000 + this.s.level * 3000 + this.s.rep * 60) / 100) * 100; },
   loanInfo(id) {
     const d = DATA.loans.find(l => l.id === id), s = this.s;
-    const total = Math.round(d.amount * (1 + d.rate)), perDay = Math.ceil(total / d.days);
+    const rate = d.rate * (this.diff().loanRate ?? 1);
+    const total = Math.round(d.amount * (1 + rate)), perDay = Math.ceil(total / d.days);
     let why = null;
     if (d.lv > s.level) why = `Lv.${d.lv} 필요`;
     else if (this.debt() + total > this.loanLimit()) why = '한도 초과';
-    return { ...d, total, perDay, why };
+    return { ...d, rate, total, perDay, why };
   },
   takeLoan(id) {
     const inf = this.loanInfo(id), s = this.s;
@@ -583,10 +590,10 @@ const Game = {
       const due = Math.min(l.perDay, l.balance);
       if (s.money >= due) { s.money -= due; l.balance -= due; paid += due; }
       else {
-        const fee = Math.ceil(due * DATA.loanLateFee);
+        const fee = Math.ceil(due * DATA.loanLateFee * (this.diff().lateFee ?? 1));
         l.balance += fee; l.missed++;
         this.changeRep(-3);
-        this.toast(`🏦 ${l.name} 상환금 ${due.toLocaleString()}을 못 냈습니다 — 연체료 ${fee} 추가`, 'bad');
+        this.toast(`🏦 ${l.name} 상환금 ${due.toLocaleString()}을 못 냈습니다${fee ? ` — 연체료 ${fee} 추가` : ' — 내일 다시 갚아요'}`, 'bad');
       }
       if (l.balance <= 0) { s.loans = s.loans.filter(q => q !== l); this.toast(`🏦 ${l.name} 완납!`, 'good'); }
     }

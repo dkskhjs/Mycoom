@@ -11,6 +11,7 @@ const h = (tag, attrs = {}, ...kids) => {
   return el;
 };
 const fmt = n => Math.floor(n).toLocaleString('ko-KR');
+const pct = r => `${+(r * 100).toFixed(1)}%`;
 
 const UI = {
   state: { mode: 'utility', sub: 'floor', tool: null, hover: null },
@@ -300,7 +301,7 @@ const UI = {
       h('button', { class: 'btn', id: 'coalBtn', onclick: () => this.showBuy('coal') }, '')));
     B.append(list);
     B.append(h('h3', {}, '🏦 증기 은행'), h('div', { id: 'live-bank', class: 'expand' }));
-    B.append(h('p', { class: 'tip' }, `대출금은 바로 입금되고, 원금과 이자를 정해진 날 수로 나눠 매일 영업 마감 때 자동으로 갚습니다. 그날 돈이 모자라면 연체료(상환금의 ${DATA.loanLateFee * 100}%)가 붙고 평판이 떨어져요. 언제든 미리 갚을 수 있습니다.`));
+    B.append(h('p', { class: 'tip' }, `대출금은 바로 입금되고, 원금과 이자를 정해진 날 수로 나눠 매일 영업 마감 때 자동으로 갚습니다. 그날 돈이 모자라면 ${Game.diff().lateFee ? `연체료(상환금의 ${Math.round(DATA.loanLateFee * Game.diff().lateFee * 100)}%)가 붙고 ` : ''}평판이 떨어져요${Game.diff().repLoss ? '' : ' (쉬움: 평판·연체료 없음)'}. 언제든 미리 갚을 수 있습니다.`));
     B.append(h('h3', {}, '🐈 고양이 입양'), h('div', { id: 'live-cats', class: 'expand' }));
     B.append(h('p', { class: 'tip' }, `고양이는 따뜻한 난방 칸에서 낮잠을 잡니다. 분위기 +${DATA.catAppeal}, 근처 손님 만족도 상승, 체온으로 현열·잠열을 조금 냅니다. 사료비 하루 🪙${DATA.catFoodPerDay}/마리.`));
     B.append(h('h3', {}, '🏗 공간 확장'), h('div', { id: 'live-expand', class: 'expand' }));
@@ -448,8 +449,8 @@ const UI = {
           const inf = Game.loanInfo(d.id);
           kids.push(h('div', { class: 'srow' },
             h('span', { class: 'mname' }, `${d.name} 🪙${fmt(d.amount)}`),
-            h('span', { class: 'dim' }, `이자 ${Math.round(d.rate * 100)}% · ${d.days}일 · 매일 ${fmt(inf.perDay)}`),
-            h('button', { class: 'btn', disabled: !!inf.why, onclick: () => this.confirm(`🏦 ${d.name}`, `🪙${fmt(d.amount)}을 빌립니다. 이자 ${Math.round(d.rate * 100)}% · ${d.days}일 동안 매일 마감 때 🪙${fmt(inf.perDay)}씩 자동 상환`, '빌리기', () => Game.takeLoan(d.id)) }, inf.why || '빌리기')));
+            h('span', { class: 'dim' }, `이자 ${pct(inf.rate)} · ${d.days}일 · 매일 ${fmt(inf.perDay)}`),
+            h('button', { class: 'btn', disabled: !!inf.why, onclick: () => this.confirm(`🏦 ${d.name}`, `🪙${fmt(d.amount)}을 빌립니다. 이자 ${pct(inf.rate)} (총 🪙${fmt(inf.total)}) · ${d.days}일 동안 매일 마감 때 🪙${fmt(inf.perDay)}씩 자동 상환`, '빌리기', () => Game.takeLoan(d.id)) }, inf.why || '빌리기')));
         }
         lb.replaceChildren(...kids);
       }

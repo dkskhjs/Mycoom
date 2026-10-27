@@ -230,11 +230,11 @@ const DATA = {
   ],
   // 증기 은행 대출: 원금 × (1 + 이자) 를 days 일에 나눠 영업 마감 때 자동 상환
   loans: [
-    { id: 'small', name: '소액 운영자금',   amount: 3000,  rate: 0.08, days: 7,  lv: 1 },
-    { id: 'mid',   name: '설비 개선 대출',  amount: 8000,  rate: 0.12, days: 12, lv: 2 },
-    { id: 'big',   name: '증기왕 사업자금', amount: 20000, rate: 0.18, days: 20, lv: 4 },
+    { id: 'small', name: '소액 운영자금',   amount: 3000,  rate: 0.03, days: 7,  lv: 1 },
+    { id: 'mid',   name: '설비 개선 대출',  amount: 8000,  rate: 0.05, days: 12, lv: 2 },
+    { id: 'big',   name: '증기왕 사업자금', amount: 20000, rate: 0.08, days: 20, lv: 4 },
   ],
-  loanLateFee: 0.1,   // 상환 못한 날 그날 상환금의 10% 가 잔액에 붙고 평판 -3
+  loanLateFee: 0.1,   // 상환 못한 날 그날 상환금의 10% 가 잔액에 붙고 평판 -3 (난이도 lateFee 배율)
   // 대출 한도(남은 원리금 합계 기준) = 4000 + 레벨×3000 + 평판×60
 
   // 커피 얼룩: 손님이 다 마시고 일어날 때 쏟는 확률, 얼룩 하나당 분위기 감점, 근처 손님 만족도 감점
@@ -248,9 +248,9 @@ const DATA = {
 
   // 난이도: repLoss = 평판 감소 배율(쉬움은 안 떨어짐), patience = 손님 인내심 배율, coalMul = 석탄값 배율
   difficulty: {
-    easy:   { name: '쉬움',   repLoss: 0,   patience: 1.3, coalMul: 1,    desc: '평판이 떨어지지 않고 손님이 오래 기다려 줍니다' },
-    normal: { name: '보통',   repLoss: 1,   patience: 1,   coalMul: 1,    desc: '기본 규칙' },
-    hard:   { name: '어려움', repLoss: 1.5, patience: 0.8, coalMul: 1.25, desc: '평판이 더 쉽게 떨어지고 손님이 급하며 석탄이 비쌉니다' },
+    easy:   { name: '쉬움',   repLoss: 0,   patience: 1.3, coalMul: 1,    loanRate: 0.1, lateFee: 0,   desc: '평판이 떨어지지 않고 손님이 오래 기다려 주며, 대출 이자가 거의 없어요' },
+    normal: { name: '보통',   repLoss: 1,   patience: 1,   coalMul: 1,    loanRate: 1,   lateFee: 1,   desc: '기본 규칙' },
+    hard:   { name: '어려움', repLoss: 1.5, patience: 0.8, coalMul: 1.25, loanRate: 1.5, lateFee: 1.5, desc: '평판이 더 쉽게 떨어지고 손님이 급하며 석탄과 대출 이자가 비쌉니다' },
   },
   // 손님이 나가며 하는 말 (항상 좋은 말)
   happyLines: ['맛있어요!', '또 올게요~', '분위기 좋네요', '따뜻해서 좋아요', '커피 향 최고!', '단골 할래요', '잘 먹었습니다', '여기 마음에 들어요'],
