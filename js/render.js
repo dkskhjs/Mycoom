@@ -127,7 +127,14 @@ const Render = {
       else if (it.kind === 'cust') this.drawCustomer(P, it.c);
       else if (it.kind === 'staff') this.drawStaff(P);
       else if (it.kind === 'cat') this.drawCat(P, it.k);
-      else g.drawImage(it.d.img, Math.round(it.d.x - it.d.img.width / 2), it.d.y - it.d.img.height);
+      else {
+        const d = it.d, dx = Math.round(d.x - d.img.width / 2), dy = d.y - d.img.height;
+        g.drawImage(d.img, dx, dy);
+        if (d.snowCap) {   // 나무 꼭대기에 눈
+          const cx = dx + d.img.width / 2, w = d.img.width * 0.42;
+          P.ellipse(Math.round(cx), dy + 5, Math.round(w), 3, '#eef3f8'); P.ellipse(Math.round(cx - w * 0.3), dy + 9, Math.round(w * 0.5), 2, '#f6f9fb');
+        }
+      }
     }
     g.globalAlpha = 1;
 
@@ -299,19 +306,25 @@ const Render = {
     P.r(x + 12, y + 8, 4, 3, PAL.i2);
   },
   // 가로등: 가게 양쪽 끝 + 마을 거리를 따라 5칸마다
-  lampXs() {
-    const W = Game.s.W, xs = [0, W - 1];
-    for (let x = -4; x >= -TOWN.mx; x -= 5) xs.push(x);
-    for (let x = W + 3; x < W + TOWN.mx; x += 5) xs.push(x);
-    return xs;
+  // 거리 연석 소품: 가게 양 끝은 가로등, 바깥으로 3칸마다 가로등 → 가로수1 → 가로수2 반복
+  curbSlots() {
+    const W = Game.s.W, out = [{ x: 0, kind: 'lamp' }, { x: W - 1, kind: 'lamp' }];
+    const seq = ['tree1', 'tree2', 'lamp'];
+    let i = 0; for (let x = -3; x >= -TOWN.mx; x -= 3) out.push({ x, kind: seq[i++ % 3] });
+    i = 0; for (let x = W + 2; x < W + TOWN.mx; x += 3) out.push({ x, kind: seq[i++ % 3] });
+    return out;
   },
+  lampXs() { return this.curbSlots().filter(c => c.kind === 'lamp').map(c => c.x); },
   // 가게 앞 보도 소품 (NAPLE props): 바닥 기준점 x(중앙), y(발끝)
   streetDecor() {
     const s = Game.s, d = Game.door, y = (s.H + 1) * TILE - 1, out = [];
     if (!Sprites.sheets.props) return out;
     const at = (key, tx, dx = 8) => out.push({ img: Sprites.prop(key), x: tx * TILE + dx, y, z: s.H + 1 });
     // 가로등은 차도 끝 연석에 (보도에 두면 실내를 너무 가린다)
-    for (const x of this.lampXs()) out.push({ img: Sprites.prop('v_lamp'), x: x * TILE + 8, y: (s.H + STREET_ROWS) * TILE - 1, z: s.H + STREET_ROWS });
+    const snowy = s.weather === 'snow' || Game.hasEvent('blizzard');
+    const art = { lamp: 'v_lamp', tree1: 'v_tree_s1', tree2: 'v_tree_e' };
+    for (const c of this.curbSlots())
+      out.push({ img: Sprites.prop(art[c.kind]), x: c.x * TILE + 8, y: (s.H + STREET_ROWS) * TILE - 1, z: s.H + STREET_ROWS, snowCap: snowy && c.kind !== 'lamp' });
     at('v_sign_leaf', d.x - 1, 6);
     if (d.x - 4 >= 2) at('v_bench', d.x - 4, 16);
     if (d.x + 2 < s.W - 2) at('v_bush_a', d.x + 2);

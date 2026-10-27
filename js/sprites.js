@@ -368,12 +368,15 @@ const CEIL_ART = {
 
 // 거리(보도블록)
 function streetArt(P, v) {
-  P.r(0, 0, 16, 16, PAL.s0);
+  // 원경 그림의 길과 같은 따뜻한 회갈색 자갈
+  P.r(0, 0, 16, 16, '#3e3028');
   for (let row = 0; row < 4; row++) {
     const off = row % 2 ? 2 : 0;
     for (let x = -off; x < 16; x += 4) {
-      const c = [PAL.s1, PAL.s2, '#6a6158'][Math.floor(hash(x + v * 5, row, 2) * 3)];
-      P.r(Math.max(0, x), row * 4, Math.max(0, Math.min(3, 3 + x)), 3, c);
+      const c = ['#7a6856', '#8a7662', '#6c5c4c', '#957f68'][Math.floor(hash(x + v * 5, row, 2) * 4)];
+      const x0 = Math.max(0, x), w = Math.max(0, Math.min(3, 3 + x));
+      P.r(x0, row * 4, w, 3, c);
+      if (w) P.p(x0, row * 4, '#a8927a');
     }
   }
 }
@@ -789,7 +792,7 @@ const Sprites = {
   },
 
   loadSheets() {
-    const blds = Object.fromEntries((window.BUILDING_MANIFEST || []).map(id => ['bld_' + id, `assets/buildings/${id}.png`]));
+    const blds = Object.fromEntries((window.BUILDING_MANIFEST || []).map(e => typeof e === 'string' ? e : e.id).map(id => ['bld_' + id, `assets/buildings/${id}.png`]));
     return Promise.all(Object.entries({ ...NAPLE_SHEETS, ...VISTA_SHEETS, ...blds }).map(([k, src]) => new Promise(res => {
       const img = new Image();
       img.onload = () => { this.sheets[k] = img; res(); };

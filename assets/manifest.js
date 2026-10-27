@@ -11,4 +11,8 @@ window.CHAR_MANIFEST = [
 ];
 
 // 이웃 건물 그림: assets/buildings/<id>.png (tools/import_building.py 로 변환). 가게 좌우 이웃 자리에 쓰인다
-window.BUILDING_MANIFEST = ['bakery', 'forge', 'clockshop', 'laundry', 'coalshop'];
+// band: 지붕을 가게 지붕선까지 위로 이어 그릴 때 반복할 그림 속 지붕 줄 (세로 비율, 굴뚝·창이 없는 곳)
+window.BUILDING_MANIFEST = [
+  { id: 'bakery', band: [0.32, 0.38] }, { id: 'forge', band: [0.2, 0.26] }, { id: 'clockshop', band: [0.38, 0.42] },
+  { id: 'laundry', band: [0.54, 0.57] }, { id: 'coalshop', band: [0.18, 0.22] },
+];

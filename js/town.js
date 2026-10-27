@@ -1,12 +1,12 @@
 // 가게 주변 스팀펑크 마을 풍경 — 필지 바깥 여백에 그리는 정적 배경 + 약간의 애니메이션
 // 좌표는 게임 격자(가게 좌상단 = 0,0) 기준. 여백 때문에 음수 좌표도 쓴다.
 const TOWN = {
-  mx: 22, mb: 9,
+  mx: 29, mb: 9,
   // 위쪽 여백: 원경 그림(장면 폭 ×1.18, 세로 비율 최대 0.56, 위 70% 사용)이 하늘까지 다 들어가게
   get mt() { const W = Game.s ? Game.s.W : 14; return VISTA_GROUND + Math.ceil(0.7 * 1.18 * 0.56 * (W + 2 * this.mx)); },
 };
 // 원경 그림이 끝나고 코드로 그린 거리가 시작하는 줄 (가게 위쪽으로 몇 칸)
-const VISTA_GROUND = 4;
+const VISTA_GROUND = 2;
 
 // 원경 그림의 굴뚝 꼭대기 위치 (그림 가로·세로 비율 0~1). 맑음·눈 그림은 구도가 달라 따로 잡는다.
 const VISTA_CHIMNEYS = {
@@ -68,31 +68,39 @@ const Town = {
 
     // 1) 이웃 가게들 — 같은 거리에 면한 건물 (가게 좌우)
     // 그림 건물(assets/buildings)을 가게 좌우로 번갈아, 가게에 가까운 자리부터 채우고 남는 곳은 코드로 그린 건물
-    const art = (window.BUILDING_MANIFEST || []).map(id => Sprites.sheets['bld_' + id]).filter(Boolean);
+    // 항목: 'id' 또는 { id, band: [위, 아래] } — band 는 지붕을 위로 이어 그릴 때 쓸 그림 속 지붕 줄(세로 비율)
+    const art = (window.BUILDING_MANIFEST || []).map(e => typeof e === 'string' ? { id: e } : e)
+      .map(e => ({ ...e, img: Sprites.sheets['bld_' + e.id] })).filter(e => e.img);
     // 남은 자리가 더 넓은 쪽에 하나씩 (가로 칸 + 사이 1칸)
-    const sides = [[], []], room = [TOWN.mx - 1, TOWN.mx - 1];
-    for (const img of [...art].sort((p, q) => q.width - p.width)) {   // 넓은 건물부터 자리 잡기
-      const need = Math.ceil(img.width / TILE) + 1, k = room[0] >= room[1] ? 0 : 1;
-      if (room[k] >= need) { sides[k].push(img); room[k] -= need; }
-      else if (room[1 - k] >= need) { sides[1 - k].push(img); room[1 - k] -= need; }
+    // 좌우 나누기: 모든 조합 중 양쪽에 다 들어가고 더 고르게 나뉘는 것 (건물 수가 적어 전수 탐색)
+    const room = TOWN.mx - 1, need = art.map(a => Math.ceil(a.img.width / TILE) + 1);
+    let best = null;
+    for (let m = 0; m < 1 << art.length; m++) {
+      const u = [0, 0]; need.forEach((n, i) => u[(m >> i) & 1] += n);
+      if (u[0] > room || u[1] > room) continue;
+      const cnt = need.filter((_, i) => (m >> i) & 1).length, score = Math.abs(u[0] - u[1]) - cnt * 0.01;
+      if (!best || score < best.score) best = { m, score };
     }
+    const sides = [[], []];
+    if (best) art.forEach((a, i) => sides[(best.m >> i) & 1].push(a));
+    else art.forEach((a, i) => sides[i % 2].push(a));   // 다 안 들어가면 row() 가 넘치는 건 건너뛴다
     const proc = (from, to) => {  // [from, to) 를 코드 건물로
       let x = from;
       while (to - x >= 3) {
         const w = Math.min(to - x, 3 + Math.floor(R() * 4));
-        if (to - x - w > 0 && to - x - w < 3) { this.building(P, g, R, x, Math.max(-2, Math.floor(R() * 4) - 1), to - x, H, snowy, true); return; }
-        this.building(P, g, R, x, Math.max(-2, Math.floor(R() * 4) - 1), w, H, snowy, true);
+        if (to - x - w > 0 && to - x - w < 3) { this.building(P, g, R, x, Math.floor(R() * 2) - 1, to - x, H, snowy, true); return; }
+        this.building(P, g, R, x, Math.floor(R() * 2) - 1, w, H, snowy, true);
         x += w + (R() < 0.5 ? 1 : 0);
       }
     };
     const row = (from, to, nearRight, imgs) => {
       // nearRight: 가게가 오른쪽 → to 쪽부터 바깥(from 쪽)으로 채운다
       let edge = nearRight ? to : from;
-      for (const img of imgs) {
-        const tw = Math.ceil(img.width / TILE);
+      for (const a of imgs) {
+        const img = a.img, tw = Math.ceil(img.width / TILE);
         const bx = nearRight ? edge - tw : edge;
         if (bx < from || bx + tw > to) break;
-        this.artBuilding(P, g, img, bx, H, snowy);
+        this.artBuilding(P, g, img, bx, H, snowy, a.band);
         edge = nearRight ? bx - 1 : bx + tw + 1;
       }
       nearRight ? proc(from, edge) : proc(edge, to);
@@ -308,23 +316,46 @@ const Town = {
       P.box(chx, chy, 7, 12, PAL.red1); P.r(chx - 1, chy, 9, 2, PAL.s2);
       this.chimneys.push([chx + 3, chy - 1, 0.6]);
     }
+    // 진한 외곽선 2px
+    P.r(bx * TILE - 1, by * TILE - 1, w * TILE + 2, 2, PAL.k); P.r(bx * TILE - 1, by * TILE, 2, (bottom - by) * TILE, PAL.k);
+    P.r((bx + w) * TILE - 1, by * TILE, 2, (bottom - by) * TILE, PAL.k);
   },
 
   // 그림 건물: 거리(bottom 줄)에 바닥을 맞추고, 그림 지붕 위로는 같은 깊이의 지붕을 이어 그려
   // 위에서 내려다본 건물 덩어리처럼 보이게 한다
-  artBuilding(P, g, img, bx, bottom, snowy) {
+  // 그림 모양 그대로 까만 실루엣 (픽셀을 읽지 않고 합성으로 만든다 — file:// 에서도 동작)
+  silhouette(img) {
+    const [c, g] = makeCanvas(img.width, img.height);
+    g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = '#0c0604'; g.fillRect(0, 0, img.width, img.height);
+    return c;
+  },
+
+  artBuilding(P, g, img, bx, bottom, snowy, band = [0.2, 0.25]) {
     const tw = Math.ceil(img.width / TILE), x = bx * TILE + Math.floor((tw * TILE - img.width) / 2);
     const y = bottom * TILE - img.height;
-    const roofTop = (bottom - 6) * TILE;
-    // 지붕이 위에서 보이게 그려진(키가 큰) 그림은 그대로, 정면도처럼 납작한 그림만 뒤에 지붕을 잇는다
-    if (img.height < 4.5 * TILE && y > roofTop) {
-      for (let yy = Math.floor(roofTop / TILE); yy * TILE < y + 4; yy++) for (let xx = bx; xx < bx + tw; xx++) g.drawImage(this.roofTile('tar', snowy), xx * TILE, yy * TILE);
-      P.r(bx * TILE, roofTop, tw * TILE, 1, PAL.k); P.r(bx * TILE, roofTop, 1, y - roofTop + 4, PAL.k); P.r((bx + tw) * TILE - 1, roofTop, 1, y - roofTop + 4, PAL.k);
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx * TILE + 1, roofTop + 1, tw * TILE - 2, Math.floor((y - roofTop) / 2));
+    // 위에서 내려다본 깊은 건물: 그림 속 지붕 한 줄(band)을 가게 지붕선(y=0)까지 쌓아 올린다
+    const top = 0, by0 = Math.round(img.height * band[0]), bh = Math.max(2, Math.round(img.height * (band[1] - band[0])));
+    const roofY = y + by0;   // 그림 속 지붕 줄이 있는 높이 — 이 위로 이어 붙인다
+    if (roofY > top) {
+      for (let yy = roofY - bh; yy > top - bh; yy -= bh) {
+        const h = Math.min(bh, yy + bh - top), sy = by0 + (bh - h);
+        g.drawImage(img, 0, sy, img.width, h, x, Math.max(top, yy), img.width, h);
+      }
+      // 멀수록 살짝 어둡게, 가운데 용마루, 외곽선
+      const span = roofY - top, grad = g.createLinearGradient(0, top, 0, roofY);
+      grad.addColorStop(0, 'rgba(10,6,4,0.35)'); grad.addColorStop(1, 'rgba(10,6,4,0)');
+      g.fillStyle = grad; g.fillRect(x, top, img.width, span);
+      if (span > 24) { P.r(x + 1, top + Math.round(span * 0.45), img.width - 2, 1, 'rgba(0,0,0,0.45)'); P.r(x + 1, top + Math.round(span * 0.45) + 1, img.width - 2, 1, 'rgba(255,240,220,0.12)'); }
+      P.r(x - 2, top - 2, img.width + 4, 2, PAL.k); P.r(x - 2, top, 2, span, PAL.k); P.r(x + img.width, top, 2, span, PAL.k);
+      if (snowy) { g.fillStyle = 'rgba(238,243,248,0.55)'; g.fillRect(x + 1, top + 1, img.width - 2, span - 1); }
     }
+    // 진한 외곽선: 그림 실루엣을 검게 칠해 사방 1~2px 어긋나게 깔고 그 위에 그림
+    const sil = this.silhouette(img);
+    for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, -1], [-1, 1], [1, 1], [-2, -1], [2, -1], [-2, 1], [2, 1]]) g.drawImage(sil, x + dx, y + dy);
     g.drawImage(img, x, y);
     if (snowy) { P.r(x + 2, y + Math.round(img.height * 0.12), img.width - 4, 2, '#eef3f8'); }
-    this.cover(bx, Math.floor(Math.min(y, roofTop) / TILE), tw, bottom - Math.floor(Math.min(y, roofTop) / TILE));
+    this.cover(bx, Math.floor(Math.min(y, top) / TILE), tw, bottom - Math.floor(Math.min(y, top) / TILE));
     // 굴뚝 연기: 그림 위쪽에서 가장 높은 불투명 픽셀 근처
     this.chimneys.push([x + Math.round(img.width * 0.78), y + 2, 0.6]);
   },
