@@ -297,3 +297,11 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 .settle .settle-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .settle .settle-btns .btn { flex: 1 1 160px; margin: 0; }
 #openBtn.night { border-color: #8ca0e0; background: linear-gradient(#2c3150, #1a1d33); }
+/* 낮은 가로 화면 (게임 포털의 640×360 등): 아래 막대·버튼을 얇게 */
+@media (max-height: 420px) {
+  #toolbar { min-height: 24px; padding: 2px 8px; }
+  #toolHint { font-size: 11px; }
+  #tabs button { padding: 5px 2px; }
+  #camctl .btn { padding: 2px 7px; }
+  #topbar { gap: 3px 5px; padding: 3px 6px; }
+}

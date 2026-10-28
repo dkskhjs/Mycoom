@@ -93,6 +93,7 @@
 
 ## 배포
 
+- Poki·CrazyGames 포털 출시: [docs/PORTALS.md](docs/PORTALS.md) · 빌드: `python3 tools/build_portal.py` → `dist/*.zip`
 - 로그인 점검 결과와 Google Play 출시 순서: [docs/PLAY_STORE.md](docs/PLAY_STORE.md) · Firestore 보안 규칙: `firestore.rules` · 개인정보처리방침: `privacy.html` · 스토어 자료: `store/`
 
 - 수정한 뒤 `python3 tools/bump_version.py` 를 돌려 `index.html` 의 js/css 링크에 `?v=버전` 을 새로 붙인다 (브라우저·홈 화면 앱이 예전 파일을 쓰지 않게).

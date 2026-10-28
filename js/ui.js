@@ -780,8 +780,9 @@ const UI = {
 
   modal(content) {
     const m = $('#modal'); m.replaceChildren(h('div', { class: 'mbox' }, content)); m.hidden = false; this._view = null;
+    Portal.gameplay(false);   // 창이 떠 있는 동안은 '플레이 중 아님'
   },
-  closeModal() { $('#modal').hidden = true; this._view = null; },
+  closeModal() { $('#modal').hidden = true; this._view = null; if (App.started && !App.onTitle) Portal.gameplay(true); },
   // 단순 확인창
   confirm(title, text, okLabel, onOk, onCancel) {
     this.modal(h('div', { class: 'buybox' }, h('h2', {}, title), h('p', {}, text),
@@ -886,7 +887,7 @@ const UI = {
       if (local) return this.confirm('새 게임', `이 기기의 진행(${local.day}일차)이 지워져요.`, '지우고 새 게임', go, () => this.showTitle());
       go();
     } }, user || !C ? '새 게임' : '새 게임 (로그인 없이)'));
-    if (App.isMobile() && !App.isStandalone()) box.append(h('p', { class: 'dim fs-hint' }, App.isIOS() ? '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요' : '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행'));
+    if (App.isMobile() && !App.isStandalone() && !window.PORTAL) box.append(h('p', { class: 'dim fs-hint' }, App.isIOS() ? '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요' : '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행'));
     this.modal(box); this._view = 'title';
   },
   // 로그인 · 회원가입 창 (게임 화면 스타일)
@@ -994,9 +995,19 @@ const UI = {
       h('button', { class: 'btn ghost', disabled: s.money < 1, onclick: () => { Game.repayLoan(l.uid, l.perDay); this.showSettle(); } }, `하루치 더 (${fmt(Math.min(l.perDay, l.balance))})`),
       h('button', { class: 'btn', disabled: s.money < l.balance, onclick: () => { Game.repayLoan(l.uid); this.showSettle(); } }, '완납')));
     if (g.after < 0) kids.push(h('p', { class: 'bad' }, '⚠ 돈이 모자라면 대출 상환이 연체될 수 있어요.'));
+    // 포털 빌드: 하루 한 번 광고 보고 보너스
+    if (Portal.hasAds && !s.today.adBonus) {
+      const bonus = Math.min(1500, 150 + g.day * 30);
+      kids.push(h('button', { class: 'btn big adbonus', onclick: async e => {
+        e.currentTarget.disabled = true;
+        if (await Portal.rewardedBreak()) { s.money += bonus; s.today.adBonus = true; Game.sfx('coinTip'); this.toast(`📺 보너스 🪙${fmt(bonus)}`, 'good'); Game.save(); }
+        else this.toast('광고를 끝까지 보지 않아 보너스가 없어요');
+        this.showSettle();
+      } }, `📺 광고 보고 보너스 🪙${fmt(bonus)} 받기`));
+    }
     kids.push(h('div', { class: 'settle-btns' },
       h('button', { class: 'btn ghost', onclick: () => this.settleLater() }, '🛠 가게 꾸미기 (메인으로)'),
-      h('button', { class: 'btn big', onclick: () => { this.closeModal(); Game.nextDay(); } }, '☀ 다음 날로')));
+      h('button', { class: 'btn big', onclick: async e => { e.currentTarget.disabled = true; await Portal.commercialBreak(); this.closeModal(); Game.nextDay(); } }, '☀ 다음 날로')));
     this.modal(h('div', { class: 'settle' }, ...kids)); this._view = 'settle';
     // 자동 운영이면 잠깐 보여 주고 다음 날로
     if (s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box && Game.s.afterHours) { this.closeModal(); Game.nextDay(); } }, 6000); }
@@ -1078,11 +1089,11 @@ const UI = {
           h('b', {}, d.name), h('span', { class: 'dim' }, d.desc)))),
       h('button', { class: 'btn big', onclick: () => { Game.setAuto(!Game.s.auto); this.showSystemMenu(); } }, Game.s && Game.s.auto ? '🤖 자동 운영 끄기' : '🤖 자동 운영 켜기'),
       h('button', { class: 'btn big', onclick: () => { SFX.toggle(); this.showSystemMenu(); } }, SFX.muted ? '🔇 효과음 켜기' : '🔊 효과음 끄기'),
-      App.canFullscreen() && !App.isStandalone() ? h('button', { class: 'btn big', onclick: () => { App.toggleFullscreen(); this.closeModal(); } }, App.isFullscreen() ? '⛶ 전체화면 끄기' : '⛶ 전체화면') : null,
+      App.canFullscreen() && !App.isStandalone() && !window.PORTAL ? h('button', { class: 'btn big', onclick: () => { App.toggleFullscreen(); this.closeModal(); } }, App.isFullscreen() ? '⛶ 전체화면 끄기' : '⛶ 전체화면') : null,
       App.isIOS() && !App.isStandalone() ? h('p', { class: 'dim fs-hint' }, '아이폰 전체화면: 사파리 공유 → [홈 화면에 추가]') : null,
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
       /[?&]debug\b/.test(location.search) && h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
-      h('a', { class: 'linkbtn', href: 'privacy.html', target: '_blank', rel: 'noopener' }, '개인정보처리방침 · 계정 삭제 안내'),
+      !window.PORTAL && h('a', { class: 'linkbtn', href: 'privacy.html', target: '_blank', rel: 'noopener' }, '개인정보처리방침 · 계정 삭제 안내'),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
     this._view = 'menu';
   },
