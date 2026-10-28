@@ -55,7 +55,7 @@
 | `manifest.webmanifest` | 앱 이름·아이콘(일반 + 마스커블)·전체화면·시작 주소 |
 | `assets/icon-maskable-512.png` | 안드로이드가 동그랗게 잘라도 안전한 아이콘 |
 | `sw.js` | 서비스 워커: 빠른 재실행·오프라인 실행 (TWA 품질 기준) |
-| `privacy.html` | 개인정보처리방침 + 계정 삭제 안내(`#delete`) — **[이름]·[연락처 이메일] 을 채울 것** |
+| `privacy.html` | 개인정보처리방침 + 계정 삭제 안내(`#delete`) — 책임자 김의중, dkskhjs@gmail.com |
 | `firestore.rules`, `firebase.json` | Firestore 보안 규칙 |
 | `store/listing-ko.md` | 스토어 이름·간단한 설명·자세한 설명 |
 | `store/data-safety.md` | 데이터 보안·콘텐츠 등급·타겟층·광고 답변 메모 |

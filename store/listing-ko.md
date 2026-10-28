@@ -44,7 +44,7 @@
 타이쿤, 경영, 카페, 픽셀아트, 스팀펑크, 캐주얼
 
 ## 연락처 이메일
-[개발자 연락처 이메일 — 공개됨]
+dkskhjs@gmail.com
 
 ## 개인정보처리방침 URL
 https://dkskhjs.github.io/Mycoom/privacy.html
