@@ -24,7 +24,7 @@ python3 tools/build_portal.py            # dist/steambeans-poki.zip, dist/steamb
 3. 정보 입력
    - 제목: Steam & Beans (스팀 & 빈즈) · 카테고리: Simulation / Management · 태그: tycoon, cafe, pixel, steampunk, management, casual
    - 조작: 마우스 / 터치 (모바일 지원)
-   - 설명: `store/listing-ko.md` 의 자세한 설명 (영어 설명을 함께 넣으면 심사·노출에 유리)
+   - 설명·조작·태그: `store/listing-en.md` (영어, 그대로 복사) · 한국어는 `store/listing-ko.md`
    - 커버 이미지: `store/portal/cover-1920x1080.png`, `cover-800x1200.png`, `cover-800x800.png`
 4. 사이트 안의 미리보기(QA 도구)에서 광고 흐름 확인: 정산 → 보너스 광고 → 다음 날로
 5. 심사 → **Basic Launch**(일부 사용자에게 노출) → 플레이 시간·재방문 지표가 좋으면 **Full Launch**(SDK 광고 수익 분배).
