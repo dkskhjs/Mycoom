@@ -19,7 +19,7 @@ SDK = {
     'gamedistribution': 'https://html5.api.gamedistribution.com/main.min.js',
     'newgrounds': None,   # 광고 SDK 없음
 }
-GD_ID = os.environ.get('GD_GAME_ID', '').strip()
+GD_ID = os.environ.get('GD_GAME_ID', '').strip() or '2d074f424f254ca3936931a68d73d4bd'   # GameDistribution 대시보드의 Game ID
 SKIP_FILES = {'js/firebase-init.js', 'assets/README.md', 'assets/bg/README.md'}
 
 def build(portal):

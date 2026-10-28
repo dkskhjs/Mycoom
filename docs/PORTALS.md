@@ -42,7 +42,7 @@ GD_GAME_ID=<게임 ID> python3 tools/build_portal.py gamedistribution   # GD 는
 
 ## GameDistribution (올리면 여러 웹게임 사이트에 배포, 광고 수익 분배)
 1. https://developer.gamedistribution.com 가입 → **Upload new game** → 제목·설명(`store/listing-en.md`)·이미지(`store/portal/en/`) 입력
-2. 대시보드에 나오는 **Game ID** 로 빌드: `GD_GAME_ID=<ID> python3 tools/build_portal.py gamedistribution` → `dist/steambeans-gamedistribution.zip` 업로드
+2. Game ID(`2d074f424f254ca3936931a68d73d4bd`)는 `tools/build_portal.py` 에 들어 있음: `python3 tools/build_portal.py gamedistribution` → `dist/steambeans-gamedistribution.zip` 업로드
    (ID 없이 만든 zip 에는 자리표시가 들어 있어 광고가 나오지 않는다)
 3. 게임 설정에서 **Rewarded Ads** 를 켠다 (안 켜면 보너스 광고가 안 나옴)
 4. 대시보드의 미리보기에서 첫 광고(pre-roll)를 한 번 끝까지 보면 연동이 확인된다 → 심사(최대 2주)
