@@ -22,7 +22,7 @@ Brew espresso with boiler steam in a steampunk town, and keep your café running
 
 🤖 Robot staff and café cats
 - Hire waiters and baristas, or put steam robots to work
-- Raise cats that warm the café with their body heat and lower the heating load
+- Install cats: 4–8 kg feline units rated at 14–28 W of continuous sensible heat output each, for a measurable reduction in sensible heating load (purring not included in calculations)
 
 🌙 Daily settlement
 - Check profit and bills at closing, repay loans, then start the next day
