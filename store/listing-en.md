@@ -6,39 +6,28 @@ Steam & Beans
 (Google Play, 30 chars max: **Steam & Beans: Café Tycoon**)
 
 ## Short description (80 chars max)
-Coal in, espresso out. Run a steampunk pixel café before the boiler explodes.
+Brew espresso with steam power and run a pixel café in a steampunk town.
 
 ## Description
-In the great steam city of Cogsworth-upon-Smog, coffee is not brewed. It is *engineered*.
+Brew espresso with boiler steam in a steampunk town, and keep your café running through harsh winters.
 
-You have one empty lot, a bag of coins and an unreasonable dream: a café. Not a quaint little café with a kettle. A proper café, with a coal-fired central boiler roaring in the corner like a dragon with a mortgage.
+☕ Steam-powered café
+- Burn coal in a central boiler and pipe the steam to your espresso machine
+- Lay water, steam and floor-heating pipes yourself
+- Watch the pressure, fix leaks, and get through blizzards and coal strikes
 
-☕ Espresso, powered by industrial overkill
-- Shovel coal into the boiler, build up pressure, and pipe the steam all the way to your brass espresso machine. No boiler output, no espresso. Science!
-- Lay every pipe yourself: water from the street inlet, steam to the machines, heating under the floor. Plumbers fear you. Customers respect you.
-- Keep an eye on the pressure gauge. When the needle hits red, open the safety valve. Do not "see what happens."
-- A leaky pipe drips, the steam stops, the latte stops, and somewhere a nobleman sighs loudly.
-- Roast sweet potatoes right in the boiler, because wasting free heat is a crime in this city.
+🎨 Pixel-art interior
+- Dozens of floors, walls, lights and furniture
+- Finishes change insulation and your heating bill
 
-🎨 Decorate like a gentleman of questionable taste
-- Herringbone floors, mahogany panels, bookshelf walls, chandeliers and gas lamps
-- Carpet keeps the heat in. Stained glass looks magnificent and leaks heat like a sieve. Choose fashion or your heating bill.
-- Chairs politely turn to face their tables. They have better manners than some of your customers.
-- At night, nobody wants to sip cocoa in the dark. Light those seats.
+🤖 Robot staff and café cats
+- Hire waiters and baristas, or put steam robots to work
+- Raise cats that warm the café with their body heat and lower the heating load
 
-👥 Staff, regulars and very loyal robots
-- Serve soot-covered miners, sweaty blacksmiths, airship pilots on layover and nobles who complain professionally
-- Hire waiters, baristas, cleaners and a stoker who genuinely loves coal
-- Or buy steam robots: brass serving bots and copper cleaning bots that never ask for wages, only coal (and the occasional existential crisis when the boiler stops)
+🌙 Daily settlement
+- Check profit and bills at closing, repay loans, then start the next day
 
-🌙 Count the coins at closing time
-- At 22:00, tally up today's profit and tomorrow's bills
-- Repay the Steam Bank (they are patient, mostly), redecorate in peace, then start a new day
-- Survive blizzards, coal strikes and the dreaded safety inspector
-
-Also included: café cats who nap on heated floors, shop expansions, three difficulty levels, and an auto mode for when you'd rather just watch the gears turn.
-
-Play in English or Korean (🌐 on the title screen or in the menu).
+Easy, Normal and Hard modes · Auto mode · English and Korean
 
 ## Controls
 - Mouse / touch: click or tap a tool, place it on the map, then press ✓ to confirm
