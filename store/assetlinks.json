@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dkskhjs.steambeans",
+      "sha256_cert_fingerprints": [
+        "여기에_Play_Console_앱_서명_키_SHA-256_지문을_붙여넣기 (예: AB:CD:...:EF)"
+      ]
+    }
+  }
+]

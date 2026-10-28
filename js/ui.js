@@ -1028,7 +1028,28 @@ const UI = {
     return h('div', { class: 'account' }, h('h3', {}, '☁️ 계정'),
       h('p', { class: 'dim' }, `${user.email} · ${status}`),
       !C.ready && C.state === 'done' ? h('button', { class: 'btn big', onclick: () => this.resolveCloud() }, '☁️ 클라우드와 연결하기') : null,
-      h('button', { class: 'btn big', onclick: async () => { await C.logout(); this.closeModal(); this.toast('로그아웃했어요 — 이제 이 기기에만 저장돼요'); } }, '로그아웃'));
+      h('button', { class: 'btn big', onclick: async () => { await C.logout(); this.closeModal(); this.toast('로그아웃했어요 — 이제 이 기기에만 저장돼요'); } }, '로그아웃'),
+      h('button', { class: 'linkbtn', onclick: () => this.showDeleteAccount() }, '계정 삭제'));
+  },
+  // 계정 삭제: 비밀번호로 한 번 더 확인
+  showDeleteAccount() {
+    const C = this.cloud(); if (!C || !C.user()) return;
+    const pass = h('input', { type: 'password', class: 'tin', placeholder: '비밀번호', autocomplete: 'current-password' }), msg = h('p', { class: 'lmsg' });
+    let box;
+    const go = async () => {
+      msg.className = 'lmsg'; msg.textContent = '삭제하는 중…'; box.querySelectorAll('button, input').forEach(b => b.disabled = true);
+      const r = await C.deleteAccount(pass.value);
+      box.querySelectorAll('button, input').forEach(b => b.disabled = false);
+      if (!r.ok) { msg.className = 'lmsg bad'; msg.textContent = r.msg; return; }
+      this.closeModal(); this.toast('계정과 클라우드 세이브를 삭제했어요. 이 기기의 진행은 남아 있어요.', 'good');
+    };
+    box = h('div', { class: 'login' },
+      h('div', { class: 'mhead' }, h('h2', {}, '계정 삭제'), h('button', { class: 'btn mclose', onclick: () => this.showSystemMenu() }, '✕')),
+      h('p', {}, `${C.user().email} 계정과 클라우드에 저장된 진행이 영구히 지워져요. 되돌릴 수 없어요.`),
+      h('p', { class: 'dim' }, '이 기기에 저장된 진행은 지워지지 않아요.'),
+      pass, msg,
+      h('div', { class: 'buybtns' }, h('button', { class: 'btn ghost', onclick: () => this.showSystemMenu() }, '취소'), h('button', { class: 'btn big danger', onclick: go }, '영구 삭제')));
+    this.modal(box); this._view = 'login';
   },
   // 볼륨 슬라이더 한 줄
   volRow(label, value, onInput) {
@@ -1060,7 +1081,8 @@ const UI = {
       App.canFullscreen() && !App.isStandalone() ? h('button', { class: 'btn big', onclick: () => { App.toggleFullscreen(); this.closeModal(); } }, App.isFullscreen() ? '⛶ 전체화면 끄기' : '⛶ 전체화면') : null,
       App.isIOS() && !App.isStandalone() ? h('p', { class: 'dim fs-hint' }, '아이폰 전체화면: 사파리 공유 → [홈 화면에 추가]') : null,
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '🎓 튜토리얼 다시 보기'),
-      h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
+      /[?&]debug\b/.test(location.search) && h('details', {}, h('summary', {}, '디버그: 이벤트 발생'), h('div', { class: 'chips' }, Object.entries(Game.EVENTS).map(([id, ev]) => h('button', { class: 'btn', onclick: () => { Game.triggerEvent(id); this.closeModal(); } }, ev.name)))),
+      h('a', { class: 'linkbtn', href: 'privacy.html', target: '_blank', rel: 'noopener' }, '개인정보처리방침 · 계정 삭제 안내'),
       h('button', { class: 'btn ghost', onclick: () => this.closeModal() }, '닫기')));
     this._view = 'menu';
   },

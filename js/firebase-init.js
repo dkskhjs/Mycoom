@@ -98,6 +98,19 @@ const Cloud = {
     try { await auth.sendPasswordResetEmail(email); return { ok: true }; }
     catch (err) { return { ok: false, msg: this.errMsg(err) }; }
   },
+  // 계정 삭제 (Google Play 정책: 앱 안에서 계정 삭제 가능해야 함). 비밀번호로 다시 확인한 뒤 클라우드 세이브와 계정을 지운다
+  async deleteAccount(password) {
+    if (!currentUser) return { ok: false, msg: '로그인되어 있지 않아요' };
+    try {
+      const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, password);
+      await currentUser.reauthenticateWithCredential(cred);
+      this.ready = false; this._pending = null; if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+      await db.collection('saves').doc(currentUser.uid).delete();
+      await currentUser.delete();
+      try { localStorage.removeItem('steamcafe_sync'); } catch (e) {}
+      return { ok: true };
+    } catch (err) { return { ok: false, msg: this.errMsg(err) }; }
+  },
   async logout() {
     if (!auth) return;
     await this.flushNow();
@@ -115,17 +128,21 @@ const Cloud = {
       'auth/missing-password': '비밀번호를 입력해 주세요',
       'auth/too-many-requests': '시도가 너무 많아요. 잠시 뒤 다시 해 주세요',
       'auth/network-request-failed': '네트워크에 연결할 수 없어요',
+      'auth/requires-recent-login': '보안을 위해 다시 로그인한 뒤 시도해 주세요',
+      'auth/user-mismatch': '다른 계정의 비밀번호예요',
     };
     return m[err && err.code] || ('오류: ' + (err && err.message || err));
   },
 
-  // 저장 묶어 보내기 (3초에 한 번)
-  _timer: null, _pending: null,
+  // 저장 묶어 보내기: 10초에 한 번, 내용이 그대로면 보내지 않음 (자동 저장이 같은 내용을 반복해 올리는 낭비 방지)
+  _timer: null, _pending: null, _lastBody: null,
   queue(state) {
     if (!currentUser || !db || !this.ready) return;
-    this._pending = JSON.stringify(state);
+    const json = JSON.stringify(state), body = json.replace(/"savedAt":\d+,?/, '');
+    if (body === this._lastBody) return;
+    this._pending = json; this._pendingBody = body;
     if (this._timer) return;
-    this._timer = setTimeout(() => this.flushNow(), 3000);
+    this._timer = setTimeout(() => this.flushNow(), 10000);
   },
   flush() { if (this._timer) { clearTimeout(this._timer); this._timer = null; } return this.flushNow(); },
   async flushNow() {
@@ -144,9 +161,15 @@ const Cloud = {
       }
       const savedAt = JSON.parse(data).savedAt || Date.now();
       await ref.set({ data, savedAt, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      this._lastBody = data.replace(/"savedAt":\d+,?/, '');
       this.save = { json: data, savedAt, summary: this.summarize(data, savedAt) };
       this.markSync(savedAt);
-    } catch (err) { console.error('클라우드 저장 실패:', err); }
+    } catch (err) {
+      // 너무 잦은 저장(규칙상 2초 제한)·일시적 네트워크 오류: 버리지 않고 10초 뒤 다시 보낸다
+      console.warn('클라우드 저장 실패, 다시 시도:', err && err.code || err);
+      if (!this._pending) this._pending = data;
+      if (!this._timer) this._timer = setTimeout(() => this.flushNow(), 10000);
+    }
   },
 };
 
@@ -162,4 +185,7 @@ if (FB_OK) auth.onAuthStateChanged(async user => {
   Cloud.emit();
   if (user) await Cloud.fetch();
 });
-window.addEventListener('beforeunload', () => { if (Cloud._pending) Cloud.flushNow(); });
+// 앱을 닫거나 다른 앱으로 넘어갈 때 밀린 저장을 바로 보낸다 (모바일은 beforeunload 가 잘 안 옴)
+window.addEventListener('beforeunload', () => { if (Cloud._pending) Cloud.flush(); });
+window.addEventListener('pagehide', () => { if (Cloud._pending) Cloud.flush(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && Cloud._pending) Cloud.flush(); });

@@ -1,16 +1,41 @@
 {
   "name": "스팀 & 빈즈",
   "short_name": "스팀&빈즈",
-  "description": "증기 도시의 카페 타이쿤",
+  "description": "증기 도시 한복판 빈 땅에서 시작하는 스팀펑크 카페 타이쿤. 보일러와 배관을 깔고, 가게를 꾸미고, 손님을 맞으세요.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone"],
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
   "background_color": "#2b1c12",
   "theme_color": "#2b1c12",
   "lang": "ko",
   "icons": [
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./",
+  "orientation": "any",
+  "categories": [
+    "games",
+    "entertainment"
   ]
 }

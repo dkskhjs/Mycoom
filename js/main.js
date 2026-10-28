@@ -23,6 +23,8 @@ const App = {
     for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => setTimeout(() => this.started && Render.resize($('#canvasWrap')), 60));
     setInterval(() => { if (this.started && !Game.s.open) Game.save(); }, 20000);
     this.loadBackdrops();
+    // 서비스 워커 (https 배포에서만): 빠른 재실행·오프라인 실행, 안드로이드 앱(TWA) 품질 기준
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
     UI.showTitle();
     let last = performance.now();
     const loop = now => {

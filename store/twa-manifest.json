@@ -1,0 +1,22 @@
+{
+  "packageId": "com.dkskhjs.steambeans",
+  "host": "dkskhjs.github.io",
+  "name": "스팀 & 빈즈",
+  "launcherName": "스팀&빈즈",
+  "display": "fullscreen",
+  "orientation": "default",
+  "themeColor": "#2b1c12",
+  "navigationColor": "#1b1310",
+  "backgroundColor": "#2b1c12",
+  "enableNotifications": false,
+  "startUrl": "/Mycoom/",
+  "iconUrl": "https://dkskhjs.github.io/Mycoom/assets/icon-512.png",
+  "maskableIconUrl": "https://dkskhjs.github.io/Mycoom/assets/icon-maskable-512.png",
+  "webManifestUrl": "https://dkskhjs.github.io/Mycoom/manifest.webmanifest",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": { "path": "./android.keystore", "alias": "android" },
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": false,
+  "isChromeOSOnly": false
+}

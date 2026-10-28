@@ -1,0 +1,33 @@
+rules_version = '2';
+// 스팀 & 빈즈 — Firestore 보안 규칙
+// 배포: Firebase 콘솔 › Firestore Database › 규칙 탭에 붙여넣고 [게시]
+//      또는 firebase CLI: firebase deploy --only firestore:rules
+// 웹 앱의 apiKey 는 원래 공개되는 값이라, 실제 보안은 전부 이 규칙에서 지킨다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 세이브: 본인 문서(saves/{내 uid})만 읽고 쓰고 지울 수 있다
+    match /saves/{uid} {
+      function isOwner() { return request.auth != null && request.auth.uid == uid; }
+      function validSave() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['data', 'savedAt', 'updatedAt'])
+          && d.data is string && d.data.size() > 0 && d.data.size() < 500000   // 세이브는 보통 7~45KB
+          && d.savedAt is number
+          && d.updatedAt == request.time;                                     // serverTimestamp() 만 허용
+      }
+      // 같은 문서에 2초 안에 다시 쓰는 것을 막아 스크립트 도배를 억제 (게임은 10초에 한 번 묶어 보냄)
+      function notTooFast() { return resource == null || request.time > resource.data.updatedAt + duration.value(2, 's'); }
+
+      allow read: if isOwner();
+      allow create: if isOwner() && validSave();
+      allow update: if isOwner() && validSave() && notTooFast();
+      allow delete: if isOwner();
+    }
+
+    // 그 밖의 모든 경로는 막는다
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
