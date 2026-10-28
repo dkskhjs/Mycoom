@@ -1045,7 +1045,7 @@ const Sprites = {
       const img = new Image();
       img.onload = () => { this.chars[id] = img; res(); };
       img.onerror = () => { console.warn('캐릭터 시트 로드 실패:', id); res(); };
-      img.src = `assets/chars/${id}.png`;
+      img.src = `assets/chars/${id}.png?v=2`;
     })));
   },
   hasChar(id) { return !!this.chars[id]; },
