@@ -1,11 +1,12 @@
-# Poki · CrazyGames 출시 가이드
+# 웹 포털 출시 가이드 (Poki · CrazyGames · GameDistribution · Newgrounds)
 
 도메인 없이, 게임 포털이 게임을 호스팅하고 광고를 붙여 수익을 나눠 주는 방식.
 포털에 올라가는 건 `tools/build_portal.py` 로 만든 **포털 빌드**이고, GitHub Pages 의 일반 버전은 그대로 둔다.
 
 ## 포털 빌드 만들기
 ```sh
-python3 tools/build_portal.py            # dist/steambeans-poki.zip, dist/steambeans-crazygames.zip
+python3 tools/build_portal.py            # dist/steambeans-<포털>.zip 네 개
+GD_GAME_ID=<게임 ID> python3 tools/build_portal.py gamedistribution   # GD 는 대시보드의 Game ID 를 넣어 다시 빌드
 ```
 포털 빌드에서 바뀌는 것
 - 로그인·클라우드 저장(Firebase), 서비스 워커, 홈 화면 앱 설정, 개인정보처리방침 링크, 전체화면 버튼을 뺀다
@@ -38,6 +39,24 @@ python3 tools/build_portal.py            # dist/steambeans-poki.zip, dist/steamb
 3. Poki Inspector(https://inspector.poki.io)로 광고 신호 확인 → 플레이어 테스트 → 출시
 - Poki 는 16:9 화면(640×360, 836×470, 1031×580)에 맞춘다 — 게임은 이 크기에서 모바일형 배치로 바뀌며 확인함
 - Poki 는 외부 요청을 기본으로 막는다 — 포털 빌드는 SDK 외 외부 요청이 없음(확인함)
+
+## GameDistribution (올리면 여러 웹게임 사이트에 배포, 광고 수익 분배)
+1. https://developer.gamedistribution.com 가입 → **Upload new game** → 제목·설명(`store/listing-en.md`)·이미지(`store/portal/en/`) 입력
+2. 대시보드에 나오는 **Game ID** 로 빌드: `GD_GAME_ID=<ID> python3 tools/build_portal.py gamedistribution` → `dist/steambeans-gamedistribution.zip` 업로드
+   (ID 없이 만든 zip 에는 자리표시가 들어 있어 광고가 나오지 않는다)
+3. 게임 설정에서 **Rewarded Ads** 를 켠다 (안 켜면 보너스 광고가 안 나옴)
+4. 대시보드의 미리보기에서 첫 광고(pre-roll)를 한 번 끝까지 보면 연동이 확인된다 → 심사(최대 2주)
+- 광고 위치: 게임 시작 버튼 뒤 1회(pre-roll, GD 필수) · 정산 [☀ 다음 날로] · 정산 [📺 보너스] (보상형)
+- 광고 중에는 소리·게임을 멈춘다 (SDK_GAME_PAUSE / SDK_GAME_START)
+
+## Newgrounds (심사 없이 바로 공개)
+1. https://www.newgrounds.com/projects/games → 새 프로젝트 → `dist/steambeans-newgrounds.zip` 업로드 (zip 맨 위에 index.html)
+2. 화면 크기 960×540 정도, **Touchscreen friendly** 체크, 아이콘·썸네일은 `store/portal/en/` 에서
+3. 설명·태그: `store/listing-en.md`
+- 광고 SDK 없음 (Newgrounds 가 사이트에 광고를 붙이고 수익 일부를 나눔). 진행은 브라우저에 저장
+
+## 영어 커버 이미지 (`store/portal/en/`)
+1920×1080, 1280×720, 1280×550, 800×1200, 800×800, 512×512, 512×384, 512×340, 400×300 — 포털이 요구하는 크기를 골라 쓴다
 
 ## 출시 전에 하면 좋은 것
 - **영어 지원**: 완료 — 브라우저 언어가 한국어가 아니면 영어로 시작, 타이틀·메뉴의 🌐 버튼으로 전환. 포털 설명·제목도 영어로 넣을 것

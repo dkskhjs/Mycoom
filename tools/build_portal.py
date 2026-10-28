@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Poki / CrazyGames 업로드용 빌드.
+"""Poki / CrazyGames / GameDistribution / Newgrounds 업로드용 빌드.
 
-    python3 tools/build_portal.py            # 둘 다
-    python3 tools/build_portal.py poki       # 하나만
+    python3 tools/build_portal.py                         # 전부
+    python3 tools/build_portal.py poki                    # 하나만
+    GD_GAME_ID=<게임 ID> python3 tools/build_portal.py gamedistribution   # GD 는 대시보드의 Game ID 가 필요
 
 결과: dist/<portal>/ 폴더와 dist/steambeans-<portal>.zip (zip 맨 위에 index.html).
 포털 빌드에서 바꾸는 것
 - 로그인(Firebase)·서비스 워커·홈 화면 앱(manifest) 관련 태그를 뺀다 (포털은 외부 요청과 외부 링크를 막는다)
 - window.PORTAL 과 해당 포털 SDK 를 넣는다 → js/portal.js 가 광고·로딩·플레이 신호를 보낸다
 """
-import re, shutil, sys, zipfile, pathlib
+import os, re, shutil, sys, zipfile, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SDK = {
     'poki': 'https://game-cdn.poki.com/scripts/v2/poki-sdk.js',
     'crazygames': 'https://sdk.crazygames.com/crazygames-sdk-v3.js',
+    'gamedistribution': 'https://html5.api.gamedistribution.com/main.min.js',
+    'newgrounds': None,   # 광고 SDK 없음
 }
+GD_ID = os.environ.get('GD_GAME_ID', '').strip()
 SKIP_FILES = {'js/firebase-init.js', 'assets/README.md', 'assets/bg/README.md'}
 
 def build(portal):
@@ -34,7 +38,12 @@ def build(portal):
     html = re.sub(r'\s*<script src="js/firebase-init\.js[^"]*"></script>', '', html)
     html = re.sub(r'\s*<link rel="(manifest|apple-touch-icon)"[^>]*>', '', html)
     html = re.sub(r'\s*<meta name="(apple-mobile-web-app-[a-z-]+|mobile-web-app-capable)"[^>]*>', '', html)
-    head = f'\n<script>window.PORTAL = {portal!r};</script>\n<script src="{SDK[portal]}"></script>'
+    head = f'\n<script>window.PORTAL = {portal!r};</script>'
+    if portal == 'gamedistribution':
+        # 공식 안내대로 GD_OPTIONS 를 먼저 두고 SDK 를 싣는다. 이벤트는 js/portal.js 의 Portal.gdEvent 로 (실리기 전이면 줄 세워 둠)
+        head += ('\n<script>window.__gdq = []; window.GD_OPTIONS = { gameId: ' + repr(GD_ID or 'GD_GAME_ID_HERE') +
+                 ', onEvent: ev => typeof Portal !== "undefined" ? Portal.gdEvent(ev) : __gdq.push(ev) };</script>')
+    if SDK[portal]: head += f'\n<script src="{SDK[portal]}"></script>'
     html = html.replace('</title>', '</title>' + head, 1)
     (out / 'index.html').write_text(html, encoding='utf-8')
     z = ROOT / 'dist' / f'steambeans-{portal}.zip'
@@ -48,3 +57,4 @@ def build(portal):
 
 for p in (sys.argv[1:] or SDK):
     build(p)
+    if p == 'gamedistribution' and not GD_ID: print('  ⚠ GD_GAME_ID 가 없어 자리표시로 빌드함 — GameDistribution 대시보드의 Game ID 로 다시 빌드할 것')

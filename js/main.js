@@ -71,6 +71,7 @@ const App = {
     UI.syncSpeed();
     if (Game.s.afterHours) setTimeout(() => UI.showSettle(), 300);
     if ($('#modal').hidden) Portal.gameplay(true);   // 정산 대기 중에 저장했던 세이브
+    Portal.preroll();   // GameDistribution: 시작 버튼 뒤 첫 광고
   },
 
   // ───────── 전체화면 ─────────
