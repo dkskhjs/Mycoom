@@ -290,3 +290,10 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
 .lmsg.bad { color: #ff8a7a; } .lmsg.good { color: #9fe08a; }
 .linkbtn { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--dim); text-decoration: underline; font: inherit; font-size: 12px; cursor: pointer; }
 .cloudpick .btn.cont { margin-top: 8px; width: 100%; }
+/* 정산 화면 */
+.settle .sum tr.good td:last-child { color: #9fe08a; font-weight: bold; }
+.settle .sum tr.bad td:last-child, .settle .bad { color: #ff8a7a; }
+.settle .settle-loan { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 4px 0; }
+.settle .settle-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.settle .settle-btns .btn { flex: 1 1 160px; margin: 0; }
+#openBtn.night { border-color: #8ca0e0; background: linear-gradient(#2c3150, #1a1d33); }

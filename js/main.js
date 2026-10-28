@@ -63,6 +63,7 @@ const App = {
     Render.resize($('#canvasWrap'));
     UI.setMode('utility');
     UI.syncSpeed();
+    if (Game.s.afterHours) setTimeout(() => UI.showSettle(), 300);   // 정산 대기 중에 저장했던 세이브
   },
 
   // ───────── 전체화면 ─────────

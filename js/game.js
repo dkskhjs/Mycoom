@@ -94,7 +94,7 @@ const Game = {
       // 영업 중 저장됐으면 그날 아침으로
       if (this.s.open) { this.s.open = false; this.s.min = OPEN_HOUR * 60; this.s.events = []; }
       const st = this.s;
-      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= [];
+      st.doorX ??= Math.floor(st.W / 2); st.inletY ??= 2; st.expansions ??= 0; st.cats ??= []; st.stains ??= []; st.loans ??= []; st.loanSeq ??= 1; st.difficulty ??= 'easy'; st.auto ??= false; st.crew ??= []; st.afterHours ??= false;
       // 예전 회전(세로 + 뒤집기)을 4방향 값으로: 세로·뒤집기 = 왼쪽(3)
       for (const o of st.objects) { const d = DATA.objects[o.id]; if (d && d.w !== d.h && o.rot === 1 && o.flip) { o.rot = 3; o.flip = false; } if (o.rot) o.rotSet = true; }
       // 테이블 램프가 테이블 위 소품이 되기 전 세이브: 테이블 위가 아니면 전액 환급하고 치운다
@@ -704,6 +704,7 @@ const Game = {
     rt.autoT = 0;
     // 아침: 정산 화면을 닫았으면 바로 개점
     const modalOpen = typeof document !== 'undefined' && document.getElementById('modal') && !document.getElementById('modal').hidden;
+    if (s.afterHours) { if (!modalOpen) this.nextDay(); return; }   // 자동 운영: 정산 화면이 닫히면 다음 날로
     if (!s.open) { if (!modalOpen && this.canOpen()) this.openCafe(); return; }
     // 사고 처리
     if (s.boiler.pressure > 70) this.ventValve();
@@ -817,19 +818,39 @@ const Game = {
   canOpen() { return this.openChecklist().every(c => c.ok); },
   openCafe() {
     if (this.s.open) return;
+    if (this.s.afterHours) { this.toast('오늘 정산을 마치고 [🌙 다음 날로]를 눌러 주세요', 'bad'); return; }
     if (!this.canOpen()) { this.toast('영업 준비가 덜 됐어요 (운영 탭 체크리스트 확인)', 'bad'); return; }
     this.s.open = true; this.s.tutorialDone = true;
     this.rt.lastHour = Math.floor(this.s.min / 60);
     this.toast(`☕ ${this.s.day}일차 영업 시작! 날씨: ${this.weather().name}`); this.sfx('open');
     this.emit('opened');
   },
+  // 영업 종료: 손님을 보내고 '정산 대기'로. 시간은 마감 시각에 멈추고, 이 상태에서 설비·인테리어를 고칠 수 있다.
+  // 급여·사료·로봇 석탄·대출 상환은 [다음 날로]를 누를 때(nextDay) 나간다.
   closeCafe() {
     const s = this.s;
-    s.open = false;
+    if (s.afterHours) return;
+    s.open = false; s.afterHours = true;
     for (const c of this.rt.customers) if (c.state === 'eating') this.payCustomer(c);
     this.rt.customers = []; this.rt.serveQ = [];
     if (this.rt.staff) { this.rt.staff.path = []; this.rt.staff.carry = null; this.rt.staff.target = null; }
     for (const r of this.s.objects) if (r.cook && !r.cook.done) r.cook = null;
+    for (const e of this.rt.crew) { e.path = []; e.task = null; e.carry = null; }
+    this.save();
+    this.sfx('close'); this.emit('settle');
+  },
+  // 정산 화면에 보일 숫자: 오늘 실적 + 내일 아침 나갈 돈 + 빚
+  settleInfo() {
+    const s = this.s;
+    const food = s.cats.length * DATA.catFoodPerDay, wages = this.wages(), robotCoal = Math.min(Math.floor(s.coal), this.robotCoal());
+    const loanDue = s.loans.reduce((a, l) => a + Math.min(l.perDay, l.balance), 0);
+    const profit = s.today.revenue + s.today.tips - s.today.spent;   // 대출금 같은 들어온 돈은 빼고 실제 벌고 쓴 것만
+    return { ...s.today, day: s.day, money: s.money, profit, food, wages, robotCoal, loanDue, debt: this.debt(), after: s.money - food - wages - loanDue };
+  },
+  // 다음 날로: 그날 비용을 치르고 아침 8시로
+  nextDay() {
+    const s = this.s;
+    if (!s.afterHours) return;
     const loanPaid = this.payLoans();
     const food = s.cats.length * DATA.catFoodPerDay;
     if (food) { s.money -= food; s.today.spent += food; }
@@ -837,15 +858,14 @@ const Game = {
     if (wages) { s.money -= wages; s.today.spent += wages; }
     const robotCoal = Math.min(s.coal, this.robotCoal());
     s.coal -= robotCoal;
-    for (const e of this.rt.crew) { e.path = []; e.task = null; e.carry = null; }
     const summary = { ...s.today, day: s.day, endMoney: s.money, catFood: food, wages, robotCoal, loanPaid, debt: this.debt() };
     s.events = []; s.coalPriceMul = 1; s.boiler.pressure = Math.min(s.boiler.pressure, 50);
-    s.day++; s.min = OPEN_HOUR * 60;
+    s.day++; s.min = OPEN_HOUR * 60; s.afterHours = false;
     this.rollWeather();
     this.resetToday();
     this.recompute();
     this.save();
-    this.sfx('close'); this.emit('dayEnd', summary);
+    this.emit('dayEnd', summary);
   },
 
   reachableSeats() {

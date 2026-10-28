@@ -35,10 +35,11 @@ const UI = {
       this.syncSpeed();
     });
     $('#openBtn').addEventListener('click', () => {
+      if (Game.s.afterHours) { this.showSettle(); return; }
       if (!Game.s.open) { Game.openCafe(); this.refresh(); return; }
       // 영업 중에 누르면: 확인 후 오늘 영업을 일찍 마감 (정산하고 다음 날로)
       const eating = Game.rt.customers.filter(c => c.state === 'eating').length, waiting = Game.rt.customers.filter(c => c.state === 'waiting' || c.state === 'toSeat').length;
-      this.confirm('⏹ 영업 마감', `오늘 영업을 지금 마감할까요? (${Game.timeStr()})${eating ? ` 식사 중인 손님 ${eating}명은 계산하고 나가고,` : ''}${waiting ? ` 기다리던 손님 ${waiting}명은 다음에 오기로 해요.` : ''} 정산 후 다음 날로 넘어갑니다.`,
+      this.confirm('⏹ 영업 마감', `오늘 영업을 지금 마감할까요? (${Game.timeStr()})${eating ? ` 식사 중인 손님 ${eating}명은 계산하고 나가고,` : ''}${waiting ? ` 기다리던 손님 ${waiting}명은 다음에 오기로 해요.` : ''} 정산 화면으로 넘어가요.`,
         '마감하기', () => { Game.closeCafe(); this.refresh(); });
     });
     $('#menuBtn').addEventListener('click', () => this.showSystemMenu());
@@ -57,7 +58,8 @@ const UI = {
     Game.on('toast', (m, k) => this.toast(m, k));
     Game.on('built', () => this.refreshLive());
     Game.on('levelUp', () => this.refresh());
-    Game.on('dayEnd', s => { this.refresh(); this.showDayEnd(s); });
+    Game.on('settle', () => { this.refresh(); this.showSettle(); });
+    Game.on('dayEnd', s => { this.refresh(); this.showMorning(s); });
     Game.on('opened', () => this.refresh());
     Game.on('expanded', () => { Render.flakes = []; Render.resize($('#canvasWrap')); this.refresh(); });
     document.addEventListener('keydown', e => {
@@ -371,9 +373,9 @@ const UI = {
     $('#indoor').parentElement.className = 'stat ' + (it >= 20 ? 'good' : it >= 18 ? '' : 'warn');
     const ab = $('#autoBtn'); ab.classList.toggle('on', !!s.auto); ab.textContent = s.auto ? '🤖 자동 ON' : '🤖 자동';
     const ob = $('#openBtn');
-    ob.textContent = s.open ? '영업 중 ⏹' : '☕ 영업 시작';
-    ob.title = s.open ? '눌러서 오늘 영업 마감' : '영업 시작';
-    ob.classList.toggle('open', !!s.open); ob.classList.toggle('ready', !s.open && Game.canOpen());
+    ob.textContent = s.afterHours ? '🌙 정산 · 다음 날로' : s.open ? '영업 중 ⏹' : '☕ 영업 시작';
+    ob.title = s.afterHours ? '정산 화면 열기' : s.open ? '눌러서 오늘 영업 마감' : '영업 시작';
+    ob.classList.toggle('open', !!s.open); ob.classList.toggle('night', !!s.afterHours); ob.classList.toggle('ready', !s.open && !s.afterHours && Game.canOpen());
 
     // 이벤트 배너
     this.renderBanner();
@@ -964,17 +966,56 @@ const UI = {
         h('li', {}, '❄ 눈보라, 보일러 과압, 배관 누수 같은 사고에 대비하세요.')),
       h('button', { class: 'btn big', onclick: () => { this.closeModal(); Tutorial.restart(); } }, '시작하기')));
   },
-  showDayEnd(sum) {
-    const profit = sum.endMoney - sum.startMoney;
-    this.modal(h('div', {},
-      h('h2', {}, `${sum.day}일차 영업 종료`),
+  // 🌙 영업 종료 후 정산: 오늘 실적 · 내일 아침 나갈 돈 · 빚 갚기 → [가게 꾸미기] 또는 [다음 날로]
+  showSettle() {
+    const g = Game.settleInfo(), s = Game.s;
+    const sign = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n));
+    const row = (a, b, cls) => h('tr', { class: cls || '' }, h('td', {}, a), h('td', {}, b));
+    const kids = [
+      h('div', { class: 'mhead' }, h('h2', {}, `🌙 ${g.day}일차 영업 종료 · 정산`), h('button', { class: 'btn mclose', onclick: () => this.settleLater() }, '✕')),
       h('table', { class: 'sum' },
-        ...[['손님', `${sum.served}명`], ['화난 손님', `${sum.angry}명`], ['매출', fmt(sum.revenue)], ['팁', fmt(sum.tips)], ['지출', fmt(sum.spent)], ['석탄 사용', Math.round(sum.coalUsed)], ...(sum.catFood ? [['고양이 사료', fmt(sum.catFood)]] : []), ...(sum.wages ? [['직원 급여', fmt(sum.wages)]] : []), ...(sum.robotCoal ? [['로봇 석탄', Math.round(sum.robotCoal)]] : []), ...(sum.loanPaid ? [['대출 상환', fmt(sum.loanPaid)]] : []), ...(sum.debt ? [['남은 빚', fmt(sum.debt)]] : []), ['순이익', (profit >= 0 ? '+' : '') + fmt(profit)]]
-          .map(([a, b]) => h('tr', {}, h('td', {}, a), h('td', {}, b)))),
-      h('p', { class: 'dim' }, `내일 날씨: ${Game.weather().icon} ${Game.weather().name} (${Game.weather().temp}°)`),
-      h('button', { class: 'btn big', onclick: () => this.closeModal() }, Game.s.auto ? '다음 날 준비 (자동 운영: 곧 넘어갑니다)' : '다음 날 준비')));
-    // 자동 운영 중이면 정산 화면을 잠깐 보여 주고 다음 날로
-    if (Game.s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box) this.closeModal(); }, 6000); }
+        row('오늘 순이익', sign(g.profit), g.profit >= 0 ? 'good' : 'bad'),
+        row('매출 + 팁', `${fmt(g.revenue)} + ${fmt(g.tips)}`),
+        row('지출 (재료·공사 등)', fmt(g.spent)),
+        row('손님', `${g.served}명`),
+        row('가진 돈', `🪙${fmt(g.money)}`)),
+    ];
+    const costs = [['직원 급여', g.wages], ['고양이 사료', g.food], ['대출 상환 (오늘분)', g.loanDue]].filter(([, v]) => v > 0);
+    kids.push(h('h3', {}, '☀ 내일 아침 나갈 돈'));
+    if (costs.length || g.robotCoal) kids.push(h('table', { class: 'sum' },
+      ...costs.map(([a, v]) => row(a, '−' + fmt(v))),
+      g.robotCoal ? row('로봇 석탄', `⚫${g.robotCoal}`) : null,
+      row('나간 뒤 남는 돈', `🪙${fmt(g.after)}`, g.after >= 0 ? '' : 'bad')));
+    else kids.push(h('p', { class: 'dim' }, '나갈 돈이 없어요'));
+    // 빚 갚기
+    kids.push(h('h3', {}, `🏦 빚 ${g.debt ? fmt(g.debt) : '없음'}`));
+    for (const l of s.loans) kids.push(h('div', { class: 'srow settle-loan' },
+      h('span', { class: 'mname' }, l.name, h('small', { class: 'dim' }, ` 남은 ${fmt(l.balance)}${l.missed ? ` · ⚠연체 ${l.missed}회` : ''}`)),
+      h('button', { class: 'btn ghost', disabled: s.money < 1, onclick: () => { Game.repayLoan(l.uid, l.perDay); this.showSettle(); } }, `하루치 더 (${fmt(Math.min(l.perDay, l.balance))})`),
+      h('button', { class: 'btn', disabled: s.money < l.balance, onclick: () => { Game.repayLoan(l.uid); this.showSettle(); } }, '완납')));
+    if (g.after < 0) kids.push(h('p', { class: 'bad' }, '⚠ 돈이 모자라면 대출 상환이 연체될 수 있어요.'));
+    kids.push(h('div', { class: 'settle-btns' },
+      h('button', { class: 'btn ghost', onclick: () => this.settleLater() }, '🛠 가게 꾸미기 (메인으로)'),
+      h('button', { class: 'btn big', onclick: () => { this.closeModal(); Game.nextDay(); } }, '☀ 다음 날로')));
+    this.modal(h('div', { class: 'settle' }, ...kids)); this._view = 'settle';
+    // 자동 운영이면 잠깐 보여 주고 다음 날로
+    if (s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box && Game.s.afterHours) { this.closeModal(); Game.nextDay(); } }, 6000); }
+  },
+  settleLater() {
+    this.closeModal();
+    this.toast('🌙 정산 대기 중 — 설비·인테리어를 마저 고치고, 위의 [🌙 다음 날로]를 누르면 넘어가요');
+  },
+  // ☀ 다음 날 아침: 밤사이 나간 돈과 오늘 날씨
+  showMorning(sum) {
+    const w = Game.weather();
+    const paid = [['직원 급여', sum.wages], ['고양이 사료', sum.catFood], ['대출 상환', sum.loanPaid]].filter(([, v]) => v > 0);
+    this.modal(h('div', {},
+      h('h2', {}, `☀ ${Game.s.day}일차 아침`),
+      h('p', {}, `오늘 날씨: ${w.icon} ${w.name} (${w.temp}°)`),
+      paid.length || sum.robotCoal ? h('table', { class: 'sum' }, ...paid.map(([a, v]) => h('tr', {}, h('td', {}, a), h('td', {}, '−' + fmt(v)))), sum.robotCoal ? h('tr', {}, h('td', {}, '로봇 석탄'), h('td', {}, '⚫' + Math.round(sum.robotCoal))) : null) : null,
+      sum.debt ? h('p', { class: 'dim' }, `남은 빚 ${fmt(sum.debt)}`) : null,
+      h('button', { class: 'btn big', onclick: () => this.closeModal() }, Game.s.auto ? '영업 준비 (자동 운영: 곧 시작합니다)' : '영업 준비')));
+    if (Game.s.auto) { const box = $('#modal').firstChild; setTimeout(() => { if ($('#modal').firstChild === box) this.closeModal(); }, 3000); }
   },
   // 계정(클라우드 저장) — 상단바 대신 메뉴에서만 보여 준다
   accountSection() {
