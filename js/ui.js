@@ -305,7 +305,7 @@ const UI = {
       list.append(h('div', { class: 'mrow' + (locked ? ' locked' : '') },
         Sprites.thumb('icon', id, 18),
         h('span', { class: 'mname' }, r.name),
-        h('span', { class: 'dim' }, locked ? `🔒Lv.${r.lv}` : `${DATA.objects[r.eq].name.split(' ').pop()} · ${r.time}분 · ×${r.yield}`),
+        h('span', { class: 'dim' }, locked ? `🔒Lv.${r.lv}` : `${I18N.t(DATA.objects[r.eq].name).split(' ').pop()} · ${r.time}분 · ×${r.yield}`),
         h('span', { class: 'mprice' }, `🪙${r.price}`)));
     }
     B.append(list);
@@ -888,6 +888,7 @@ const UI = {
       go();
     } }, user || !C ? '새 게임' : '새 게임 (로그인 없이)'));
     if (App.isMobile() && !App.isStandalone() && !window.PORTAL) box.append(h('p', { class: 'dim fs-hint' }, App.isIOS() ? '📱 아이폰은 사파리 공유 버튼 → [홈 화면에 추가] 로 설치하면 전체화면으로 실행돼요' : '📱 게임을 시작하면 전체화면으로 바뀌어요 · 브라우저 메뉴 → [홈 화면에 추가] 하면 앱처럼 실행'));
+    box.append(this.langRow());
     this.modal(box); this._view = 'title';
   },
   // 로그인 · 회원가입 창 (게임 화면 스타일)
@@ -1069,6 +1070,11 @@ const UI = {
     r.addEventListener('input', () => { out.textContent = r.value; onInput(r.value / 100); });
     return h('label', { class: 'vrow' }, h('span', { class: 'vname' }, label), r, out);
   },
+  // 언어 전환 버튼 (각 언어 이름은 그 언어로)
+  langRow() {
+    const b = (l, name) => h('button', { class: 'btn' + (I18N.lang === l ? ' on' : ''), onclick: () => I18N.set(l) }, name);
+    return h('div', { class: 'langrow' }, h('span', { class: 'vname' }, '🌐'), b('ko', '한국어'), b('en', 'English'));
+  },
   showSystemMenu() {
     this.modal(h('div', {},
       h('div', { class: 'mhead' }, h('h2', {}, '메뉴'), h('button', { class: 'btn mclose', onclick: () => this.closeModal() }, '✕ 닫기')),
@@ -1076,6 +1082,7 @@ const UI = {
       this.volRow('음악', BGM.vol, v => BGM.setVol(v)),
       this.volRow('효과음', SFX.vol, v => SFX.setVol(v)),
       this.volRow('증기·환경음', SFX.envVol, v => SFX.setEnvVol(v)),
+      this.langRow(),
       h('button', { class: 'btn big', onclick: () => { Game.save(); this.toast('저장했습니다'); this.closeModal(); } }, '저장'),
       h('button', { class: 'btn big', onclick: () => this.modal(h('div', {},
         h('h2', {}, '처음부터 시작할까요?'), h('p', {}, '지금 카페의 진행 상황이 모두 지워집니다.'),

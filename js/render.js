@@ -814,8 +814,9 @@ const Render = {
     for (const f of Game.rt.floats) {
       const sp = this.toScreen(f.x * TILE, f.y * TILE), x = sp.x * d, y = sp.y * d;
       g.globalAlpha = Math.min(1, f.life);
-      g.lineWidth = Math.max(3, fs / 4); g.strokeStyle = '#1a100a'; g.strokeText(f.text, x, y);
-      g.fillStyle = f.color; g.fillText(f.text, x, y);
+      const txt = f.tx ?? (f.tx = I18N.t(f.text));
+      g.lineWidth = Math.max(3, fs / 4); g.strokeStyle = '#1a100a'; g.strokeText(txt, x, y);
+      g.fillStyle = f.color; g.fillText(txt, x, y);
     }
     g.globalAlpha = 1;
   },

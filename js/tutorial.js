@@ -124,7 +124,7 @@ const Tutorial = {
     if (t.min) return el.replaceChildren(head);
     el.replaceChildren(
       head,
-      h('p', {}, ...st.text.split('\n').flatMap((line, k) => k ? [h('br'), line] : [line])),
+      h('p', {}, ...I18N.t(st.text).split('\n').flatMap((line, k) => k ? [h('br'), line] : [line])),
       h('div', { class: 'tut-btns' },
         h('button', { class: 'btn ghost', onclick: () => { this.focus(); if (UI.isSheet()) UI.openSheet(); } }, '여기로 이동'),
         st.optional ? h('button', { class: 'btn ghost', onclick: () => { t.i++; this.focus(); this.tick(); } }, '나중에') : null));

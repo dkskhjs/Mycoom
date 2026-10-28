@@ -109,5 +109,11 @@
 | `js/town.js` | 가게 주변 마을 배경, 쌓인 눈 |
 | `js/ui.js` | 패널·팝업·입력 |
 | `js/audio.js` | BGM |
+| `js/i18n.js`, `js/i18n_en.js` | 한/영 전환 — 코드는 한국어 그대로, 영어일 때 화면 글자를 사전으로 바꿈 |
+
+### 영어 번역 고치기 / 새 문자열 넣기
+1. `python3 tools/i18n/extract.py` — 코드의 한국어 문자열을 `tools/i18n/source.json` 으로 뽑음 (`${…}` 는 `{0}` `{1}` …)
+2. 번역이 없는 문자열을 `tools/i18n/en_4.json` 같은 파일에 `"한국어": "English"` 로 추가 (고칠 때는 해당 en_*.json 에서)
+3. `python3 tools/i18n/build.py` — `js/i18n_en.js` 생성, 빠진 번역을 알려 줌
 
 에셋 규격과 캐릭터 생성 프롬프트는 [assets/README.md](assets/README.md)에 있습니다.

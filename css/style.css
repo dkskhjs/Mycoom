@@ -305,3 +305,8 @@ html.standalone, html.standalone body, html.standalone #app { height: 100vh; }
   #camctl .btn { padding: 2px 7px; }
   #topbar { gap: 3px 5px; padding: 3px 6px; }
 }
+
+/* 언어 전환 */
+.langrow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; }
+.langrow .btn { min-width: 96px; }
+.langrow .btn.on { border-color: var(--brass, #efc760); color: var(--brass, #efc760); }
