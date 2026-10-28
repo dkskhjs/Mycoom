@@ -6,35 +6,37 @@ Steam & Beans
 (Google Play, 30 chars max: **Steam & Beans: Café Tycoon**)
 
 ## Short description (80 chars max)
-Fire up a steam boiler, pipe it to your espresso machine and run a pixel café.
+Coal in, espresso out. Run a steampunk pixel café before the boiler explodes.
 
 ## Description
-Every cup of espresso starts in the boiler room.
+In the great steam city of Cogsworth-upon-Smog, coffee is not brewed. It is *engineered*.
 
-Buy an empty lot in a smoky steampunk city and build a café from the pipes up. Your central steam boiler is the heart of the shop: burn coal, build up pressure and send that steam through copper pipes to the brass espresso machine. Without boiler output there's no espresso: if the coal runs out or a pipe springs a leak, the machine goes cold and the queue gets angry.
+You have one empty lot, a bag of coins and an unreasonable dream: a café. Not a quaint little café with a kettle. A proper café, with a coal-fired central boiler roaring in the corner like a dragon with a mortgage.
 
-☕ A café that runs on steam
-- Lay water, steam and floor-heating pipes yourself, from the water inlet to the boiler to every machine
-- Feed the boiler coal, watch the pressure gauge, and open the safety valve before it blows
-- Brew espresso, lattes, mocha and Earl Grey, bake scones and gear cookies, and roast sweet potatoes right in the boiler
-- Floor and wall finishes insulate your café: carpet and bookshelf walls keep the heat in, while stained glass is pretty but drafty
+☕ Espresso, powered by industrial overkill
+- Shovel coal into the boiler, build up pressure, and pipe the steam all the way to your brass espresso machine. No boiler output, no espresso. Science!
+- Lay every pipe yourself: water from the street inlet, steam to the machines, heating under the floor. Plumbers fear you. Customers respect you.
+- Keep an eye on the pressure gauge. When the needle hits red, open the safety valve. Do not "see what happens."
+- A leaky pipe drips, the steam stops, the latte stops, and somewhere a nobleman sighs loudly.
+- Roast sweet potatoes right in the boiler, because wasting free heat is a crime in this city.
 
-🎨 Decorate in pixel art
-- Dozens of floors, walls, ceilings, chandeliers, gas lamps, sofas and plants
-- Rotate furniture freely: chairs turn to face their table
-- At night, customers want a seat where the light reaches
+🎨 Decorate like a gentleman of questionable taste
+- Herringbone floors, mahogany panels, bookshelf walls, chandeliers and gas lamps
+- Carpet keeps the heat in. Stained glass looks magnificent and leaks heat like a sieve. Choose fashion or your heating bill.
+- Chairs politely turn to face their tables. They have better manners than some of your customers.
+- At night, nobody wants to sip cocoa in the dark. Light those seats.
 
-👥 Customers, staff and steam robots
-- Citizens, miners, blacksmiths, airship pilots and nobles, each with their own tastes
-- Hire waiters, baristas, cleaners and stokers
-- Or buy coal-powered brass serving bots and copper cleaning bots
+👥 Staff, regulars and very loyal robots
+- Serve soot-covered miners, sweaty blacksmiths, airship pilots on layover and nobles who complain professionally
+- Hire waiters, baristas, cleaners and a stoker who genuinely loves coal
+- Or buy steam robots: brass serving bots and copper cleaning bots that never ask for wages, only coal (and the occasional existential crisis when the boiler stops)
 
-🌙 Close up and settle the day
-- At 22:00, check today's profit and tomorrow's bills
-- Pay off loans, keep decorating, then start the next day
-- Blizzards, coal strikes and surprise inspections keep you on your toes
+🌙 Count the coins at closing time
+- At 22:00, tally up today's profit and tomorrow's bills
+- Repay the Steam Bank (they are patient, mostly), redecorate in peace, then start a new day
+- Survive blizzards, coal strikes and the dreaded safety inspector
 
-Also: adopt café cats, expand your shop, borrow from the Steam Bank, pick Easy, Normal or Hard, or turn on auto mode and just watch it run.
+Also included: café cats who nap on heated floors, shop expansions, three difficulty levels, and an auto mode for when you'd rather just watch the gears turn.
 
 Play in English or Korean (🌐 on the title screen or in the menu).
 
